@@ -3,6 +3,7 @@ import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock } from "luc
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
 import { CampaignFormData, UploadSourceType } from "./types";
+import { agents, DEFAULT_AGENT_SCRIPTS } from "@/lib/constants";
 
 // BUG-028: Parse a time string like "09:00" or "09:00 AM" into parts
 function parseTime(raw: string): { hour: string; minute: string; ampm: "AM" | "PM" } {
@@ -32,8 +33,6 @@ interface CampaignFormProps {
   totalContacts?: number;
   onGoogleSheetLoaded?: (contacts: any[], sheetId: string) => void;
 }
-
-const agents = ["Voice-A (Sales)", "Voice-B (Support)", "Voice-C (Followup)", "Voice-D (Survey)"];
 
 export default function CampaignForm({
   formData,
@@ -102,10 +101,25 @@ export default function CampaignForm({
                     key={agent}
                     type="button"
                     onClick={() => {
-                      onChange({ agent });
+                      const newDefault = DEFAULT_AGENT_SCRIPTS[agent] || "";
+                      const currentScript = formData.script || "";
+                      const previousAgentDefault = formData.agent ? (DEFAULT_AGENT_SCRIPTS[formData.agent] || "") : "";
+                      
+                      const isUnchanged = !currentScript || currentScript.trim() === previousAgentDefault.trim();
+                      
+                      if (!isUnchanged) {
+                        if (window.confirm("You have edited the current script. Selecting a new agent will replace it with the new default. Proceed?")) {
+                          onChange({ agent, script: newDefault });
+                        } else {
+                          setShowAgentDropdown(false);
+                          return;
+                        }
+                      } else {
+                        onChange({ agent, script: newDefault });
+                      }
                       setShowAgentDropdown(false);
                     }}
-                    className="flex w-full px-4 py-2 text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    className="flex w-full px-4 py-2 text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800 text-left"
                   >
                     {agent}
                   </button>
