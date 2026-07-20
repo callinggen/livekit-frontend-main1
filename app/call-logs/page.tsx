@@ -10,6 +10,9 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { api } from "@/lib/api";
+
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 // Dummy Data matching the screenshot
 const INITIAL_DATA = [
@@ -29,7 +32,8 @@ export default function CallLogsPage() {
   const { isLoggedIn } = useAuth();
   const router = useRouter();
   
-  const [data, setData] = useState(INITIAL_DATA);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   
   // Filtering
@@ -46,7 +50,7 @@ export default function CallLogsPage() {
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   
   // Modals/Popups
-  const [selectedCall, setSelectedCall] = useState<typeof INITIAL_DATA[0] | null>(null);
+  const [selectedCall, setSelectedCall] = useState<any | null>(null);
   
   // Edit mode tracking
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -55,7 +59,33 @@ export default function CallLogsPage() {
   useEffect(() => {
     if (!isLoggedIn) {
       router.replace("/login");
+      return;
     }
+
+    api.getCalls().then((res: any[]) => {
+      const mappedData = res.map((r, i) => ({
+        id: r.id ? Number(r.id) : i,
+        name: r.name || r.customer_name || "Unknown",
+        phone: r.phone || "N/A",
+        type: "OUTBOUND",
+        duration: r.duration || "00:00",
+        datetime: r.datetime,
+        credits: Math.floor(Math.random() * 20) + 1,
+        response: (r.response || "NO ANSWER").toUpperCase(),
+        status: (r.status || "COMPLETED").toUpperCase(),
+        humanResponse: r.notes || "",
+        aiClass: r.summary || "Pending",
+        agent: r.campaign || "System Agent",
+        category: "UNCATEGORIZED",
+        transcript: r.transcript || [],
+        recording_url: r.recording_url || "",
+      }));
+      setData(mappedData);
+    }).catch(err => {
+      console.error("Failed to load calls:", err);
+    }).finally(() => {
+      setLoading(false);
+    });
   }, [isLoggedIn, router]);
 
   if (!isLoggedIn) {
@@ -273,7 +303,16 @@ export default function CallLogsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {processedData.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={13} className="text-center py-10 text-muted-foreground">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                        Loading call logs...
+                      </div>
+                    </td>
+                  </tr>
+                ) : processedData.length === 0 ? (
                   <tr>
                     <td colSpan={13} className="text-center py-10 text-muted-foreground">
                       No call logs found matching your filters.
@@ -444,46 +483,32 @@ export default function CallLogsPage() {
                 <div className="flex flex-col h-full">
                   <h4 className="font-semibold flex items-center gap-2 mb-3"><FileText className="w-4 h-4 text-primary" /> Call Transcript</h4>
                   <div className="bg-background border border-border/50 rounded-xl p-5 flex-1 min-h-[300px] overflow-y-auto space-y-6 text-sm shadow-sm">
-                    <div className="flex gap-4">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">A</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-foreground">Agent</p>
-                          <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded-sm">00:00</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed">Hello, is this {selectedCall.name}?</p>
+                    {!selectedCall.transcript || selectedCall.transcript.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-muted-foreground italic">
+                        No transcript available.
                       </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">C</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-foreground">Customer</p>
-                          <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded-sm">00:03</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed">Yes, speaking. Who is this?</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">A</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-foreground">Agent</p>
-                          <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded-sm">00:05</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed">I'm calling from CallingGen regarding your recent inquiry. Do you have a few minutes?</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">C</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-foreground">Customer</p>
-                          <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded-sm">00:12</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed">Ah yes, I was looking into your AI voice solutions.</p>
-                      </div>
-                    </div>
+                    ) : (
+                      selectedCall.transcript.map((msg: any, i: number) => {
+                        const isAgent = msg.speaker.toLowerCase() === "assistant" || msg.speaker.toLowerCase() === "agent";
+                        return (
+                          <div key={i} className="flex gap-4">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ${
+                              isAgent 
+                                ? "bg-primary/20 text-primary" 
+                                : "bg-secondary text-secondary-foreground"
+                            }`}>
+                              {isAgent ? "A" : "C"}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-medium text-foreground">{isAgent ? "Agent" : "Customer"}</p>
+                              </div>
+                              <p className="text-muted-foreground leading-relaxed">{msg.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -493,20 +518,19 @@ export default function CallLogsPage() {
                   {/* Player */}
                   <div className="flex flex-col">
                     <h4 className="font-semibold flex items-center gap-2 mb-3"><PlayCircle className="w-4 h-4 text-primary" /> Recording</h4>
-                    <div className="bg-background border border-border/50 rounded-xl p-6 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-xs font-medium bg-muted px-2 py-1 rounded-md">00:15 / {selectedCall.duration}</span>
-                        <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
-                      </div>
-                      <div className="w-full bg-border h-2 rounded-full mb-6 relative cursor-pointer group">
-                        <div className="absolute left-0 top-0 h-full bg-primary rounded-full w-1/3 group-hover:bg-primary/80 transition-colors"></div>
-                        <div className="absolute left-1/3 top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow-md border-2 border-background opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      </div>
-                      <div className="flex justify-center items-center gap-6 text-foreground">
-                        <button className="hover:text-primary transition-colors"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg></button>
-                        <button className="text-primary hover:text-primary/80 hover:scale-110 transition-all drop-shadow-md"><PlayCircle className="w-14 h-14" fill="currentColor" fillOpacity={0.15} /></button>
-                        <button className="hover:text-primary transition-colors"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg></button>
-                      </div>
+                    <div className="bg-background border border-border/50 rounded-xl p-6 shadow-sm flex flex-col items-center justify-center min-h-[140px]">
+                      {!selectedCall.recording_url ? (
+                        <div className="text-muted-foreground italic">
+                          No recording available for this call.
+                        </div>
+                      ) : (
+                        <audio 
+                          src={selectedCall.recording_url.startsWith('http') ? selectedCall.recording_url : BASE + selectedCall.recording_url}
+                          controls 
+                          className="w-full outline-none"
+                          preload="metadata"
+                        />
+                      )}
                     </div>
                   </div>
                   
