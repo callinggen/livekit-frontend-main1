@@ -88,7 +88,7 @@ export default function CampaignsPage() {
           }
         })
         .catch(err => {
-          console.error("Failed to load campaigns:", err);
+          console.warn("Failed to load campaigns:", err);
           setCampaigns(DUMMY_CAMPAIGNS);
         })
         .finally(() => setLoading(false));

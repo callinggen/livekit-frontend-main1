@@ -256,7 +256,7 @@ export default function CallManagerPage() {
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unable to start campaign.";
-      console.error(error);
+      console.warn(error);
       alert(msg);
     } finally {
       setLaunching(false);

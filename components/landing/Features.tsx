@@ -1,90 +1,65 @@
 "use client";
 
-import {
-  Bot,
-  PhoneOutgoing,
-  BarChart3,
-  Languages,
-  Plug,
-  Clock,
-} from "lucide-react";
+import { motion } from "framer-motion";
+import { PhoneOutgoing, PhoneIncoming, CalendarCheck, Target, Network, Mic, FileText, BarChart3, Languages, Settings2, Code2, Briefcase } from "lucide-react";
 
-const features = [
-  {
-    title: "AI Voice Agents",
-    desc: "Natural, human-sounding conversations powered by cutting-edge AI language models.",
-    icon: Bot,
-  },
-  {
-    title: "Bulk Calling",
-    desc: "Reach thousands of customers automatically with intelligent scheduling and retry logic.",
-    icon: PhoneOutgoing,
-  },
-  {
-    title: "Call Analytics",
-    desc: "Track every call outcome, conversion rate, and sentiment with real-time dashboards.",
-    icon: BarChart3,
-  },
-  {
-    title: "Multi-Language",
-    desc: "Talk to customers in their preferred language with support for 20+ languages.",
-    icon: Languages,
-  },
-  {
-    title: "CRM Integrations",
-    desc: "Seamlessly connect with Salesforce, HubSpot, Zoho, and your existing workflow tools.",
-    icon: Plug,
-  },
-  {
-    title: "24/7 Availability",
-    desc: "AI agents never sleep, never miss a call, and maintain consistent quality around the clock.",
-    icon: Clock,
-  },
+const FEATURES = [
+  { icon: PhoneOutgoing, title: "AI Outbound Calling", desc: "Automate cold outreach, follow-ups, and payment reminders at scale." },
+  { icon: PhoneIncoming, title: "AI Inbound Receptionist", desc: "Handle customer queries 24/7 without making them wait on hold." },
+  { icon: CalendarCheck, title: "Appointment Booking", desc: "AI natively integrates with your calendar to schedule meetings." },
+  { icon: Target, title: "Lead Qualification", desc: "Ask the right questions to qualify prospects before transferring to humans." },
+  { icon: Network, title: "CRM Integration", desc: "Automatically sync calls, transcripts, and lead statuses to your CRM." },
+  { icon: Mic, title: "Call Recording", desc: "Every conversation is securely recorded for quality assurance." },
+  { icon: FileText, title: "Transcriptions", desc: "Get real-time, accurate transcripts of every AI conversation." },
+  { icon: BarChart3, title: "Analytics Dashboard", desc: "Track success rates, call volumes, and agent performance." },
+  { icon: Languages, title: "Multi-language Support", desc: "Speak to customers globally in their native language natively." },
+  { icon: Settings2, title: "Workflow Automation", desc: "Trigger actions based on call outcomes (e.g., send SMS/Email)." },
+  { icon: Code2, title: "API Integration", desc: "Build custom experiences with our robust developer APIs." },
+  { icon: Briefcase, title: "White Label Support", desc: "Brand the platform as your own for your enterprise clients." },
 ];
 
 export default function Features() {
   return (
-    <section id="features" className="relative overflow-hidden py-24">
-      {/* Background decoration */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-0 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-[120px]" />
-      </div>
-
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-primary">
-            Features
-          </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-            Why Choose <span className="gradient-text">CallingGen</span>
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Everything you need to automate your calling operations with
-            AI-powered voice agents.
-          </p>
+    <section className="py-24 bg-background" id="features">
+      <div className="container mx-auto px-6 max-w-7xl">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-primary font-semibold tracking-wider text-sm uppercase mb-4"
+          >
+            Platform Features
+          </motion.div>
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-3xl md:text-5xl font-bold mb-6"
+          >
+            Everything You Need To Automate Conversations
+          </motion.h2>
         </div>
 
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, i) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="animate-fade-up group rounded-2xl border border-border bg-card p-7 transition-all hover:border-primary/30 hover:shadow-xl hover:-translate-y-1"
-                style={{ animationDelay: `${i * 100}ms` }}
-              >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all group-hover:scale-110 group-hover:bg-primary/15">
-                  <Icon className="h-6 w-6" />
-                </div>
-
-                <h3 className="text-lg font-semibold">{feature.title}</h3>
-
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {feature.desc}
-                </p>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {FEATURES.map((feature, i) => (
+            <motion.div
+              key={feature.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.05 }}
+              className="group p-6 rounded-2xl bg-accent/20 border border-border/50 hover:border-primary/30 hover:bg-accent/40 transition-all duration-300 hover:-translate-y-1 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 blur-[40px] rounded-full group-hover:bg-primary/20 transition-colors" />
+              <div className="w-12 h-12 rounded-xl bg-background border border-border shadow-sm flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform duration-300">
+                <feature.icon className="w-6 h-6" />
               </div>
-            );
-          })}
+              <h3 className="text-lg font-bold mb-3 relative z-10">{feature.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed relative z-10">{feature.desc}</p>
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>

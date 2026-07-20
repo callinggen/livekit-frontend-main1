@@ -1,144 +1,118 @@
 "use client";
 
-import Link from "next/link";
-
-import { Sun, Moon, Phone, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { Menu, X, PhoneCall } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+const NAV_LINKS = [
+  { name: "Features", href: "#features" },
+  { name: "Industries", href: "#industries" },
+  { name: "Workflow", href: "#workflow" },
+  { name: "Pricing", href: "/pricing" },
+  { name: "FAQs", href: "#faq" },
+];
 
 export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const toggleTheme = () => {
-    setIsDark((prev) => {
-      const next = !prev;
-      if (next) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-      return next;
-    });
-  };
-
   return (
-    <header className="sticky top-0 z-50 glass-card">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled
+          ? "bg-background/80 backdrop-blur-md border-b border-border/50 py-3 shadow-sm"
+          : "bg-transparent py-5"
+      }`}
+    >
+      <div className="container mx-auto px-6 max-w-7xl flex items-center justify-between">
         {/* Logo */}
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-xl font-bold tracking-tight"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Phone className="h-4 w-4" />
+        <Link href="/" className="flex items-center gap-2 group">
+          <div className="bg-primary/10 text-primary p-2 rounded-xl group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+            <PhoneCall className="w-5 h-5" />
           </div>
-          <span className="gradient-text">CallingGen</span>
+          <span className="font-bold text-xl tracking-tight">CallingGen</span>
         </Link>
 
-        {/* Actions Container */}
-        <div className="flex items-center gap-2 md:gap-4">
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-secondary text-muted-foreground transition-all active:scale-95"
-            aria-label="Toggle theme"
-          >
-            {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-          </button>
-
-          {/* Desktop nav */}
-          <div className="hidden items-center gap-2 md:flex">
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-8">
+          {NAV_LINKS.map((link) => (
             <Link
-              href="/#features"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-          >
-            Features
+              key={link.name}
+              href={link.href}
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {link.name}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Desktop CTA */}
+        <div className="hidden md:flex items-center gap-4">
+          <Link href="/login">
+            <Button variant="ghost" className="font-medium">
+              Login
+            </Button>
           </Link>
-
-          <Link
-            href="/#industries"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-          >
-            Industries
-          </Link>
-
-          <Link
-            href="/pricing"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-          >
-            Pricing
-          </Link>
-
-
-
-          <Link
-            href="/login"
-            className="ml-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.97]"
-          >
-            Login
+          <Link href="#demo">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 shadow-md glow-primary">
+              Book Demo
+            </Button>
           </Link>
         </div>
 
-        {/* Mobile hamburger */}
-        <div className="flex items-center gap-4 md:hidden">
-
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-secondary text-muted-foreground transition-all active:scale-95"
-            aria-label="Toggle menu"
-            id="mobile-menu-toggle"
-          >
-            {mobileOpen ? (
-              <X className="h-[18px] w-[18px]" />
-            ) : (
-              <Menu className="h-[18px] w-[18px]" />
-            )}
-          </button>
-        </div>
-        </div>
+        {/* Mobile Menu Toggle */}
+        <button
+          className="md:hidden text-foreground p-2"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
       </div>
 
-      {/* Mobile menu */}
-      <div
-        className={`overflow-hidden transition-all duration-300 md:hidden ${
-          mobileOpen ? "max-h-64 border-t border-border" : "max-h-0"
-        }`}
-      >
-        <div className="flex flex-col gap-1 px-6 py-4">
-          <Link
-            href="/#features"
-            className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-            onClick={() => setMobileOpen(false)}
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-full left-0 right-0 bg-background border-b border-border shadow-lg p-6 flex flex-col gap-4 md:hidden"
           >
-            Features
-          </Link>
-          <Link
-            href="/#industries"
-            className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-            onClick={() => setMobileOpen(false)}
-          >
-            Industries
-          </Link>
-          <Link
-            href="/pricing"
-            className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-            onClick={() => setMobileOpen(false)}
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/login"
-            className="mt-2 rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground transition-all hover:opacity-90"
-            onClick={() => setMobileOpen(false)}
-          >
-            Login
-          </Link>
-        </div>
-      </div>
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="text-lg font-medium text-muted-foreground hover:text-foreground py-2 border-b border-border/50"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {link.name}
+              </Link>
+            ))}
+            <div className="flex flex-col gap-3 mt-4">
+              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="outline" className="w-full justify-center">
+                  Login
+                </Button>
+              </Link>
+              <Link href="#demo" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button className="w-full justify-center bg-primary text-primary-foreground">
+                  Book Demo
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

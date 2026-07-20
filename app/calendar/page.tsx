@@ -7,6 +7,7 @@ import DashboardShell from "@/components/DashboardShell";
 import { ChevronLeft, ChevronRight, Clock, Plus, Target, User, Bot, PhoneCall, Calendar as CalendarIcon, X, Save } from "lucide-react";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import DetailsDrawer from "@/components/shared/DetailsDrawer";
+import { api } from "@/lib/api";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -61,28 +62,79 @@ export default function CalendarPage() {
   const [dummyEvents, setDummyEvents] = useState<Record<string, CalEvent[]>>({});
 
   useEffect(() => {
-    const y = today.getFullYear();
-    const m = today.getMonth();
-    
-    const events: Record<string, CalEvent[]> = {};
-    
-    const addEvent = (dayOffset: number, event: CalEvent) => {
-      const d = new Date(y, m, today.getDate() + dayOffset);
-      const key = toKey(d.getFullYear(), d.getMonth(), d.getDate());
-      event.date = key;
-      if (!events[key]) events[key] = [];
-      events[key].push(event);
-    };
+    if (!isLoggedIn) return;
 
-    addEvent(0, { id: "1", title: "Launch Q4 Campaign", time: "09:00 AM", type: "campaign", contactOrCampaign: "Q4 Outreach", agent: "Voice-A (Sales)", notes: "Ensure all contacts are verified before launch." });
-    addEvent(0, { id: "2", title: "Follow-up: High Priority Lead", time: "02:30 PM", type: "followup", contactOrCampaign: "Alice Johnson", agent: "Voice-B (Support)", notes: "Customer requested a callback regarding pricing." });
-    addEvent(2, { id: "3", title: "Review Weekly Metrics", time: "10:00 AM", type: "meeting", contactOrCampaign: "Internal Team", notes: "Review AI Agent success rates." });
-    addEvent(2, { id: "4", title: "Holiday Special Promo", time: "11:00 AM", type: "campaign", contactOrCampaign: "Holiday Special", agent: "Voice-C (Followup)", notes: "Targeting inactive users." });
-    addEvent(-3, { id: "5", title: "Client Demo", time: "01:00 PM", type: "meeting", contactOrCampaign: "Acme Corp", notes: "Demo the new real-time translation features." });
-    addEvent(5, { id: "6", title: "Callback: Tech Lead", time: "04:00 PM", type: "followup", contactOrCampaign: "Bob Smith", agent: "Voice-B (Support)", notes: "Discuss technical integration." });
+    Promise.all([api.getCampaigns(), api.getCalls()])
+      .then(([cData, callData]) => {
+        const events: Record<string, CalEvent[]> = {};
 
-    setDummyEvents(events);
-  }, []);
+        const pushEvent = (dateKey: string, event: CalEvent) => {
+          if (!events[dateKey]) events[dateKey] = [];
+          events[dateKey].push(event);
+        };
+
+        // 1. Map Campaigns from backend schedule
+        cData.forEach(c => {
+          if (c.schedule) {
+            const parts = c.schedule.split(" ");
+            const dateKey = parts[0];
+            const time = parts.slice(1).join(" ");
+            pushEvent(dateKey, {
+              id: `campaign-${c.id}`,
+              title: `Launch: ${c.name}`,
+              time: time || "09:00 AM",
+              type: "campaign",
+              contactOrCampaign: c.name,
+              agent: c.agent,
+              notes: c.script || "AI Campaign run.",
+              date: dateKey,
+            });
+          }
+        });
+
+        // 2. Map Booked Appointments from Calls
+        callData.forEach(call => {
+          if (call.appointment_date) {
+            const dateKey = call.appointment_date;
+            pushEvent(dateKey, {
+              id: `appt-${call.id}`,
+              title: `Appt: ${call.name}`,
+              time: call.appointment_time || "12:00 PM",
+              type: "followup",
+              contactOrCampaign: call.name,
+              agent: "AI Agent",
+              notes: call.notes || "Booked appointment follow-up.",
+              date: dateKey,
+            });
+          }
+        });
+
+        // 3. Fallback dummy events if no backend events are loaded
+        const totalLoaded = Object.keys(events).length;
+        if (totalLoaded === 0) {
+          const y = today.getFullYear();
+          const m = today.getMonth();
+          const addDefault = (dayOffset: number, event: CalEvent) => {
+            const d = new Date(y, m, today.getDate() + dayOffset);
+            const key = toKey(d.getFullYear(), d.getMonth(), d.getDate());
+            event.date = key;
+            if (!events[key]) events[key] = [];
+            events[key].push(event);
+          };
+          addDefault(0, { id: "1", title: "Launch Q4 Campaign", time: "09:00 AM", type: "campaign", contactOrCampaign: "Q4 Outreach", agent: "Voice-A (Sales)", notes: "Ensure all contacts are verified before launch." });
+          addDefault(0, { id: "2", title: "Follow-up: High Priority Lead", time: "02:30 PM", type: "followup", contactOrCampaign: "Alice Johnson", agent: "Voice-B (Support)", notes: "Customer requested a callback regarding pricing." });
+          addDefault(2, { id: "3", title: "Review Weekly Metrics", time: "10:00 AM", type: "meeting", contactOrCampaign: "Internal Team", notes: "Review AI Agent success rates." });
+          addDefault(2, { id: "4", title: "Holiday Special Promo", time: "11:00 AM", type: "campaign", contactOrCampaign: "Holiday Special", agent: "Voice-C (Followup)", notes: "Targeting inactive users." });
+          addDefault(-3, { id: "5", title: "Client Demo", time: "01:00 PM", type: "meeting", contactOrCampaign: "Acme Corp", notes: "Demo the new real-time translation features." });
+          addDefault(5, { id: "6", title: "Callback: Tech Lead", time: "04:00 PM", type: "followup", contactOrCampaign: "Bob Smith", agent: "Voice-B (Support)", notes: "Discuss technical integration." });
+        }
+
+        setDummyEvents(events);
+      })
+      .catch(err => {
+        console.warn("Failed to fetch calendar events:", err);
+      });
+  }, [isLoggedIn]);
 
   if (!isLoggedIn) return null;
 

@@ -18,12 +18,10 @@ import {
   PhoneCall,
   Sun,
   UserCircle2,
-  Users2,
   X,
   Zap,
   CreditCard,
   ArrowUpCircle,
-  MessageSquareText,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -32,9 +30,7 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Calendar", icon: CalendarDays, href: "/calendar" },
   { label: "Call Manager", icon: PhoneCall, href: "/call-manager" },
-  { label: "Call Details", icon: ClipboardList, href: "/details" },
-  { label: "Responses", icon: MessageSquareText, href: "/responses" },
-  { label: "Leads", icon: Users2, href: "/leads" },
+  { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
   { label: "Report", icon: FileText, href: "/report" },
 ];

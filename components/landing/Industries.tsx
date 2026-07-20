@@ -1,102 +1,65 @@
 "use client";
 
-import {
-  Building2,
-  GraduationCap,
-  HeartPulse,
-  Users,
-  ShieldCheck,
-  Headphones,
-} from "lucide-react";
+import { motion } from "framer-motion";
+import { Home, GraduationCap, Stethoscope, Users, Building2, ShoppingCart, Car, Hotel, Headset } from "lucide-react";
 
-const industries = [
-  {
-    name: "Real Estate",
-    desc: "Automate property inquiries and schedule viewings effortlessly.",
-    icon: Building2,
-    gradient: "from-blue-500/10 to-cyan-500/10",
-    iconColor: "text-blue-600 dark:text-blue-400",
-  },
-  {
-    name: "Education",
-    desc: "Student outreach, admissions follow-ups, and enrollment calls.",
-    icon: GraduationCap,
-    gradient: "from-violet-500/10 to-purple-500/10",
-    iconColor: "text-violet-600 dark:text-violet-400",
-  },
-  {
-    name: "Healthcare",
-    desc: "Appointment reminders and patient follow-ups at scale.",
-    icon: HeartPulse,
-    gradient: "from-rose-500/10 to-pink-500/10",
-    iconColor: "text-rose-600 dark:text-rose-400",
-  },
-  {
-    name: "Recruitment",
-    desc: "Screen candidates and schedule interviews automatically.",
-    icon: Users,
-    gradient: "from-amber-500/10 to-yellow-500/10",
-    iconColor: "text-amber-600 dark:text-amber-400",
-  },
-  {
-    name: "Insurance",
-    desc: "Policy renewals, claims follow-ups, and lead qualification.",
-    icon: ShieldCheck,
-    gradient: "from-emerald-500/10 to-green-500/10",
-    iconColor: "text-emerald-600 dark:text-emerald-400",
-  },
-  {
-    name: "Customer Support",
-    desc: "24/7 automated support that resolves issues instantly.",
-    icon: Headphones,
-    gradient: "from-indigo-500/10 to-blue-500/10",
-    iconColor: "text-indigo-600 dark:text-indigo-400",
-  },
+const INDUSTRIES = [
+  { icon: Home, title: "Real Estate", desc: "Qualify buyers, schedule viewings, and follow up with leads.", uses: "Lead Qualification • Viewing Appointments" },
+  { icon: GraduationCap, title: "Education", desc: "Handle admission inquiries and schedule campus tours.", uses: "Admissions • Student Support" },
+  { icon: Stethoscope, title: "Healthcare", desc: "Automate appointment bookings and patient reminders.", uses: "Bookings • Payment Reminders" },
+  { icon: Users, title: "Recruitment", desc: "Pre-screen candidates and schedule interviews automatically.", uses: "Screening • Interview Scheduling" },
+  { icon: Building2, title: "Finance", desc: "Collect payments, verify documents, and offer support.", uses: "Collections • Verification" },
+  { icon: ShoppingCart, title: "Retail", desc: "Handle order tracking, returns, and customer queries.", uses: "Order Updates • Support" },
+  { icon: Car, title: "Automotive", desc: "Schedule test drives and service appointments.", uses: "Test Drives • Servicing" },
+  { icon: Hotel, title: "Hospitality", desc: "Manage room bookings and answer guest FAQs 24/7.", uses: "Bookings • Concierge" },
+  { icon: Headset, title: "BPO & Contact Centers", desc: "Scale your call center operations with AI agents.", uses: "Tier 1 Support • Overflow Handling" },
 ];
 
 export default function Industries() {
   return (
-    <section id="industries" className="mx-auto max-w-7xl px-6 py-24">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-primary">
-          Industries
-        </p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-          Built for Every Industry
-        </h2>
-        <p className="mt-4 text-muted-foreground">
-          Our AI voice agents adapt to your industry&apos;s unique needs and
-          workflows.
-        </p>
-      </div>
+    <section className="py-24 bg-accent/5" id="industries">
+      <div className="container mx-auto px-6 max-w-7xl">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-primary font-semibold tracking-wider text-sm uppercase mb-4"
+          >
+            Built For Your Industry
+          </motion.div>
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-3xl md:text-5xl font-bold mb-6"
+          >
+            AI Agents For Every Business
+          </motion.h2>
+        </div>
 
-      <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {industries.map((industry, i) => {
-          const Icon = industry.icon;
-          return (
-            <div
-              key={industry.name}
-              className="animate-fade-up group relative cursor-default overflow-hidden rounded-2xl border border-border bg-card p-7 transition-all hover:border-primary/30 hover:shadow-xl hover:-translate-y-1"
-              style={{ animationDelay: `${i * 100}ms` }}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {INDUSTRIES.map((industry, i) => (
+            <motion.div
+              key={industry.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="p-8 rounded-2xl glass-card border border-border/50 hover:-translate-y-1 transition-all duration-300"
             >
-              {/* Gradient bg on hover */}
-              <div
-                className={`absolute inset-0 bg-gradient-to-br ${industry.gradient} opacity-0 transition-opacity group-hover:opacity-100`}
-              />
-              <div className="relative">
-                <div
-                  className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ${industry.iconColor} transition-all group-hover:scale-110`}
-                >
-                  <Icon className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-semibold">{industry.name}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {industry.desc}
-                </p>
+              <industry.icon className="w-10 h-10 text-primary mb-6" />
+              <h3 className="text-xl font-bold mb-3">{industry.title}</h3>
+              <p className="text-muted-foreground mb-6 leading-relaxed">
+                {industry.desc}
+              </p>
+              <div className="text-sm font-medium text-foreground bg-accent px-4 py-2 rounded-lg inline-block">
+                {industry.uses}
               </div>
-            </div>
-          );
-        })}
+            </motion.div>
+          ))}
+        </div>
       </div>
     </section>
   );

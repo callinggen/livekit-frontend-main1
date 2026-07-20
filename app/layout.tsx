@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 import AuthProvider from "@/components/AuthProvider";
@@ -29,7 +30,9 @@ export default function RootLayout({
     >
       <head>
         {/* BUG-022/027: Apply saved theme before hydration to prevent flash */}
-        <script
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
           }}

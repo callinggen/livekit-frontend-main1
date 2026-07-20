@@ -49,6 +49,7 @@ export interface ResponseLog {
   datetime: string;
   campaign: string;
   duration: string;
+  duration_seconds?: number;
   transcript: { speaker: string; text: string }[];
   summary: string;
   notes: string;

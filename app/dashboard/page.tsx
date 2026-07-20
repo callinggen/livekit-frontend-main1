@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
 import { ActivityTimeline } from "@/components/shared/dashboard/ActivityTimeline";
 import { QuickActionCard } from "@/components/shared/dashboard/QuickActionCard";
 import { StatCard } from "@/components/shared/dashboard/StatCard";
+import { api } from "@/lib/api";
 import {
   Plus,
   FileText,
@@ -23,16 +24,105 @@ import {
 export default function Dashboard() {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [calls, setCalls] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
 
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    Promise.all([api.getCampaigns(), api.getCalls()])
+      .then(([cData, callData]) => {
+        setCampaigns(cData);
+        setCalls(callData);
+      })
+      .catch((err) => console.warn("Failed to load dashboard data:", err))
+      .finally(() => setLoading(false));
+  }, [isLoggedIn]);
+
   if (!isLoggedIn) return null;
 
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  const stats = [
+  const totalCampaigns = campaigns.length;
+  const totalCalls = campaigns.reduce((acc, c) => acc + c.totalCalls, 0);
+  const completedCalls = campaigns.reduce((acc, c) => acc + c.completedCalls, 0);
+  const interestedLeads = campaigns.reduce((acc, c) => acc + (c.interested || 0), 0);
+  const callbacks = campaigns.reduce((acc, c) => acc + (c.callbacks || 0), 0);
+  const creditsUsed = campaigns.reduce((acc, c) => acc + (c.creditsUsed || 0), 0);
+  const creditsRemaining = Math.max(0, 1000 - creditsUsed);
+  const activeAgents = Array.from(new Set(campaigns.filter(c => c.status === "Running").map(c => c.agent))).filter(Boolean).length;
+  const successRate = totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0;
+
+  const stats = campaigns.length > 0 ? [
+    {
+      icon: FileText,
+      value: String(totalCampaigns),
+      label: "Total Campaigns",
+      accentClassName: "bg-violet-100/50 dark:bg-violet-900/10",
+      iconBackgroundClassName: "bg-violet-100",
+      iconColorClassName: "text-violet-600 dark:text-violet-400",
+    },
+    {
+      icon: PhoneCall,
+      value: totalCalls >= 1000 ? `${(totalCalls / 1000).toFixed(1)}k` : String(totalCalls),
+      label: "Total Calls",
+      accentClassName: "bg-blue-100/50 dark:bg-blue-900/10",
+      iconBackgroundClassName: "bg-blue-100",
+      iconColorClassName: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      icon: CheckCircle2,
+      value: completedCalls >= 1000 ? `${(completedCalls / 1000).toFixed(1)}k` : String(completedCalls),
+      label: "Completed Calls",
+      accentClassName: "bg-emerald-100/50 dark:bg-emerald-900/10",
+      iconBackgroundClassName: "bg-emerald-100",
+      iconColorClassName: "text-emerald-600 dark:text-emerald-400",
+    },
+    {
+      icon: Target,
+      value: String(interestedLeads),
+      label: "Interested Leads",
+      accentClassName: "bg-rose-100/50 dark:bg-rose-900/10",
+      iconBackgroundClassName: "bg-rose-100",
+      iconColorClassName: "text-rose-600 dark:text-rose-400",
+    },
+    {
+      icon: PhoneForwarded,
+      value: String(callbacks),
+      label: "Callbacks",
+      accentClassName: "bg-amber-100/50 dark:bg-amber-900/10",
+      iconBackgroundClassName: "bg-amber-100",
+      iconColorClassName: "text-amber-600 dark:text-amber-400",
+    },
+    {
+      icon: Coins,
+      value: `$${creditsRemaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      label: "Credits Remaining",
+      accentClassName: "bg-cyan-100/50 dark:bg-cyan-900/10",
+      iconBackgroundClassName: "bg-cyan-100",
+      iconColorClassName: "text-cyan-600 dark:text-cyan-400",
+    },
+    {
+      icon: Bot,
+      value: String(activeAgents),
+      label: "Active Agents",
+      accentClassName: "bg-fuchsia-100/50 dark:bg-fuchsia-900/10",
+      iconBackgroundClassName: "bg-fuchsia-100",
+      iconColorClassName: "text-fuchsia-600 dark:text-fuchsia-400",
+    },
+    {
+      icon: TrendingUp,
+      value: `${successRate.toFixed(1)}%`,
+      label: "Success Rate",
+      accentClassName: "bg-emerald-100/50 dark:bg-emerald-900/10",
+      iconBackgroundClassName: "bg-emerald-100",
+      iconColorClassName: "text-emerald-600 dark:text-emerald-400",
+    },
+  ] : [
     {
       icon: FileText,
       value: "12",
@@ -99,7 +189,20 @@ export default function Dashboard() {
     },
   ];
 
-  const activityItems = [
+  const activityItems = calls.length > 0 ? calls.slice(0, 4).map(c => {
+    const isCompleted = c.status.toLowerCase() === "completed";
+    const title = isCompleted ? "Call Completed" : "Call Attempt Failed";
+    const description = isCompleted
+      ? `"${c.name || c.phone}" call completed successfully in campaign "${c.campaign}".`
+      : `Dialing "${c.phone}" in campaign "${c.campaign}" failed or was busy.`;
+    return {
+      title,
+      description,
+      time: c.datetime || "Just now",
+      outerDotClassName: isCompleted ? "bg-emerald-100 dark:bg-emerald-500/20" : "bg-rose-100 dark:bg-rose-500/20",
+      innerDotClassName: isCompleted ? "bg-emerald-500" : "bg-rose-500",
+    };
+  }) : [
     {
       title: "Campaign Scheduled",
       description: '"Holiday Special" was scheduled for Nov 20.',
@@ -209,38 +312,16 @@ export default function Dashboard() {
             </div>
             <div className="p-6">
               <div className="relative border-l-2 border-zinc-100 pl-6 dark:border-zinc-800 space-y-8">
-                <div className="relative">
-                  <div className="absolute -left-[33px] flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-white dark:bg-emerald-500/20 dark:ring-[#0B0F19]">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                {activityItems.map((item, idx) => (
+                  <div key={idx} className="relative">
+                    <div className={`absolute -left-[33px] flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-white dark:ring-[#0B0F19] ${item.outerDotClassName}`}>
+                      <div className={`h-2 w-2 rounded-full ${item.innerDotClassName}`}></div>
+                    </div>
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-white">{item.title}</p>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">{item.description}</p>
+                    <span className="mt-1 block text-xs text-zinc-400">{item.time}</span>
                   </div>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">Campaign Scheduled</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">"Holiday Special" was scheduled for Nov 20.</p>
-                  <span className="mt-1 block text-xs text-zinc-400">10 mins ago</span>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[33px] flex h-4 w-4 items-center justify-center rounded-full bg-rose-100 ring-4 ring-white dark:bg-rose-500/20 dark:ring-[#0B0F19]">
-                    <div className="h-2 w-2 rounded-full bg-rose-500"></div>
-                  </div>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">Lead Generated</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Diana Evans expressed high interest.</p>
-                  <span className="mt-1 block text-xs text-zinc-400">2 hours ago</span>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[33px] flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 ring-4 ring-white dark:bg-blue-500/20 dark:ring-[#0B0F19]">
-                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                  </div>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">Calls Completed</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">"Q4 Outreach" completed 450/1200 calls.</p>
-                  <span className="mt-1 block text-xs text-zinc-400">Yesterday</span>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[33px] flex h-4 w-4 items-center justify-center rounded-full bg-violet-100 ring-4 ring-white dark:bg-violet-500/20 dark:ring-[#0B0F19]">
-                    <div className="h-2 w-2 rounded-full bg-violet-500"></div>
-                  </div>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">Campaign Created</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">"New Feature Announcement" drafted by Admin.</p>
-                  <span className="mt-1 block text-xs text-zinc-400">Oct 12</span>
-                </div>
+                ))}
               </div>
             </div>
           </div>
