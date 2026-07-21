@@ -73,7 +73,7 @@ export default function CallLogsPage() {
         credits: Math.floor(Math.random() * 20) + 1,
         response: (r.response || "NO ANSWER").toUpperCase(),
         status: (r.status || "COMPLETED").toUpperCase(),
-        humanResponse: r.notes || "",
+        humanResponse: r.human_response || "",
         aiClass: r.summary || "Pending",
         agent: r.campaign || "System Agent",
         category: "UNCATEGORIZED",
@@ -176,9 +176,24 @@ export default function CallLogsPage() {
     setEditValue(currentVal);
   };
 
-  const saveEdit = (id: number) => {
+  const saveEdit = async (id: number) => {
+    // 1. Get current value to restore if API fails
+    const callRow = data.find(r => r.id === id);
+    const prevValue = callRow?.humanResponse || "";
+
+    // 2. Optimistic local update
     setData(prev => prev.map(r => r.id === id ? { ...r, humanResponse: editValue } : r));
     setEditingId(null);
+
+    // 3. API Call
+    try {
+      await api.updateHumanResponse(id.toString(), editValue);
+    } catch (error) {
+      console.error("Failed to save human response:", error);
+      // Revert state on failure
+      setData(prev => prev.map(r => r.id === id ? { ...r, humanResponse: prevValue } : r));
+      alert("Failed to save your response. Please try again.");
+    }
   };
 
   const getPillColor = (val: string, type: "response" | "status" | "category" | "type") => {
@@ -381,7 +396,7 @@ export default function CallLogsPage() {
                             </div>
                           ) : (
                             <div className="flex items-center justify-between group/edit border border-transparent hover:border-border/60 hover:bg-accent/30 rounded-md px-2 py-1 cursor-text transition-all" onClick={() => startEdit(row.id, row.humanResponse)}>
-                              <span className="text-sm truncate mr-2">{row.humanResponse || <span className="text-muted-foreground italic">Add note...</span>}</span>
+                              <span className="text-sm truncate mr-2">{row.humanResponse || <span className="text-muted-foreground italic">Not Called</span>}</span>
                               <span className="text-[10px] text-primary font-medium opacity-0 group-hover/edit:opacity-100 transition-opacity whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded">Edit</span>
                             </div>
                           )}

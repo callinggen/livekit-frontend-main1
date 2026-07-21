@@ -57,6 +57,7 @@ export interface ResponseLog {
   appointment_time?: string;
   customer_name?: string;
   recording_url?: string;
+  human_response?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -117,5 +118,15 @@ export const api = {
   getCampaignStatus: (campaignId: number) =>
     request<{ status: string; completed: number; failed: number; total: number }>(
       `/api/campaigns/${campaignId}/status`
+    ),
+
+  /** Update human response for a call. */
+  updateHumanResponse: (callId: string, humanResponse: string) =>
+    request<{ success: boolean; human_response: string | null }>(
+      `/api/calls/${callId}/human-response`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ human_response: humanResponse }),
+      }
     ),
 };
