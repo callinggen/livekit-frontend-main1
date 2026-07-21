@@ -76,7 +76,7 @@ export default function CallLogsPage() {
         humanResponse: r.human_response || "",
         aiClass: r.summary || "Pending",
         agent: r.campaign || "System Agent",
-        category: "UNCATEGORIZED",
+        category: (r.category || "UNCATEGORIZED").toUpperCase(),
         transcript: r.transcript || [],
         recording_url: r.recording_url || "",
       }));
