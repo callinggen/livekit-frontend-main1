@@ -256,7 +256,7 @@ export default function CallLogsPage() {
               { val: filterStatus, set: setFilterStatus, options: uniqueStatuses, label: "Status" },
               { val: filterResponse, set: setFilterResponse, options: uniqueResponses, label: "Response" },
               { val: filterCategory, set: setFilterCategory, options: uniqueCategories, label: "Category" },
-              { val: filterAgent, set: setFilterAgent, options: uniqueAgents, label: "Agent" },
+              { val: filterAgent, set: setFilterAgent, options: uniqueAgents, label: "Campaign" },
             ].map((f) => (
               <div key={f.label} className="relative group shrink-0">
                 <select 
@@ -304,7 +304,7 @@ export default function CallLogsPage() {
                     { key: "category", label: "Category" }, // Moved here
                     { key: null, label: "Recording / Script" }, // Unsortable
                     { key: "datetime", label: "Date & Time" }, // Swapped from AI Classification
-                    { key: "agent", label: "Agent" },
+                    { key: "agent", label: "Campaign" },
                   ].map((col, idx) => (
                     <th 
                       key={idx} 
@@ -466,7 +466,7 @@ export default function CallLogsPage() {
                       </span>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Agent</p>
+                      <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Campaign</p>
                       <p className="font-semibold text-foreground truncate max-w-[120px]">{selectedCall.agent}</p>
                     </div>
                     <div>

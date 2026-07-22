@@ -11,17 +11,17 @@ interface DetailsDrawerProps {
 export default function DetailsDrawer({ isOpen, onClose, title, children }: DetailsDrawerProps) {
   return (
     <div 
-      className={`fixed inset-0 z-50 flex justify-end transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
     >
       {/* Backdrop */}
       <div 
-        className={`absolute inset-0 bg-zinc-900/20 backdrop-blur-sm transition-opacity duration-300 dark:bg-black/40 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 bg-zinc-900/40 backdrop-blur-sm transition-opacity duration-300 dark:bg-black/60 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
       />
 
-      {/* Drawer */}
+      {/* Modal */}
       <div 
-        className={`relative z-10 w-full max-w-md transform bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:border-l dark:border-zinc-800 dark:bg-[#0B0F19] sm:max-w-lg md:max-w-xl lg:max-w-2xl h-full flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`relative z-10 w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl transition-all duration-300 ease-in-out dark:border dark:border-zinc-800 dark:bg-[#0B0F19] ${isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 p-6 dark:border-zinc-800">
