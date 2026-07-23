@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock } from "lucide-react";
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
@@ -34,29 +34,7 @@ interface CampaignFormProps {
   disabled?: boolean;
 }
 
-const agents = ["Taxes Agent"];
-
-const TAXES_AGENT_DEFAULT_SCRIPT = `You are a professional and courteous Tax Verification Officer.
-
-You are calling {{customer_name}} regarding a routine verification of their tax records.
-
-Your objectives are:
-
-1. Greet the customer politely by name.
-2. Confirm you are speaking with the correct person.
-3. Inform them that this is a routine tax verification call.
-4. Ask whether all outstanding taxes for the current assessment period have already been paid.
-5. If the customer confirms payment:
-   - Thank them.
-   - Ask if they have the payment reference or approximate payment date for verification.
-   - Inform them that no further action may be required after verification.
-6. If the customer says taxes have not yet been paid:
-   - Politely remind them that payment may still be pending.
-   - Ask whether they need assistance or information regarding the payment process.
-7. If the customer is unsure:
-   - Ask whether they would like to verify their records before making any statements.
-8. Never threaten, pressure, or provide legal advice.
-9. Remain calm, professional, and patient throughout the call.`;
+const agents = ["Voice-A (Sales)", "Voice-B (Support)", "Voice-C (Followup)", "Voice-D (Survey)"];
 
 export default function CampaignForm({
   formData,
@@ -72,12 +50,6 @@ export default function CampaignForm({
   disabled = false,
 }: CampaignFormProps) {
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
-
-  useEffect(() => {
-    if (formData.agent === "Taxes Agent" && formData.script.trim() === "") {
-      onChange({ script: TAXES_AGENT_DEFAULT_SCRIPT });
-    }
-  }, [formData.agent, formData.script, onChange]);
 
   return (
     <div className="flex h-full flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -238,12 +210,8 @@ function TimePicker({ value, onChange, error, disabled = false }: TimePickerProp
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
   const minutes = ["00", "15", "30", "45"];
 
-  const emit = (h: string, m: string, ap: "AM" | "PM") => {
-    let h24 = parseInt(h, 10);
-    if (ap === "PM" && h24 !== 12) h24 += 12;
-    if (ap === "AM" && h24 === 12) h24 = 0;
-    onChange(`${String(h24).padStart(2, "0")}:${m}`);
-  };
+  const emit = (h: string, m: string, ap: "AM" | "PM") =>
+    onChange(`${h}:${m} ${ap}`);
 
   const baseSelect =
     `rounded-lg border bg-white px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 dark:text-zinc-100 ${

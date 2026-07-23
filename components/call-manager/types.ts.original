@@ -7,7 +7,6 @@ export interface Contact {
   status: ContactStatus;
   response: string;
   datetime?: string;
-  metadata_fields?: Record<string, string>;
 }
 
 export type UploadSourceType = "excel" | "csv" | "google_sheet" | "single";
@@ -31,7 +30,4 @@ export interface LiveTrackingStats {
   analysis: number;
   completed: number;
   failed: number;
-  campaign_status?: string;
-  schedule_date?: string;
-  schedule_time?: string;
 }

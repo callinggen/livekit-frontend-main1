@@ -66,27 +66,7 @@ export default function CallManagerPage() {
           analysis: live.analysis,
           completed: live.completed,
           failed: live.failed,
-          campaign_status: live.campaign_status,
-          schedule_date: live.schedule_date,
-          schedule_time: live.schedule_time,
         });
-        
-        // Map the backend lightweight contacts to the frontend Contact type
-        if (live.contacts) {
-            setContacts(prevContacts => {
-                // We map over prevContacts to preserve any fields not returned by the lightweight endpoint,
-                // while updating status and response.
-                const updatedMap = new Map(live.contacts.map(c => [String(c.phone), c]));
-                return prevContacts.map(pc => {
-                    const updated = updatedMap.get(String(pc.phone));
-                    if (updated) {
-                        return { ...pc, status: updated.status as any, response: updated.response };
-                    }
-                    return pc;
-                });
-            });
-        }
-
         // Stop polling when campaign is no longer running
         if (live.campaign_status === "Completed" || live.campaign_status === "Failed") {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -227,13 +207,6 @@ export default function CallManagerPage() {
     if (!formData.agent) newErrors.agent = "Please select an AI Agent.";
     if (!formData.scheduleDate) newErrors.scheduleDate = "Schedule Date is required.";
     if (!formData.scheduleTime) newErrors.scheduleTime = "Schedule Time is required.";
-    if (formData.scheduleDate && formData.scheduleTime) {
-      const scheduleDt = new Date(`${formData.scheduleDate}T${formData.scheduleTime}:00`);
-      // Allow a 5-minute grace period for "now"
-      if (scheduleDt.getTime() < Date.now() - 5 * 60 * 1000) {
-        newErrors.scheduleTime = "Scheduled time cannot be in the past.";
-      }
-    }
     if (!formData.script.trim()) newErrors.script = "Agent Script is required.";
 
     if (formData.uploadSource === "google_sheet") {
@@ -285,16 +258,13 @@ export default function CallManagerPage() {
     try {
       setLaunching(true);
 
-      const localDate = new Date(`${formData.scheduleDate}T${formData.scheduleTime}:00`);
-      const isoUtcStr = localDate.toISOString(); // e.g., 2026-07-22T08:30:00.000Z
-
       // 1. Create the campaign + contacts
       const { campaign_id } = await api.createCampaign({
         campaign_name: formData.campaignTitle.trim(),
         agent: formData.agent,
         script: formData.script.trim(),
-        schedule_date: isoUtcStr,
-        schedule_time: "UTC",
+        schedule_date: formData.scheduleDate,
+        schedule_time: formData.scheduleTime,
         contacts: contactList,
       });
 
@@ -317,7 +287,7 @@ export default function CallManagerPage() {
       startLivePolling(campaign_id);
 
       // Navigate to campaign list
-      // router.push("/campaign");
+      router.push("/campaign");
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unable to start campaign.";

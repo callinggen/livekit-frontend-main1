@@ -111,8 +111,6 @@ export const api = {
       registry: number; standby: number; dialer: number;
       analysis: number; completed: number; failed: number;
       campaign_status: string; total_contacts: number;
-      schedule_date: string; schedule_time: string;
-      contacts: { id: number; name: string; phone: string; status: string; response: string }[];
     }>(`/api/campaigns/${campaignId}/live`),
 
   /** BUG-024: Lightweight status poll. */

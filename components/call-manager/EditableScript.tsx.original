@@ -5,10 +5,9 @@ interface EditableScriptProps {
   script: string;
   onChange: (script: string) => void;
   error?: string;
-  disabled?: boolean;
 }
 
-export default function EditableScript({ script, onChange, error, disabled = false }: EditableScriptProps) {
+export default function EditableScript({ script, onChange, error }: EditableScriptProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -30,9 +29,8 @@ export default function EditableScript({ script, onChange, error, disabled = fal
           ref={textareaRef}
           value={script}
           onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
           placeholder="Hello {{customer_name}}, this is CallingGen AI..."
-          className="w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed dark:text-zinc-100 dark:placeholder:text-zinc-500"
+          className="w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
           rows={4}
         />
         <div className="flex justify-end px-2 py-1">
