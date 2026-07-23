@@ -77,6 +77,7 @@ export default function CallLogsPage() {
         aiClass: r.summary || "Pending",
         agent: r.campaign || "System Agent",
         category: (r.category || "UNCATEGORIZED").toUpperCase(),
+        sentiment: r.sentiment || "Neutral",
         transcript: r.transcript || [],
         recording_url: r.recording_url || "",
       }));
@@ -585,10 +586,11 @@ export default function CallLogsPage() {
                             const ai = (selectedCall.aiClass || "").toLowerCase();
                             const isNeg = cat === "COLD" || resp.includes("do not call") || resp.includes("refusal") || resp.includes("not interested") || resp.includes("no answer") || ai.includes("do not call") || ai.includes("refusal");
                             const isPos = !isNeg && (cat === "HOT" || resp.includes("appointment") || resp.includes("interested"));
-                            
-                            if (isNeg) {
+                            const s = selectedCall.sentiment || (isNeg ? "Negative" : isPos ? "Positive" : "Neutral");
+
+                            if (s === "Negative" || isNeg) {
                               return <span className="text-rose-500 font-semibold bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">Negative</span>;
-                            } else if (isPos) {
+                            } else if (s === "Positive" && !isNeg) {
                               return <span className="text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Positive</span>;
                             } else {
                               return <span className="text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">Neutral</span>;
