@@ -199,13 +199,20 @@ export default function CallLogsPage() {
   const getPillColor = (val: string, type: "response" | "status" | "category" | "type") => {
     if (type === "type") return val === "INBOUND" ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-200" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200";
     
-    switch(val) {
-      case "INTERESTED": case "HOT": case "COMPLETED": return "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200";
-      case "CALLBACK": case "WARM": case "RUNNING": return "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200";
-      case "NOT INTERESTED": case "NO ANSWER": case "COLD": return "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200";
-      case "INVALID": case "BUSY": case "FAILED": return "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-200";
-      default: return "bg-gray-50 text-gray-600 border-gray-200";
+    const v = (val || "").toUpperCase();
+    if (v.includes("DO NOT CALL") || v.includes("REFUSAL") || v === "NOT INTERESTED" || v === "INVALID" || v === "FAILED" || v.includes("CUT")) {
+      return "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-200";
     }
+    if (v === "INTERESTED" || v === "HOT" || v === "COMPLETED" || v.includes("BOOKED")) {
+      return "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200";
+    }
+    if (v === "CALLBACK" || v === "WARM" || v === "RUNNING") {
+      return "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200";
+    }
+    if (v === "COLD" || v === "NO ANSWER") {
+      return "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200";
+    }
+    return "bg-gray-50 text-gray-600 border-gray-200";
   };
 
   return (
@@ -572,7 +579,21 @@ export default function CallLogsPage() {
                         </li>
                         <li className="flex justify-between items-center pb-1">
                           <span className="text-muted-foreground">Sentiment</span>
-                          <span className="text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md">Positive</span>
+                          {(() => {
+                            const cat = (selectedCall.category || "").toUpperCase();
+                            const resp = (selectedCall.response || "").toLowerCase();
+                            const ai = (selectedCall.aiClass || "").toLowerCase();
+                            const isNeg = cat === "COLD" || resp.includes("do not call") || resp.includes("refusal") || resp.includes("not interested") || resp.includes("no answer") || ai.includes("do not call") || ai.includes("refusal");
+                            const isPos = !isNeg && (cat === "HOT" || resp.includes("appointment") || resp.includes("interested"));
+                            
+                            if (isNeg) {
+                              return <span className="text-rose-500 font-semibold bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">Negative</span>;
+                            } else if (isPos) {
+                              return <span className="text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Positive</span>;
+                            } else {
+                              return <span className="text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">Neutral</span>;
+                            }
+                          })()}
                         </li>
                       </ul>
                     </div>
