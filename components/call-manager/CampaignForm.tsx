@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock } from "lucide-react";
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
@@ -24,7 +24,7 @@ interface CampaignFormProps {
   onChange: (data: Partial<CampaignFormData>) => void;
   onSubmit: () => void;
   errors: Record<string, string>;
-  
+
   // Upload specific props
   onFileUpload: (file: File) => void;
   fileUploaded: boolean;
@@ -32,7 +32,32 @@ interface CampaignFormProps {
   fileSize?: string;
   totalContacts?: number;
   onGoogleSheetLoaded?: (contacts: any[], sheetId: string) => void;
+  disabled?: boolean;
 }
+
+
+
+const TAXES_AGENT_DEFAULT_SCRIPT = `You are a professional and courteous Tax Verification Officer.
+
+You are calling {{customer_name}} regarding a routine verification of their tax records.
+
+Your objectives are:
+
+1. Greet the customer politely by name.
+2. Confirm you are speaking with the correct person.
+3. Inform them that this is a routine tax verification call.
+4. Ask whether all outstanding taxes for the current assessment period have already been paid.
+5. If the customer confirms payment:
+   - Thank them.
+   - Ask if they have the payment reference or approximate payment date for verification.
+   - Inform them that no further action may be required after verification.
+6. If the customer says taxes have not yet been paid:
+   - Politely remind them that payment may still be pending.
+   - Ask whether they need assistance or information regarding the payment process.
+7. If the customer is unsure:
+   - Ask whether they would like to verify their records before making any statements.
+8. Never threaten, pressure, or provide legal advice.
+9. Remain calm, professional, and patient throughout the call.`;
 
 export default function CampaignForm({
   formData,
@@ -45,8 +70,15 @@ export default function CampaignForm({
   fileSize,
   totalContacts,
   onGoogleSheetLoaded,
+  disabled = false,
 }: CampaignFormProps) {
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+
+  useEffect(() => {
+    if (formData.agent === "Taxes Agent" && formData.script.trim() === "") {
+      onChange({ script: TAXES_AGENT_DEFAULT_SCRIPT });
+    }
+  }, [formData.agent, formData.script, onChange]);
 
   return (
     <div className="flex h-full flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -57,141 +89,145 @@ export default function CampaignForm({
         </div>
 
         <div className="space-y-5">
-        {/* Campaign Title */}
-        <div className="flex flex-col gap-1.5">
-          <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            Campaign Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.campaignTitle}
-            onChange={(e) => onChange({ campaignTitle: e.target.value })}
-            placeholder="e.g. Q3 Marketing Outreach"
-            className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm transition placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 dark:placeholder:text-zinc-600 ${
-              errors.campaignTitle ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
-            }`}
-          />
-          {errors.campaignTitle && <p className="text-xs font-medium text-red-500">{errors.campaignTitle}</p>}
-        </div>
-
-        {/* Select AI Agent */}
-        <div className="flex flex-col gap-1.5">
-          <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
-            <User className="h-3.5 w-3.5" />
-            Select AI Agent <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowAgentDropdown(!showAgentDropdown)}
-              className={`flex w-full items-center justify-between rounded-lg border bg-white px-4 py-2.5 text-sm font-medium transition dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 ${
-                errors.agent ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
-              }`}
-            >
-              <span className={formData.agent ? "" : "text-zinc-400 dark:text-zinc-600"}>
-                {formData.agent || "Select..."}
-              </span>
-              <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            {showAgentDropdown && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-                {agents.map((agent) => (
-                  <button
-                    key={agent}
-                    type="button"
-                    onClick={() => {
-                      const newDefault = DEFAULT_AGENT_SCRIPTS[agent] || "";
-                      const currentScript = formData.script || "";
-                      const previousAgentDefault = formData.agent ? (DEFAULT_AGENT_SCRIPTS[formData.agent] || "") : "";
-                      
-                      const isUnchanged = !currentScript || currentScript.trim() === previousAgentDefault.trim();
-                      
-                      if (!isUnchanged) {
-                        if (window.confirm("You have edited the current script. Selecting a new agent will replace it with the new default. Proceed?")) {
-                          onChange({ agent, script: newDefault });
-                        } else {
-                          setShowAgentDropdown(false);
-                          return;
-                        }
-                      } else {
-                        onChange({ agent, script: newDefault });
-                      }
-                      setShowAgentDropdown(false);
-                    }}
-                    className="flex w-full px-4 py-2 text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800 text-left"
-                  >
-                    {agent}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {errors.agent && <p className="text-xs font-medium text-red-500">{errors.agent}</p>}
-        </div>
-
-        {/* Schedule Date & Time */}
-        <div className="flex flex-col gap-1.5">
-          <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
-            <Calendar className="h-3.5 w-3.5" />
-            Schedule Date & Time <span className="text-red-500">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {/* Date picker */}
-            <div>
-              <input
-                type="date"
-                value={formData.scheduleDate}
-                onChange={(e) => onChange({ scheduleDate: e.target.value })}
-                className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 ${
-                  errors.scheduleDate ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
+          {/* Campaign Title */}
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Campaign Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.campaignTitle}
+              onChange={(e) => onChange({ campaignTitle: e.target.value })}
+              placeholder="e.g. Q3 Marketing Outreach"
+              className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm transition placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 dark:placeholder:text-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed ${errors.campaignTitle ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
                 }`}
-              />
-              {errors.scheduleDate && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleDate}</p>}
+              disabled={disabled}
+            />
+            {errors.campaignTitle && <p className="text-xs font-medium text-red-500">{errors.campaignTitle}</p>}
+          </div>
+
+          {/* Select AI Agent */}
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
+              <User className="h-3.5 w-3.5" />
+              Select AI Agent <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => !disabled && setShowAgentDropdown(!showAgentDropdown)}
+                disabled={disabled}
+                className={`flex w-full items-center justify-between rounded-lg border bg-white px-4 py-2.5 text-sm font-medium transition dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed ${errors.agent ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
+                  }`}
+              >
+                <span className={formData.agent ? "" : "text-zinc-400 dark:text-zinc-600"}>
+                  {formData.agent || "Select..."}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              {showAgentDropdown && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                  {agents.map((agent) => (
+                    <button
+                      key={agent}
+                      type="button"
+                      onClick={() => {
+                        const newDefault = DEFAULT_AGENT_SCRIPTS[agent] || "";
+                        const currentScript = formData.script || "";
+                        const previousAgentDefault = formData.agent ? (DEFAULT_AGENT_SCRIPTS[formData.agent] || "") : "";
+
+                        const isUnchanged = !currentScript || currentScript.trim() === previousAgentDefault.trim();
+
+                        if (!isUnchanged) {
+                          if (window.confirm("You have edited the current script. Selecting a new agent will replace it with the new default. Proceed?")) {
+                            onChange({ agent, script: newDefault });
+                          } else {
+                            setShowAgentDropdown(false);
+                            return;
+                          }
+                        } else {
+                          onChange({ agent, script: newDefault });
+                        }
+                        setShowAgentDropdown(false);
+                      }}
+                      className="flex w-full px-4 py-2 text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800 text-left"
+                    >
+                      {agent}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            {/* BUG-028: Custom AM/PM time picker */}
-            <div>
-              <TimePicker
-                value={formData.scheduleTime}
-                onChange={(t) => onChange({ scheduleTime: t })}
-                error={!!errors.scheduleTime}
-              />
-              {errors.scheduleTime && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleTime}</p>}
+            {errors.agent && <p className="text-xs font-medium text-red-500">{errors.agent}</p>}
+          </div>
+
+          {/* Schedule Date & Time */}
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
+              <Calendar className="h-3.5 w-3.5" />
+              Schedule Date & Time <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Date picker */}
+              <div>
+                <input
+                  type="date"
+                  value={formData.scheduleDate}
+                  onChange={(e) => onChange({ scheduleDate: e.target.value })}
+                  disabled={disabled}
+                  className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-900 ${errors.scheduleDate ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
+                    }`}
+                />
+                {errors.scheduleDate && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleDate}</p>}
+              </div>
+              {/* BUG-028: Custom AM/PM time picker */}
+              <div>
+                <TimePicker
+                  value={formData.scheduleTime}
+                  onChange={(t) => onChange({ scheduleTime: t })}
+                  error={!!errors.scheduleTime}
+                  disabled={disabled}
+                />
+                {errors.scheduleTime && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleTime}</p>}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Upload Contacts */}
-        <UploadSource
-          sourceType={formData.uploadSource}
-          onChangeSource={(type) => onChange({ uploadSource: type })}
-          onFileUpload={onFileUpload}
-          fileUploaded={fileUploaded}
-          fileName={fileName}
-          fileSize={fileSize}
-          totalContacts={totalContacts}
-          googleSheetUrl={formData.googleSheetUrl}
-          onChangeGoogleSheetUrl={(url) => onChange({ googleSheetUrl: url })}
-          singleContactName={formData.singleContactName}
-          onChangeSingleName={(name) => onChange({ singleContactName: name })}
-          singleContactPhone={formData.singleContactPhone}
-          onChangeSinglePhone={(phone) => onChange({ singleContactPhone: phone })}
-          errors={errors}
-          onGoogleSheetLoaded={onGoogleSheetLoaded}
-        />
+          {/* Upload Contacts */}
+          <UploadSource
+            sourceType={formData.uploadSource}
+            onChangeSource={(type) => onChange({ uploadSource: type })}
+            onFileUpload={onFileUpload}
+            fileUploaded={fileUploaded}
+            fileName={fileName}
+            fileSize={fileSize}
+            totalContacts={totalContacts}
+            googleSheetUrl={formData.googleSheetUrl}
+            onChangeGoogleSheetUrl={(url) => onChange({ googleSheetUrl: url })}
+            singleContactName={formData.singleContactName}
+            onChangeSingleName={(name) => onChange({ singleContactName: name })}
+            singleContactPhone={formData.singleContactPhone}
+            onChangeSinglePhone={(phone) => onChange({ singleContactPhone: phone })}
+            errors={errors}
+            onGoogleSheetLoaded={onGoogleSheetLoaded}
+            disabled={disabled}
+          />
 
-        {/* Editable Script */}
-        <EditableScript
-          script={formData.script}
-          onChange={(script) => onChange({ script })}
-          error={errors.script}
-        />
+          {/* Editable Script */}
+          <EditableScript
+            script={formData.script}
+            onChange={(script) => onChange({ script })}
+            error={errors.script}
+            disabled={disabled}
+          />
         </div>
       </div>
 
       <button
         onClick={onSubmit}
-        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#111827] py-3 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+        disabled={disabled}
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#111827] py-3 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
       >
         <Rocket className="h-4 w-4" />
         Launch Campaign
@@ -206,30 +242,35 @@ interface TimePickerProps {
   value: string;
   onChange: (v: string) => void;
   error?: boolean;
+  disabled?: boolean;
 }
 
-function TimePicker({ value, onChange, error }: TimePickerProps) {
+function TimePicker({ value, onChange, error, disabled = false }: TimePickerProps) {
   const { hour, minute, ampm } = useMemo(() => parseTime(value || "09:00"), [value]);
 
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
   const minutes = ["00", "15", "30", "45"];
 
-  const emit = (h: string, m: string, ap: "AM" | "PM") =>
-    onChange(`${h}:${m} ${ap}`);
+  const emit = (h: string, m: string, ap: "AM" | "PM") => {
+    let h24 = parseInt(h, 10);
+    if (ap === "PM" && h24 !== 12) h24 += 12;
+    if (ap === "AM" && h24 === 12) h24 = 0;
+    onChange(`${String(h24).padStart(2, "0")}:${m}`);
+  };
 
   const baseSelect =
-    `rounded-lg border bg-white px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 dark:text-zinc-100 ${
-      error ? "border-red-400 dark:border-red-500" : "border-zinc-200 focus:border-violet-400 dark:border-zinc-700"
+    `rounded-lg border bg-white px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 dark:text-zinc-100 ${error ? "border-red-400 dark:border-red-500" : "border-zinc-200 focus:border-violet-400 dark:border-zinc-700"
     }`;
 
   return (
-    <div className={`flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 dark:bg-zinc-900 ${error ? "border-red-400 dark:border-red-500" : "border-zinc-200 dark:border-zinc-700"}`}>
+    <div className={`flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 dark:bg-zinc-900 ${error ? "border-red-400 dark:border-red-500" : "border-zinc-200 dark:border-zinc-700"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}>
       <Clock className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
       {/* Hour */}
       <select
         value={hour}
         onChange={e => emit(e.target.value, minute, ampm)}
-        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer"
+        disabled={disabled}
+        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer disabled:cursor-not-allowed"
         aria-label="Hour"
       >
         {hours.map(h => <option key={h} value={h}>{h}</option>)}
@@ -239,7 +280,8 @@ function TimePicker({ value, onChange, error }: TimePickerProps) {
       <select
         value={minute}
         onChange={e => emit(hour, e.target.value, ampm)}
-        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer"
+        disabled={disabled}
+        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer disabled:cursor-not-allowed"
         aria-label="Minute"
       >
         {minutes.map(m => <option key={m} value={m}>{m}</option>)}
@@ -251,11 +293,11 @@ function TimePicker({ value, onChange, error }: TimePickerProps) {
             key={ap}
             type="button"
             onClick={() => emit(hour, minute, ap)}
-            className={`px-2 py-1 text-xs font-bold transition ${
-              ampm === ap
+            disabled={disabled}
+            className={`px-2 py-1 text-xs font-bold transition disabled:cursor-not-allowed ${ampm === ap
                 ? "bg-violet-600 text-white"
                 : "bg-white text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            }`}
+              }`}
           >
             {ap}
           </button>

@@ -19,7 +19,6 @@ interface UploadSourceProps {
   onChangeSinglePhone?: (phone: string) => void;
   errors?: Record<string, string>;
   onGoogleSheetLoaded?: (contacts: Contact[], sheetId: string) => void;
-  disabled?: boolean;
 }
 
 const sourceOptions: { value: UploadSourceType; label: string; icon: React.ReactNode }[] = [
@@ -45,7 +44,6 @@ export default function UploadSource({
   onChangeSinglePhone,
   errors,
   onGoogleSheetLoaded,
-  disabled = false,
 }: UploadSourceProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -130,7 +128,6 @@ export default function UploadSource({
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (disabled) return;
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       onFileUpload(e.dataTransfer.files[0]);
@@ -138,7 +135,6 @@ export default function UploadSource({
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (disabled) return;
     if (e.target.files && e.target.files.length > 0) {
       onFileUpload(e.target.files[0]);
     }
@@ -157,9 +153,8 @@ export default function UploadSource({
         <div className="relative">
           <button
             type="button"
-            onClick={() => !disabled && setShowDropdown(!showDropdown)}
-            disabled={disabled}
-            className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium transition dark:border-zinc-700 dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium transition dark:border-zinc-700 dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
           >
             <div className="flex items-center gap-2">
               {currentOption.icon}
@@ -192,20 +187,18 @@ export default function UploadSource({
       {(sourceType === "excel" || sourceType === "csv") && (
         <div>
           <div
-            onDragOver={(e) => { e.preventDefault(); if(!disabled) setIsDragging(true); }}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleFileDrop}
-            onClick={() => !disabled && fileRef.current?.click()}
-            className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${
-              disabled
-                ? "border-zinc-200 bg-zinc-50 opacity-50 cursor-not-allowed dark:border-zinc-800 dark:bg-zinc-900"
-                : isDragging
-                ? "border-violet-400 bg-violet-50 cursor-pointer dark:border-violet-500 dark:bg-violet-950/30"
+            onClick={() => fileRef.current?.click()}
+            className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${
+              isDragging
+                ? "border-violet-400 bg-violet-50 dark:border-violet-500 dark:bg-violet-950/30"
                 : fileUploaded
-                ? "border-emerald-300 bg-emerald-50/50 cursor-pointer dark:border-emerald-600 dark:bg-emerald-950/20"
+                ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-600 dark:bg-emerald-950/20"
                 : errors?.upload
-                ? "border-red-400 bg-red-50 cursor-pointer dark:border-red-500 dark:bg-red-950/10"
-                : "border-zinc-300 bg-zinc-50 cursor-pointer hover:border-violet-300 hover:bg-violet-50/30 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-violet-600"
+                ? "border-red-400 bg-red-50 dark:border-red-500 dark:bg-red-950/10"
+                : "border-zinc-300 bg-zinc-50 hover:border-violet-300 hover:bg-violet-50/30 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-violet-600"
             }`}
           >
             <input
@@ -249,21 +242,19 @@ export default function UploadSource({
               type="text"
               value={googleSheetUrl || ""}
               onChange={(e) => {
-                if(disabled) return;
                 onChangeGoogleSheetUrl?.(e.target.value);
                 setSheetSuccess("");
               }}
-              disabled={disabled}
               placeholder="https://docs.google.com/spreadsheets/d/..."
-              className={`flex-1 rounded-lg border bg-white px-4 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-900 ${
+              className={`flex-1 rounded-lg border bg-white px-4 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 ${
                 errors?.googleSheetUrl ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
               }`}
             />
             <button
               type="button"
               onClick={handleLoadSheet}
-              disabled={isLoadingSheet || disabled}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+              disabled={isLoadingSheet}
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               {isLoadingSheet ? "Loading..." : "Verify & Load"}
             </button>
@@ -289,9 +280,8 @@ export default function UploadSource({
                 type="text"
                 value={singleContactName || ""}
                 onChange={(e) => onChangeSingleName?.(e.target.value)}
-                disabled={disabled}
                 placeholder="Full Name *"
-                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm transition focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-900 ${
+                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm transition focus:outline-none dark:bg-zinc-900 ${
                   errors?.singleContactName ? 'border-red-400' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
                 }`}
               />
@@ -302,9 +292,8 @@ export default function UploadSource({
                 type="text"
                 value={singleContactPhone || ""}
                 onChange={(e) => onChangeSinglePhone?.(e.target.value)}
-                disabled={disabled}
                 placeholder="Phone Number *"
-                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm transition focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-900 ${
+                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm transition focus:outline-none dark:bg-zinc-900 ${
                   errors?.singleContactPhone ? 'border-red-400' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
                 }`}
               />

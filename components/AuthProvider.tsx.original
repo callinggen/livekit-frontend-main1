@@ -22,6 +22,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   user: UserData | null;
   login: (email: string, password?: string) => Promise<{ success: boolean; isFirstLogin?: boolean; isAdmin?: boolean }>;
+  createAccount: (fullName: string, email: string, phoneNumber?: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   updateToken: (newToken: string, isFirstLogin: boolean, isAdmin: boolean) => void;
 }
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   user: null,
   login: async () => ({ success: false }),
+  createAccount: async () => ({ success: false, message: "" }),
   logout: () => {},
   updateToken: () => {},
 });
@@ -49,50 +51,33 @@ export default function AuthProvider({
   const router = useRouter();
 
   useEffect(() => {
-    const initAuth = async () => {
-      const storedUser = sessionStorage.getItem("callinggen-auth");
-      
+    setTimeout(() => {
+      setMounted(true);
+      const storedUser = localStorage.getItem("callinggen-auth");
       if (storedUser) {
         try {
           const parsed = JSON.parse(storedUser);
           const token = parsed.token;
           if (token) {
-            const res = await fetch("http://localhost:8000/api/auth/me", {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-              const data = await res.json();
-              const updatedUser = {
-                ...parsed,
-                isFirstLogin: data.is_first_login,
-                isAdmin: data.is_admin
-              };
-              setUser(updatedUser);
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            const isExpired = payload.exp * 1000 < Date.now();
+            if (!isExpired) {
+              setUser(parsed);
               setIsLoggedIn(true);
-              
-              if (!data.is_first_login) {
-                sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
-              } else {
-                sessionStorage.removeItem("callinggen-auth");
-              }
             } else {
-              sessionStorage.removeItem("callinggen-auth");
-              setUser(null);
-              setIsLoggedIn(false);
+              localStorage.removeItem("callinggen-auth");
             }
           }
         } catch (e) {
-          sessionStorage.removeItem("callinggen-auth");
+          localStorage.removeItem("callinggen-auth");
         }
       }
-      setMounted(true);
-    };
-    initAuth();
+    }, 0);
   }, []);
 
   useEffect(() => {
     const handleUnauthorized = () => {
-      sessionStorage.removeItem("callinggen-auth");
+      localStorage.removeItem("callinggen-auth");
       setUser(null);
       setIsLoggedIn(false);
       router.push("/login");
@@ -128,12 +113,7 @@ export default function AuthProvider({
           };
           
           setUser(userData);
-          
-          // Only persist to sessionStorage if it's not a first login
-          if (!data.is_first_login) {
-            sessionStorage.setItem("callinggen-auth", JSON.stringify(userData));
-          }
-          
+          localStorage.setItem("callinggen-auth", JSON.stringify(userData));
           setIsLoggedIn(true);
           
           return { success: true, isFirstLogin: data.is_first_login, isAdmin: data.is_admin };
@@ -148,10 +128,35 @@ export default function AuthProvider({
     []
   );
 
+  const createAccount = useCallback(
+    async (fullName: string, email: string, phoneNumber?: string) => {
+      try {
+        const response = await fetch("http://localhost:8000/api/auth/create-account", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ full_name: fullName, email, phone_number: phoneNumber }),
+        });
+
+        if (response.status === 201) {
+          const data = await response.json();
+          return { success: true, message: data.message };
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Failed to create account");
+        }
+      } catch (error: any) {
+        throw error;
+      }
+    },
+    []
+  );
+
   const logout = useCallback(() => {
     setUser(null);
     setIsLoggedIn(false);
-    sessionStorage.removeItem("callinggen-auth");
+    localStorage.removeItem("callinggen-auth");
     router.push("/login");
   }, [router]);
 
@@ -159,22 +164,17 @@ export default function AuthProvider({
     setUser(prev => {
       if (!prev) return null;
       const updatedUser = { ...prev, token: newToken, isFirstLogin, isAdmin };
-      
-      // Update sessionStorage since the user has now changed their password
-      if (!isFirstLogin) {
-        sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
-      }
-      
+      localStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
       return updatedUser;
     });
   }, []);
 
   if (!mounted) {
-    return null;
+    return <>{children}</>;
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn: !!user, user, login, logout, updateToken }}>
+    <AuthContext.Provider value={{ isLoggedIn: !!user, user, login, createAccount, logout, updateToken }}>
       {children}
     </AuthContext.Provider>
   );

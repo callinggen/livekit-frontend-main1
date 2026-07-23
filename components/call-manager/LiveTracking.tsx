@@ -70,6 +70,15 @@ export default function LiveTracking({ stats }: LiveTrackingProps) {
       {/* Center the pipeline vertically */}
       <div className="flex flex-1 flex-col items-center justify-center py-2 w-full">
         
+        {stats.campaign_status === "Scheduled" && stats.schedule_date && (
+          <div className="mb-4 text-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2 w-full max-w-[240px]">
+            <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">Scheduled</p>
+            <p className="text-xs text-blue-500/80 mt-1">
+              {new Date(stats.schedule_date).toLocaleString()}
+            </p>
+          </div>
+        )}
+
         {/* Main Pipeline Area */}
         <div className="relative flex flex-col items-center w-full max-w-[240px]">
           
