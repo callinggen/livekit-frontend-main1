@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { validatePassword, PasswordValidationRules } from "@/components/PasswordValidator";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+
 export default function ChangePasswordPage() {
   const router = useRouter();
   const { isLoggedIn, user, updateToken } = useAuth();
@@ -30,7 +32,7 @@ export default function ChangePasswordPage() {
 
     const verifyAuth = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/auth/me", {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
           headers: {
             Authorization: `Bearer ${user.token}`,
           },
@@ -74,7 +76,7 @@ export default function ChangePasswordPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/auth/change-password", {
+      const response = await fetch(`${API_BASE}/api/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

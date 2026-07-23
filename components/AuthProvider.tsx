@@ -10,6 +10,8 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+
 export interface UserData {
   email: string;
   name: string;
@@ -57,7 +59,7 @@ export default function AuthProvider({
           const parsed = JSON.parse(storedUser);
           const token = parsed.token;
           if (token) {
-            const res = await fetch("http://localhost:8000/api/auth/me", {
+            const res = await fetch(`${API_BASE}/api/auth/me`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
@@ -105,7 +107,7 @@ export default function AuthProvider({
   const login = useCallback(
     async (email: string, password?: string) => {
       try {
-        const response = await fetch("http://localhost:8000/api/auth/login", {
+        const response = await fetch(`${API_BASE}/api/auth/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
