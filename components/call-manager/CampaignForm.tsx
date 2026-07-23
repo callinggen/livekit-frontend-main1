@@ -249,7 +249,7 @@ function TimePicker({ value, onChange, error, disabled = false }: TimePickerProp
   const { hour, minute, ampm } = useMemo(() => parseTime(value || "09:00"), [value]);
 
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-  const minutes = ["00", "15", "30", "45"];
+  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
   const emit = (h: string, m: string, ap: "AM" | "PM") => {
     let h24 = parseInt(h, 10);
