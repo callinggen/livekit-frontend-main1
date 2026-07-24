@@ -49,73 +49,128 @@ export default function ReportPage() {
   const handleDownload = async () => {
     if (!reportGenerated || !reportContent) return;
 
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const marginX = 20;
-    const contentWidth = pageWidth - marginX * 2;
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const marginX = 20;
+      const contentWidth = pageWidth - marginX * 2;
 
-    // Header gradient bar (simulated with a filled rect)
-    doc.setFillColor(99, 102, 241); // indigo-500
-    doc.rect(0, 0, pageWidth, 18, "F");
+      // Header gradient bar
+      doc.setFillColor(99, 102, 241); // indigo-500
+      doc.rect(0, 0, pageWidth, 18, "F");
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("CallingGen AI Performance Report", marginX, 12);
-
-    // Meta info
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Report Period: ${startDate}  →  ${endDate}`, marginX, 28);
-    doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, marginX, 34);
-
-    // Divider
-    doc.setDrawColor(220, 220, 230);
-    doc.setLineWidth(0.4);
-    doc.line(marginX, 38, pageWidth - marginX, 38);
-
-    let y = 46;
-
-    // Add stats if available
-    if (stats) {
-      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 30, 30);
-      doc.text("Data Summary", marginX, y);
-      y += 6;
+      doc.text("CallingGen AI Performance Report", marginX, 12);
+
+      // Meta info
+      doc.setTextColor(80, 80, 80);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(60, 60, 60);
-      doc.text(`Total Calls: ${stats.total} | Completed: ${stats.completed} | Failed: ${stats.failed}`, marginX, y);
-      y += 6;
-      doc.text(`Leads - Hot: ${stats.hot} | Warm: ${stats.warm} | Cold: ${stats.cold}`, marginX, y);
-      y += 10;
-    }
+      doc.text(`Report Period: ${startDate}  to  ${endDate}`, marginX, 28);
+      doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, marginX, 34);
 
-    // Report Content
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(40, 40, 40);
+      // Divider
+      doc.setDrawColor(220, 220, 230);
+      doc.setLineWidth(0.5);
+      doc.line(marginX, 38, pageWidth - marginX, 38);
 
-    const splitText = doc.splitTextToSize(reportContent, contentWidth);
-    
-    // Simple pagination logic
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const marginBottom = 20;
+      let y = 46;
 
-    for (let i = 0; i < splitText.length; i++) {
-      if (y > pageHeight - marginBottom) {
-        doc.addPage();
-        y = 20; // reset y
+      // Stats block
+      if (stats) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(40, 40, 40);
+        doc.text("Data Summary", marginX, y);
+        y += 6;
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(60, 60, 60);
+        
+        doc.text(`Total Calls: ${stats.total}   |   Completed: ${stats.completed}   |   Failed: ${stats.failed}`, marginX, y);
+        y += 6;
+        doc.text(`Leads: Hot (${stats.hot})  ·  Warm (${stats.warm})  ·  Cold (${stats.cold})`, marginX, y);
+        
+        y += 8;
+        doc.setDrawColor(240, 240, 245);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 8;
       }
-      doc.text(splitText[i], marginX, y);
-      y += 6;
-    }
 
-    doc.save(`callinggen-report-${startDate}-to-${endDate}.pdf`);
-    setDownloadMessage("PDF report downloaded successfully.");
+      // Parse Markdown
+      const lines = reportContent.split('\n');
+
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        
+        if (y > 275) { 
+          doc.addPage(); 
+          y = 20; 
+        }
+
+        if (line.trim() === '') {
+          y += 3;
+          continue;
+        }
+
+        if (line.startsWith('### ')) {
+          y += 4;
+          doc.setFontSize(13);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(40, 40, 40);
+          doc.text(line.replace('### ', ''), marginX, y);
+          y += 6;
+        } else if (line.startsWith('## ')) {
+          y += 5;
+          doc.setFontSize(15);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(30, 30, 30);
+          doc.text(line.replace('## ', ''), marginX, y);
+          y += 7;
+        } else if (line.startsWith('# ')) {
+          y += 6;
+          doc.setFontSize(17);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(20, 20, 20);
+          doc.text(line.replace('# ', ''), marginX, y);
+          y += 8;
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(60, 60, 60);
+          
+          let text = line.substring(2).replace(/\*\*(.*?)\*\*/g, '$1');
+          const split = doc.splitTextToSize("•  " + text, contentWidth - 4);
+          for (let j = 0; j < split.length; j++) {
+            if (y > 275) { doc.addPage(); y = 20; }
+            doc.text(split[j], marginX + 4, y);
+            y += 5;
+          }
+        } else {
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(60, 60, 60);
+          
+          let text = line.replace(/\*\*(.*?)\*\*/g, '$1');
+          const split = doc.splitTextToSize(text, contentWidth);
+          for (let j = 0; j < split.length; j++) {
+            if (y > 275) { doc.addPage(); y = 20; }
+            doc.text(split[j], marginX, y);
+            y += 5;
+          }
+        }
+      }
+
+      doc.save(`callinggen-report-${startDate}-to-${endDate}.pdf`);
+      setDownloadMessage("PDF report downloaded successfully.");
+    } catch (err) {
+      console.error(err);
+      setDownloadMessage("Failed to generate PDF.");
+    }
   };
 
   return (
@@ -244,7 +299,7 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
+            <div id="report-pdf-content" className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
               {/* Report Meta */}
               <div className="border-b border-zinc-200 p-5 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
                 <div className="flex items-start justify-between">
