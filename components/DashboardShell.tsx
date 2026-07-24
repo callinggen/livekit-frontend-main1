@@ -138,8 +138,8 @@ export default function DashboardShell({
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${active
-                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20"
-                      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20"
+                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                     }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
@@ -150,7 +150,7 @@ export default function DashboardShell({
           </nav>
 
           {/* Pro tip banner */}
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+          {/* <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/40">
             <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
               <Zap className="h-3.5 w-3.5 text-amber-500" />
               Demo Mode
@@ -158,7 +158,7 @@ export default function DashboardShell({
             <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
               Using dummy data. All metrics are for demonstration only.
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* User section at bottom */}
@@ -220,16 +220,16 @@ export default function DashboardShell({
 
             {/* Credits Display */}
             <div className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex ${credits < 100
-                ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
-                : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
+              ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
+              : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
               }`}>
               <CreditCard className={`h-3.5 w-3.5 ${credits < 100
-                  ? "text-red-500 dark:text-red-400"
-                  : "text-zinc-600 dark:text-zinc-400"
+                ? "text-red-500 dark:text-red-400"
+                : "text-zinc-600 dark:text-zinc-400"
                 }`} />
               <span className={`text-xs font-semibold ${credits < 100
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-zinc-700 dark:text-zinc-300"
+                ? "text-red-600 dark:text-red-400"
+                : "text-zinc-700 dark:text-zinc-300"
                 }`}>
                 {credits} Credits
               </span>

@@ -8,7 +8,7 @@ import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import DetailsDrawer from "@/components/shared/DetailsDrawer";
 import { Calendar, PhoneCall, CheckCircle2, FileText, PlayCircle } from "lucide-react";
-import { api, CampaignRow } from "@/lib/api";
+import { api, CampaignRow, CampaignDetail } from "@/lib/api";
 
 interface Campaign extends CampaignRow {}
 
@@ -70,6 +70,17 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [selectedCampaignDetail, setSelectedCampaignDetail] = useState<CampaignDetail | null>(null);
+
+  useEffect(() => {
+    if (selectedCampaign) {
+      api.getCampaign(Number(selectedCampaign.id))
+        .then(data => setSelectedCampaignDetail(data))
+        .catch(err => console.error("Failed to load campaign details:", err));
+    } else {
+      setSelectedCampaignDetail(null);
+    }
+  }, [selectedCampaign]);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -280,27 +291,24 @@ export default function CampaignsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-transparent">
-                      <tr>
-                        <td className="px-4 py-3 whitespace-nowrap font-medium text-zinc-900 dark:text-zinc-100">John Doe</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">+1 234 567 8900</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge("Completed")}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">02:15</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">2023-10-01 09:05 AM</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 whitespace-nowrap font-medium text-zinc-900 dark:text-zinc-100">Jane Smith</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">+1 234 567 8901</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge("Failed")}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">00:00</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">2023-10-01 09:10 AM</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 whitespace-nowrap font-medium text-zinc-900 dark:text-zinc-100">Bob Johnson</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">+1 234 567 8902</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge("Completed")}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">05:30</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">2023-10-01 09:15 AM</td>
-                      </tr>
+                      {selectedCampaignDetail?.contacts?.map((contact) => (
+                        <tr key={contact.id}>
+                          <td className="px-4 py-3 whitespace-nowrap font-medium text-zinc-900 dark:text-zinc-100">{contact.name || (contact as any).customer_name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">{contact.phone}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge(contact.status === "pending" ? "Scheduled" : contact.status.charAt(0).toUpperCase() + contact.status.slice(1))}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                            {contact.duration ? `${Math.floor(contact.duration / 60).toString().padStart(2, "0")}:${(contact.duration % 60).toString().padStart(2, "0")}` : "00:00"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">{selectedCampaign.schedule}</td>
+                        </tr>
+                      ))}
+                      {(!selectedCampaignDetail?.contacts || selectedCampaignDetail.contacts.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
+                            {selectedCampaignDetail ? "No contacts found." : "Loading contacts..."}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

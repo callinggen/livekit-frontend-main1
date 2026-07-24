@@ -40,6 +40,18 @@ export interface CampaignRow {
   notes: string;
 }
 
+export interface CampaignDetail extends CampaignRow {
+  contacts: {
+    id: number;
+    name: string;
+    phone: string;
+    status: string;
+    response: string;
+    duration: number;
+    datetime: string;
+  }[];
+}
+
 export interface ResponseLog {
   id: string;
   name: string;
@@ -95,7 +107,7 @@ export const api = {
   getCampaigns: () => request<CampaignRow[]>("/api/campaigns"),
 
   /** Single campaign detail. */
-  getCampaign: (id: number) => request<CampaignRow>(`/api/campaigns/${id}`),
+  getCampaign: (id: number) => request<CampaignDetail>(`/api/campaigns/${id}`),
 
   /** Contacts for a campaign. */
   getCampaignContacts: (campaignId: number) =>
@@ -130,5 +142,11 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ human_response: humanResponse }),
       }
+    ),
+
+  /** Generate an AI report over a date range. */
+  generateReport: (startDate: string, endDate: string) =>
+    request<{ report: string; stats: any }>(
+      `/api/reports/generate?start_date=${startDate}&end_date=${endDate}`
     ),
 };

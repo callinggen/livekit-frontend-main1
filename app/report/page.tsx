@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
 import { FileText, Calendar, Download, Sparkles, Loader2, CheckCircle2, Clock } from "lucide-react";
-// BUG-026: import downloadFile removed — now uses jsPDF for real PDF export
+import { api } from "@/lib/api";
+import ReactMarkdown from "react-markdown";
 
 export default function ReportPage() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function ReportPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState("");
+  const [reportContent, setReportContent] = useState("");
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -22,23 +25,30 @@ export default function ReportPage() {
 
   if (!isLoggedIn) return null;
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!startDate || !endDate) return;
     setIsGenerating(true);
     setReportGenerated(false);
     setDownloadMessage("");
+    setReportContent("");
+    setStats(null);
 
-    // Simulate report generation
-    setTimeout(() => {
-      setIsGenerating(false);
+    try {
+      const response = await api.generateReport(startDate, endDate);
+      setReportContent(response.report);
+      setStats(response.stats);
       setReportGenerated(true);
-    }, 3000);
+    } catch (err) {
+      console.error(err);
+      setDownloadMessage("Failed to generate report. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleDownload = async () => {
-    if (!reportGenerated) return;
+    if (!reportGenerated || !reportContent) return;
 
-    // BUG-026: Use jsPDF to produce a real PDF file
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -66,70 +76,60 @@ export default function ReportPage() {
     doc.setLineWidth(0.4);
     doc.line(marginX, 38, pageWidth - marginX, 38);
 
-    // Section heading
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 30, 30);
-    doc.text("Report Sections", marginX, 46);
+    let y = 46;
 
-    // Sections list
-    let y = 54;
-    reportSections.forEach((section, i) => {
-      // Alternating row background
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 248, 252);
-        doc.rect(marginX - 2, y - 5, contentWidth + 4, 10, "F");
-      }
-      doc.setFontSize(10);
+    // Add stats if available
+    if (stats) {
+      doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(99, 102, 241);
-      doc.text(String(i + 1).padStart(2, "0"), marginX, y);
-      doc.setFont("helvetica", "normal");
       doc.setTextColor(30, 30, 30);
-      doc.text(section, marginX + 12, y);
-      doc.setFontSize(8);
-      doc.setTextColor(130, 130, 150);
-      doc.text("AI-generated analysis with data-driven insights", marginX + 12, y + 4);
-      y += 14;
-    });
+      doc.text("Data Summary", marginX, y);
+      y += 6;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Total Calls: ${stats.total} | Completed: ${stats.completed} | Failed: ${stats.failed}`, marginX, y);
+      y += 6;
+      doc.text(`Leads - Hot: ${stats.hot} | Warm: ${stats.warm} | Cold: ${stats.cold}`, marginX, y);
+      y += 10;
+    }
 
-    // Footer
-    doc.setFillColor(99, 102, 241);
-    doc.rect(0, 282, pageWidth, 15, "F");
-    doc.setFontSize(8);
-    doc.setTextColor(255, 255, 255);
-    doc.text("CallingGen © — Confidential AI Report", marginX, 291);
-    doc.text(`Page 1`, pageWidth - marginX - 10, 291);
+    // Report Content
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(40, 40, 40);
+
+    const splitText = doc.splitTextToSize(reportContent, contentWidth);
+    
+    // Simple pagination logic
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginBottom = 20;
+
+    for (let i = 0; i < splitText.length; i++) {
+      if (y > pageHeight - marginBottom) {
+        doc.addPage();
+        y = 20; // reset y
+      }
+      doc.text(splitText[i], marginX, y);
+      y += 6;
+    }
 
     doc.save(`callinggen-report-${startDate}-to-${endDate}.pdf`);
     setDownloadMessage("PDF report downloaded successfully.");
   };
 
-  const reportSections = [
-    "Executive Summary",
-    "Call Volume Analysis",
-    "Agent Performance Metrics",
-    "Lead Classification Breakdown",
-    "Conversion Funnel Analysis",
-    "Campaign ROI Overview",
-    "Customer Sentiment Analysis",
-    "Response Time Distribution",
-    "Peak Hours & Patterns",
-    "Recommendations & Action Items",
-  ];
-
   return (
     <DashboardShell title="Report">
       <div className="mx-auto max-w-4xl space-y-8">
 
-        {/* ── Hero Section (matching second image) ── */}
+        {/* ── Hero Section ── */}
         <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-12">
           {/* Title */}
           <h2 className="text-3xl font-bold sm:text-4xl">
             <span className="gradient-text">AI Report Generator</span>
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-            Generates a 10-section structured PDF report — no time data, facts only.
+            Generate a comprehensive AI-driven performance report.
           </p>
 
           {/* Controls Bar */}
@@ -219,7 +219,7 @@ export default function ReportPage() {
                   Report Generated Successfully!
                 </p>
                 <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                  Your 10-section PDF report is ready for download
+                  Your AI report is ready to read or download.
                 </p>
               </>
             ) : (
@@ -244,9 +244,9 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
               {/* Report Meta */}
-              <div className="border-b border-zinc-200 p-5 dark:border-zinc-800">
+              <div className="border-b border-zinc-200 p-5 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm font-bold">CallingGen AI Performance Report</p>
@@ -260,25 +260,21 @@ export default function ReportPage() {
                   </div>
                 </div>
               </div>
+              
+              {stats && (
+                <div className="border-b border-zinc-200 p-5 dark:border-zinc-800 flex justify-around text-center gap-4 bg-zinc-50/50 dark:bg-zinc-900/30">
+                   <div><span className="text-xs text-zinc-500">Total Calls</span><p className="font-bold">{stats.total}</p></div>
+                   <div><span className="text-xs text-zinc-500">Completed</span><p className="font-bold text-emerald-600">{stats.completed}</p></div>
+                   <div><span className="text-xs text-zinc-500">Failed</span><p className="font-bold text-red-600">{stats.failed}</p></div>
+                   <div><span className="text-xs text-zinc-500">Hot Leads</span><p className="font-bold text-amber-600">{stats.hot}</p></div>
+                </div>
+              )}
 
-              {/* Sections List */}
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {reportSections.map((section, i) => (
-                  <div key={i} className="flex items-center gap-4 px-5 py-3.5 transition hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-100 to-indigo-100 text-xs font-bold text-violet-700 dark:from-violet-900/40 dark:to-indigo-900/40 dark:text-violet-400">
-                      {String(i + 1).padStart(2, "0")}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{section}</p>
-                      <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                        AI-generated analysis with data-driven insights
-                      </p>
-                    </div>
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                  </div>
-                ))}
+              {/* Render AI Markdown Content */}
+              <div className="p-6 md:p-8 prose prose-zinc dark:prose-invert max-w-none text-sm">
+                <ReactMarkdown>
+                  {reportContent}
+                </ReactMarkdown>
               </div>
             </div>
           </div>
