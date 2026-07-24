@@ -70,7 +70,7 @@ export default function CallLogsPage() {
         type: "OUTBOUND",
         duration: r.duration || "00:00",
         datetime: r.datetime,
-        credits: Math.floor(Math.random() * 20) + 1,
+        credits: r.creditsDeducted ?? 0,
         response: (r.response || "NO ANSWER").toUpperCase(),
         status: (r.status || "COMPLETED").toUpperCase(),
         humanResponse: r.human_response || "",

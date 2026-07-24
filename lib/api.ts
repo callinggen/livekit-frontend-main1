@@ -70,6 +70,7 @@ export interface ResponseLog {
   customer_name?: string;
   recording_url?: string;
   human_response?: string;
+  creditsDeducted?: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -89,6 +90,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Campaign endpoints ─────────────────────────────────────────────────────
 
 export const api = {
+  /** Get current user credits. */
+  getCredits: (token?: string) =>
+    request<{ credits: number }>("/api/auth/user/credits", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      }
+    }),
   /** Create a new campaign with contacts. Returns { campaign_id }. */
   createCampaign: (payload: CampaignCreatePayload) =>
     request<{ campaign_id: number; message: string }>("/api/campaigns", {

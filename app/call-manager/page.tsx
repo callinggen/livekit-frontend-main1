@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useCredits } from "@/components/CreditsContext";
 import DashboardShell from "@/components/DashboardShell";
 import CampaignForm from "@/components/call-manager/CampaignForm";
 import LiveTracking from "@/components/call-manager/LiveTracking";
@@ -15,6 +16,7 @@ import * as XLSX from "xlsx";
 export default function CallManagerPage() {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
+  const { refreshCredits } = useCredits();
 
   const [formData, setFormData] = useState<CampaignFormData>({
     campaignTitle: "",
@@ -59,16 +61,21 @@ export default function CallManagerPage() {
     pollRef.current = setInterval(async () => {
       try {
         const live = await api.getCampaignLive(campaignId);
-        setLiveStats({
-          registry: live.registry,
-          standby: live.standby,
-          dialer: live.dialer,
-          analysis: live.analysis,
-          completed: live.completed,
-          failed: live.failed,
-          campaign_status: live.campaign_status,
-          schedule_date: live.schedule_date,
-          schedule_time: live.schedule_time,
+        setLiveStats(prev => {
+          if (prev.completed !== live.completed) {
+            refreshCredits();
+          }
+          return {
+            registry: live.registry,
+            standby: live.standby,
+            dialer: live.dialer,
+            analysis: live.analysis,
+            completed: live.completed,
+            failed: live.failed,
+            campaign_status: live.campaign_status,
+            schedule_date: live.schedule_date,
+            schedule_time: live.schedule_time,
+          };
         });
         
         // Map the backend lightweight contacts to the frontend Contact type

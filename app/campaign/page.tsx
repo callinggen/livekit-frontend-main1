@@ -36,7 +36,7 @@ const DUMMY_CAMPAIGNS: Campaign[] = [
     failedCalls: 3,
     interested: 4,
     callbacks: 2,
-    creditsUsed: 14.50,
+    creditsUsed: 15,
     agent: "Voice-A (Sales)",
     status: "Completed",
     script: "Introduce CallingGen to businesses...",
@@ -54,7 +54,7 @@ const DUMMY_CAMPAIGNS: Campaign[] = [
     failedCalls: 2,
     interested: 18,
     callbacks: 4,
-    creditsUsed: 29.10,
+    creditsUsed: 29,
     agent: "Voice-B (Support)",
     status: "Running",
     script: "Ask about product satisfaction...",
@@ -118,7 +118,7 @@ export default function CampaignsPage() {
     { key: "date", label: "Date", sortable: true },
     { key: "sheetName", label: "Data Source", sortable: true, render: (c) => <span className="text-xs text-zinc-500">{c.sheetName}</span> },
     { key: "totalCalls", label: "Total Calls", sortable: true, render: (c) => <span className="font-mono">{c.totalCalls}</span> },
-    { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">${c.creditsUsed.toFixed(2)}</span> },
+    { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">{c.creditsUsed}</span> },
     { key: "agent", label: "AI Agent", sortable: true },
     { key: "status", label: "Status", sortable: true, render: (c) => getStatusBadge(c.status) },
   ];
@@ -257,7 +257,7 @@ export default function CampaignsPage() {
                 <div className="rounded-lg bg-white border border-zinc-100 p-3 shadow-sm dark:bg-[#121622] dark:border-zinc-800"><span className="text-zinc-500 text-xs">Failed</span><p className="text-lg font-bold text-red-600 dark:text-red-400 mt-1">{selectedCampaign.failedCalls}</p></div>
                 <div className="rounded-lg bg-white border border-zinc-100 p-3 shadow-sm dark:bg-[#121622] dark:border-zinc-800"><span className="text-zinc-500 text-xs">Interested</span><p className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-1">{selectedCampaign.interested}</p></div>
                 <div className="rounded-lg bg-white border border-zinc-100 p-3 shadow-sm dark:bg-[#121622] dark:border-zinc-800"><span className="text-zinc-500 text-xs">Callbacks</span><p className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-1">{selectedCampaign.callbacks}</p></div>
-                <div className="rounded-lg bg-white border border-zinc-100 p-3 shadow-sm dark:bg-[#121622] dark:border-zinc-800"><span className="text-zinc-500 text-xs">Credits Used</span><p className="text-lg font-bold text-zinc-900 dark:text-white mt-1">${selectedCampaign.creditsUsed.toFixed(2)}</p></div>
+                <div className="rounded-lg bg-white border border-zinc-100 p-3 shadow-sm dark:bg-[#121622] dark:border-zinc-800"><span className="text-zinc-500 text-xs">Credits Used</span><p className="text-lg font-bold text-zinc-900 dark:text-white mt-1">{selectedCampaign.creditsUsed}</p></div>
               </div>
             </div>
 

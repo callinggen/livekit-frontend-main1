@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useCredits } from "@/components/CreditsContext";
 import DashboardShell from "@/components/DashboardShell";
 import { ActivityTimeline } from "@/components/shared/dashboard/ActivityTimeline";
 import { QuickActionCard } from "@/components/shared/dashboard/QuickActionCard";
@@ -24,6 +25,7 @@ import {
 export default function Dashboard() {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
+  const { credits } = useCredits();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [calls, setCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,8 +54,6 @@ export default function Dashboard() {
   const completedCalls = campaigns.reduce((acc, c) => acc + c.completedCalls, 0);
   const interestedLeads = campaigns.reduce((acc, c) => acc + (c.interested || 0), 0);
   const callbacks = campaigns.reduce((acc, c) => acc + (c.callbacks || 0), 0);
-  const creditsUsed = campaigns.reduce((acc, c) => acc + (c.creditsUsed || 0), 0);
-  const creditsRemaining = Math.max(0, 1000 - creditsUsed);
   const activeAgents = Array.from(new Set(campaigns.filter(c => c.status === "Running").map(c => c.agent))).filter(Boolean).length;
   const successRate = totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0;
 
@@ -100,8 +100,8 @@ export default function Dashboard() {
     },
     {
       icon: Coins,
-      value: `$${creditsRemaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      label: "Credits Remaining",
+      value: credits !== null ? String(credits) : "...",
+      label: "Credits",
       accentClassName: "bg-cyan-100/50 dark:bg-cyan-900/10",
       iconBackgroundClassName: "bg-cyan-100",
       iconColorClassName: "text-cyan-600 dark:text-cyan-400",
@@ -165,8 +165,8 @@ export default function Dashboard() {
     },
     {
       icon: Coins,
-      value: "$1,240",
-      label: "Credits Remaining",
+      value: "2000",
+      label: "Credits",
       accentClassName: "bg-cyan-100/50 dark:bg-cyan-900/10",
       iconBackgroundClassName: "bg-cyan-100",
       iconColorClassName: "text-cyan-600 dark:text-cyan-400",

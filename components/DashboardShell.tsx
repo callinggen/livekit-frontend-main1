@@ -23,7 +23,9 @@ import {
   CreditCard,
   ArrowUpCircle,
 } from "lucide-react";
+
 import { useAuth } from "@/components/AuthProvider";
+import { useCredits } from "@/components/CreditsContext";
 
 
 const navItems = [
@@ -45,8 +47,8 @@ export default function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { credits } = useCredits();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const credits = 75; // Dummy credits value (below 100 to demonstrate red)
 
   // Close sidebar on wide screens on resize
   useEffect(() => {
@@ -208,34 +210,36 @@ export default function DashboardShell({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* BUG-012: Starter Plan badge is now a clickable button → /pricing */}
-            <button
-              onClick={() => router.push("/pricing")}
-              className="hidden items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 dark:border-violet-800/50 dark:bg-violet-950/40 sm:flex hover:bg-violet-100 dark:hover:bg-violet-900/50 transition cursor-pointer"
-              title="View pricing plans"
+            {/* Starter Plan badge */}
+            <div
+              className="hidden items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 dark:border-violet-800/50 dark:bg-violet-950/40 sm:flex"
+              title="Current Plan"
             >
               <Crown className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
               <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Starter Plan</span>
-            </button>
-
-            {/* Credits Display */}
-            <div className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex ${credits < 100
-              ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
-              : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
-              }`}>
-              <CreditCard className={`h-3.5 w-3.5 ${credits < 100
-                ? "text-red-500 dark:text-red-400"
-                : "text-zinc-600 dark:text-zinc-400"
-                }`} />
-              <span className={`text-xs font-semibold ${credits < 100
-                ? "text-red-600 dark:text-red-400"
-                : "text-zinc-700 dark:text-zinc-300"
-                }`}>
-                {credits} Credits
-              </span>
             </div>
 
+            {/* Credits Display */}
+            {credits !== null && (
+              <div className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex ${credits < 100
+                ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
+                : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
+                }`}>
+                <CreditCard className={`h-3.5 w-3.5 ${credits < 100
+                  ? "text-red-500 dark:text-red-400"
+                  : "text-zinc-600 dark:text-zinc-400"
+                  }`} />
+                <span className={`text-xs font-semibold ${credits < 100
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-zinc-700 dark:text-zinc-300"
+                  }`}>
+                  {credits}
+                </span>
+              </div>
+            )}
+
             {/* Upgrade Plan Button */}
+            {/* 
             <button
               onClick={() => router.push("/pricing")}
               className="hidden items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-violet-500/20 transition hover:shadow-lg hover:shadow-violet-500/30 sm:flex"
@@ -243,6 +247,7 @@ export default function DashboardShell({
               <ArrowUpCircle className="h-3.5 w-3.5" />
               Upgrade Plan
             </button>
+            */}
 
             {/* Dark / Light toggle */}
             <button
