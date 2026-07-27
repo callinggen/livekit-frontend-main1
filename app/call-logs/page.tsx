@@ -486,10 +486,13 @@ export default function CallLogsPage() {
 
                 {/* Edit / Delete / Close Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-accent border border-transparent hover:border-border rounded-lg text-sm font-medium transition-colors">
-                    <Edit3 className="w-4 h-4" /> Edit
-                  </button>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-lg text-sm font-medium transition-colors">
+                  <button 
+                    onClick={() => {
+                      setData(prev => prev.filter(c => c.id !== selectedCall.id));
+                      setSelectedCall(null);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-lg text-sm font-medium transition-colors"
+                  >
                     <Trash2 className="w-4 h-4" /> Delete
                   </button>
                   <div className="w-px h-6 bg-border mx-1"></div>
