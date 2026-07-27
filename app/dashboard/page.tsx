@@ -24,7 +24,7 @@ import {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const { credits } = useCredits();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [calls, setCalls] = useState<any[]>([]);
@@ -279,7 +279,7 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">Welcome back, Admin 👋</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">Welcome back, {user?.name || "Admin"} 👋</h1>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               Here is what's happening with your campaigns today.
             </p>
