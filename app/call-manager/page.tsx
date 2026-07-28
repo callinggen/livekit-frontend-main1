@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
@@ -13,21 +13,40 @@ import { CampaignFormData, Contact, LiveTrackingStats, UploadSourceType } from "
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
+/** Returns current date/time in IST as { date: "YYYY-MM-DD", time: "HH:MM" } */
+function getISTNow() {
+  const now = new Date();
+  // IST is UTC+5:30
+  const istOffset = 5 * 60 + 30; // minutes
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  const istMs = utcMs + istOffset * 60000;
+  const ist = new Date(istMs);
+  const yyyy = ist.getFullYear();
+  const mm = String(ist.getMonth() + 1).padStart(2, "0");
+  const dd = String(ist.getDate()).padStart(2, "0");
+  const hh = String(ist.getHours()).padStart(2, "0");
+  const min = String(ist.getMinutes()).padStart(2, "0");
+  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${min}` };
+}
+
 export default function CallManagerPage() {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
   const { refreshCredits } = useCredits();
 
-  const [formData, setFormData] = useState<CampaignFormData>({
-    campaignTitle: "",
-    agent: "",
-    scheduleDate: new Date().toISOString().split("T")[0],
-    scheduleTime: "09:00",
-    script: "",
-    uploadSource: "excel",
-    googleSheetUrl: "",
-    singleContactName: "",
-    singleContactPhone: "",
+  const [formData, setFormData] = useState<CampaignFormData>(() => {
+    const { date, time } = getISTNow();
+    return {
+      campaignTitle: "",
+      agent: "",
+      scheduleDate: date,
+      scheduleTime: time,
+      script: "",
+      uploadSource: "excel",
+      googleSheetUrl: "",
+      singleContactName: "",
+      singleContactPhone: "",
+    };
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -77,21 +96,21 @@ export default function CallManagerPage() {
             schedule_time: live.schedule_time,
           };
         });
-        
+
         // Map the backend lightweight contacts to the frontend Contact type
         if (live.contacts) {
-            setContacts(prevContacts => {
-                // We map over prevContacts to preserve any fields not returned by the lightweight endpoint,
-                // while updating status and response.
-                const updatedMap = new Map(live.contacts.map(c => [String(c.phone), c]));
-                return prevContacts.map(pc => {
-                    const updated = updatedMap.get(String(pc.phone));
-                    if (updated) {
-                        return { ...pc, status: updated.status as any, response: updated.response };
-                    }
-                    return pc;
-                });
+          setContacts(prevContacts => {
+            // We map over prevContacts to preserve any fields not returned by the lightweight endpoint,
+            // while updating status and response.
+            const updatedMap = new Map(live.contacts.map(c => [String(c.phone), c]));
+            return prevContacts.map(pc => {
+              const updated = updatedMap.get(String(pc.phone));
+              if (updated) {
+                return { ...pc, status: updated.status as any, response: updated.response };
+              }
+              return pc;
             });
+          });
         }
 
         // Stop polling when campaign is no longer running
@@ -136,7 +155,7 @@ export default function CallManagerPage() {
             const mapped: Contact[] = rows.map((row, i) => {
               const nameKey = (Object.keys(row).find(k => k.toLowerCase().trim() === "name") || Object.keys(row).find(k => k.toLowerCase().includes("name"))) ?? "";
               const phoneKey = (Object.keys(row).find(k => k.toLowerCase().trim() === "phone") || Object.keys(row).find(k => k.toLowerCase().includes("phone"))) ?? "";
-              
+
               const metadata_fields: Record<string, string> = {};
               Object.keys(row).forEach(key => {
                 if (key !== nameKey && key !== phoneKey) {
@@ -144,11 +163,11 @@ export default function CallManagerPage() {
                 }
               });
 
-              return { 
-                id: Date.now() + i, 
-                name: row[nameKey] || "Unknown", 
-                phone: row[phoneKey] || "Unknown", 
-                status: "pending", 
+              return {
+                id: Date.now() + i,
+                name: row[nameKey] || "Unknown",
+                phone: row[phoneKey] || "Unknown",
+                status: "pending",
                 response: "—",
                 metadata_fields
               };
@@ -173,7 +192,7 @@ export default function CallManagerPage() {
             const mapped: Contact[] = rows.map((row, i) => {
               const nameKey = (Object.keys(row).find(k => k.toLowerCase().trim() === "name") || Object.keys(row).find(k => k.toLowerCase().includes("name"))) ?? "";
               const phoneKey = (Object.keys(row).find(k => k.toLowerCase().trim() === "phone") || Object.keys(row).find(k => k.toLowerCase().includes("phone"))) ?? "";
-              
+
               const metadata_fields: Record<string, string> = {};
               Object.keys(row).forEach(key => {
                 if (key !== nameKey && key !== phoneKey) {
@@ -181,11 +200,11 @@ export default function CallManagerPage() {
                 }
               });
 
-              return { 
-                id: Date.now() + i, 
-                name: String(row[nameKey] || "Unknown"), 
-                phone: String(row[phoneKey] || "Unknown"), 
-                status: "pending", 
+              return {
+                id: Date.now() + i,
+                name: String(row[nameKey] || "Unknown"),
+                phone: String(row[phoneKey] || "Unknown"),
+                status: "pending",
                 response: "—",
                 metadata_fields
               };
@@ -277,8 +296,8 @@ export default function CallManagerPage() {
       }];
     } else {
       // Excel / CSV / Google Sheet — contacts already parsed into state
-      contactList = contacts.map(c => ({ 
-        name: c.name, 
+      contactList = contacts.map(c => ({
+        name: c.name,
         phone: c.phone,
         metadata_fields: c.metadata_fields
       }));
