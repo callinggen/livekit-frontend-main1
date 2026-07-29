@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
-import { ChevronLeft, ChevronRight, Clock, Plus, Target, User, Bot, PhoneCall, Calendar as CalendarIcon, X, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Plus, Target, User, Bot, PhoneCall, Calendar as CalendarIcon, X, Save, CheckCircle, XCircle } from "lucide-react";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import DetailsDrawer from "@/components/shared/DetailsDrawer";
 import { api } from "@/lib/api";
@@ -15,7 +15,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-type EventType = "campaign" | "followup" | "meeting";
+type EventType = "campaign" | "followup" | "meeting" | "success" | "failed";
 
 interface CalEvent {
   id: string;
@@ -76,17 +76,46 @@ export default function CalendarPage() {
         // 1. Map Campaigns from backend schedule
         cData.forEach(c => {
           if (c.schedule) {
-            const parts = c.schedule.split(" ");
-            const dateKey = parts[0];
-            const time = parts.slice(1).join(" ");
+            // c.schedule is like "2026-07-22T08:30:00.000Z UTC"
+            // We need to parse it to a local date string to get YYYY-MM-DD
+            const isoString = c.schedule.split(" ")[0]; // "2026-07-22T08:30:00.000Z"
+            let dateKey = isoString;
+            let timeStr = "09:00 AM";
+            try {
+              if (isoString.includes("T")) {
+                const d = new Date(isoString);
+                dateKey = toKey(d.getFullYear(), d.getMonth(), d.getDate());
+                timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              } else {
+                dateKey = isoString;
+                timeStr = c.schedule.split(" ").slice(1).join(" ") || "09:00 AM";
+              }
+            } catch (e) {
+              // fallback
+            }
+
+            // Determine if this campaign is upcoming, success, or failed based on its calls
+            let type: EventType = "campaign";
+            let notes = c.script || "AI Campaign run.";
+            if (c.status === "Completed") {
+               type = "success";
+               notes = `Completed: ${c.completedCalls} Success, ${c.failedCalls} Failed out of ${c.totalCalls} calls.`;
+            } else if (c.status === "Failed") {
+               type = "failed";
+               notes = `Failed: ${c.completedCalls} Success, ${c.failedCalls} Failed out of ${c.totalCalls} calls.`;
+            } else if (c.status === "Running") {
+               type = "campaign";
+               notes = `Running: ${c.completedCalls} Success, ${c.failedCalls} Failed out of ${c.totalCalls} calls.`;
+            }
+
             pushEvent(dateKey, {
               id: `campaign-${c.id}`,
               title: `Launch: ${c.name}`,
-              time: time || "09:00 AM",
-              type: "campaign",
+              time: timeStr,
+              type: type,
               contactOrCampaign: c.name,
               agent: c.agent,
-              notes: c.script || "AI Campaign run.",
+              notes: notes,
               date: dateKey,
             });
           }
@@ -94,13 +123,14 @@ export default function CalendarPage() {
 
         // 2. Map Booked Appointments from Calls
         callData.forEach(call => {
+          // A. If an appointment was booked
           if (call.appointment_date) {
             const dateKey = call.appointment_date;
             pushEvent(dateKey, {
               id: `appt-${call.id}`,
               title: `Appt: ${call.name}`,
               time: call.appointment_time || "12:00 PM",
-              type: "followup",
+              type: "meeting",
               contactOrCampaign: call.name,
               agent: "AI Agent",
               notes: call.notes || "Booked appointment follow-up.",
@@ -179,6 +209,8 @@ export default function CalendarPage() {
       case "campaign": return "primary";
       case "followup": return "warning";
       case "meeting": return "neutral";
+      case "success": return "success";
+      case "failed": return "error";
     }
   };
 
@@ -187,6 +219,8 @@ export default function CalendarPage() {
       case "campaign": return "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30";
       case "followup": return "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border-amber-200 dark:border-amber-500/30";
       case "meeting": return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700";
+      case "success": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30";
+      case "failed": return "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300 border-rose-200 dark:border-rose-500/30";
     }
   };
 
@@ -363,7 +397,7 @@ export default function CalendarPage() {
                     </div>
                     <h4 className="mt-1 text-sm font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">{ev.title}</h4>
                     <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-                      {ev.type === "campaign" ? <Target className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                      {ev.type === "campaign" ? <Target className="h-3 w-3" /> : ev.type === "success" ? <CheckCircle className="h-3 w-3" /> : ev.type === "failed" ? <XCircle className="h-3 w-3" /> : <User className="h-3 w-3" />}
                       {ev.contactOrCampaign}
                     </span>
                   </button>
@@ -381,7 +415,11 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-[#121622]">
               <div className="flex items-center gap-3">
                 <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${getEventColors(selectedEvent.type)}`}>
-                  {selectedEvent.type === "campaign" ? <PhoneCall className="h-6 w-6" /> : selectedEvent.type === "followup" ? <User className="h-6 w-6" /> : <CalendarIcon className="h-6 w-6" />}
+                  {selectedEvent.type === "campaign" ? <PhoneCall className="h-6 w-6" /> 
+                   : selectedEvent.type === "success" ? <CheckCircle className="h-6 w-6" />
+                   : selectedEvent.type === "failed" ? <XCircle className="h-6 w-6" />
+                   : selectedEvent.type === "followup" ? <User className="h-6 w-6" /> 
+                   : <CalendarIcon className="h-6 w-6" />}
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-zinc-900 dark:text-white">{selectedEvent.title}</h2>
