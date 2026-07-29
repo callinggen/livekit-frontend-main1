@@ -244,7 +244,7 @@ export default function Dashboard() {
       arrowHoverClassName: "group-hover:text-violet-600 dark:group-hover:text-violet-400",
     },
     {
-      href: "/responses",
+      href: "/call-logs",
       icon: PhoneCall,
       title: "View Responses",
       hoverClassName: "hover:border-blue-400 hover:bg-blue-50 dark:hover:border-blue-500/50 dark:hover:bg-blue-500/10",
@@ -253,9 +253,9 @@ export default function Dashboard() {
       arrowHoverClassName: "group-hover:text-blue-600 dark:group-hover:text-blue-400",
     },
     {
-      href: "/leads",
+      href: "/report",
       icon: Target,
-      title: "Manage Leads",
+      title: "AI Report",
       hoverClassName: "hover:border-rose-400 hover:bg-rose-50 dark:hover:border-rose-500/50 dark:hover:bg-rose-500/10",
       iconWrapperClassName: "bg-rose-100 dark:bg-rose-900/30",
       iconColorClassName: "text-rose-600 dark:text-rose-400",
