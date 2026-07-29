@@ -1,18 +1,13 @@
 import Navbar from "@/components/landing/Navbar";
 import Hero from "@/components/landing/Hero";
-import Trust from "@/components/landing/Trust";
-import Problem from "@/components/landing/Problem";
-import About from "@/components/landing/About";
-import Features from "@/components/landing/Features";
-import Services from "@/components/landing/Services";
-import Workflow from "@/components/landing/Workflow";
-import Industries from "@/components/landing/Industries";
-import WhyCallingGen from "@/components/landing/WhyCallingGen";
-import Integrations from "@/components/landing/Integrations";
-import DashboardPreview from "@/components/landing/DashboardPreview";
-import Testimonials from "@/components/landing/Testimonials";
-import FAQ from "@/components/landing/FAQ";
-import FinalCTA from "@/components/landing/FinalCTA";
+import AboutSection from "@/components/landing/AboutSection";
+import FeaturesSection from "@/components/landing/FeaturesSection";
+import IndustriesSection from "@/components/landing/IndustriesSection";
+import WorkflowSection from "@/components/landing/WorkflowSection";
+import WhyCallingGenSection from "@/components/landing/WhyCallingGenSection";
+import TestimonialsSection from "@/components/landing/TestimonialsSection";
+import FaqSection from "@/components/landing/FaqSection";
+import FinalCtaSection from "@/components/landing/FinalCtaSection";
 import Footer from "@/components/landing/Footer";
 
 export default function Home() {
@@ -21,19 +16,14 @@ export default function Home() {
       <Navbar />
       <main className="flex-grow">
         <Hero />
-        <Trust />
-        <Problem />
-        <About />
-        <Features />
-        <Services />
-        <Workflow />
-        <Industries />
-        <WhyCallingGen />
-        <Integrations />
-        <DashboardPreview />
-        <Testimonials />
-        <FAQ />
-        <FinalCTA />
+        <AboutSection />
+        <FeaturesSection />
+        <IndustriesSection />
+        <WorkflowSection />
+        <WhyCallingGenSection />
+        <TestimonialsSection />
+        <FaqSection />
+        <FinalCtaSection />
       </main>
       <Footer />
     </div>

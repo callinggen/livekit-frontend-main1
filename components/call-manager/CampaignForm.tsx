@@ -295,8 +295,8 @@ function TimePicker({ value, onChange, error, disabled = false }: TimePickerProp
             onClick={() => emit(hour, minute, ap)}
             disabled={disabled}
             className={`px-2 py-1 text-xs font-bold transition disabled:cursor-not-allowed ${ampm === ap
-                ? "bg-violet-600 text-white"
-                : "bg-white text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              ? "bg-violet-600 text-white"
+              : "bg-white text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
           >
             {ap}

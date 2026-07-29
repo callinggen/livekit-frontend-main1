@@ -92,7 +92,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   /** Get current user credits. */
   getCredits: (token?: string) =>
-    request<{ credits: number }>("/api/auth/user/credits", {
+    request<{ credits: number }>("/api/auth/me", {
       headers: {
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
@@ -155,7 +155,19 @@ export const api = {
 
   /** Generate an AI report over a date range. */
   generateReport: (startDate: string, endDate: string) =>
-    request<{ report: string; stats: any }>(
+    request<{ report: string; stats: any; id: number }>(
       `/api/reports/generate?start_date=${startDate}&end_date=${endDate}`
+    ),
+
+  /** Get all generated reports. */
+  getReports: () =>
+    request<{ id: number; title: string; start_date: string; end_date: string; generated_at: string }[]>(
+      `/api/reports`
+    ),
+
+  /** Get a single report by ID. */
+  getReport: (id: number) =>
+    request<{ id: number; title: string; start_date: string; end_date: string; content: string; stats: any; generated_at: string }>(
+      `/api/reports/${id}`
     ),
 };

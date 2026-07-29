@@ -10,6 +10,24 @@ import DetailsDrawer from "@/components/shared/DetailsDrawer";
 import { Calendar, PhoneCall, CheckCircle2, FileText, PlayCircle } from "lucide-react";
 import { api, CampaignRow, CampaignDetail } from "@/lib/api";
 
+const formatDateTime = (dateString: string | undefined | null) => {
+  if (!dateString) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString.trim())) {
+    return dateString;
+  }
+  try {
+    const cleanStr = dateString.replace(" UTC", "");
+    const d = new Date(cleanStr);
+    if (isNaN(d.getTime())) return dateString;
+    return d.toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true
+    });
+  } catch {
+    return dateString;
+  }
+};
+
 interface Campaign extends CampaignRow {}
 
 const getStatusBadge = (status: string) => {
@@ -23,45 +41,6 @@ const getStatusBadge = (status: string) => {
   };
   return <Badge variant={variantMap[status] || "neutral"}>{status}</Badge>;
 };
-
-const DUMMY_CAMPAIGNS: Campaign[] = [
-  {
-    id: "1",
-    name: "Q3 Marketing Outreach",
-    date: "2026-07-10",
-    schedule: "2026-07-10 09:00 AM",
-    sheetName: "q3_leads.xlsx",
-    totalCalls: 15,
-    completedCalls: 12,
-    failedCalls: 3,
-    interested: 4,
-    callbacks: 2,
-    creditsUsed: 15,
-    agent: "Voice-A (Sales)",
-    status: "Completed",
-    script: "Introduce CallingGen to businesses...",
-    uploadSource: "Excel Upload",
-    notes: "Follow up with interested leads next week."
-  },
-  {
-    id: "2",
-    name: "Summer Feedback Campaign",
-    date: "2026-07-12",
-    schedule: "2026-07-12 02:30 PM",
-    sheetName: "summer_customers.csv",
-    totalCalls: 30,
-    completedCalls: 28,
-    failedCalls: 2,
-    interested: 18,
-    callbacks: 4,
-    creditsUsed: 29,
-    agent: "Voice-B (Support)",
-    status: "Running",
-    script: "Ask about product satisfaction...",
-    uploadSource: "CSV Upload",
-    notes: "Ongoing polling."
-  }
-];
 
 export default function CampaignsPage() {
   const router = useRouter();
@@ -92,15 +71,11 @@ export default function CampaignsPage() {
     const load = () =>
       api.getCampaigns()
         .then(data => {
-          if (data && data.length > 0) {
-            setCampaigns(data as Campaign[]);
-          } else {
-            setCampaigns(DUMMY_CAMPAIGNS);
-          }
+          setCampaigns(data ? (data as Campaign[]) : []);
         })
         .catch(err => {
           console.warn("Failed to load campaigns:", err);
-          setCampaigns(DUMMY_CAMPAIGNS);
+          setCampaigns([]);
         })
         .finally(() => setLoading(false));
 
@@ -115,7 +90,7 @@ export default function CampaignsPage() {
 
   const columns: Column<Campaign>[] = [
     { key: "name", label: "Campaign Name", sortable: true, render: (c) => <span className="font-semibold text-zinc-900 dark:text-white">{c.name}</span> },
-    { key: "date", label: "Date", sortable: true },
+    { key: "date", label: "Date", sortable: true, render: (c) => <span>{formatDateTime(c.date)}</span> },
     { key: "sheetName", label: "Data Source", sortable: true, render: (c) => <span className="text-xs text-zinc-500">{c.sheetName}</span> },
     { key: "totalCalls", label: "Total Calls", sortable: true, render: (c) => <span className="font-mono">{c.totalCalls}</span> },
     { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">{c.creditsUsed}</span> },
@@ -222,8 +197,8 @@ export default function CampaignsPage() {
                 <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Overview</h3>
                 <div className="grid grid-cols-2 gap-y-6 gap-x-4 text-sm">
                   <div><span className="text-zinc-500 text-xs">Name</span><p className="font-semibold text-zinc-900 dark:text-white mt-1">{selectedCampaign.name}</p></div>
-                  <div><span className="text-zinc-500 text-xs">Created Date</span><p className="font-semibold text-zinc-900 dark:text-white mt-1">{selectedCampaign.date}</p></div>
-                  <div><span className="text-zinc-500 text-xs">Schedule</span><p className="font-semibold text-zinc-900 dark:text-white mt-1">{selectedCampaign.schedule}</p></div>
+                  <div><span className="text-zinc-500 text-xs">Created Date</span><p className="font-semibold text-zinc-900 dark:text-white mt-1">{formatDateTime(selectedCampaign.date)}</p></div>
+                  <div><span className="text-zinc-500 text-xs">Schedule</span><p className="font-semibold text-zinc-900 dark:text-white mt-1">{formatDateTime(selectedCampaign.schedule)}</p></div>
                   <div><span className="text-zinc-500 text-xs">AI Agent</span><p className="font-semibold text-zinc-900 dark:text-white mt-1">{selectedCampaign.agent}</p></div>
                 </div>
               </div>
@@ -299,7 +274,7 @@ export default function CampaignsPage() {
                           <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                             {contact.duration ? `${Math.floor(contact.duration / 60).toString().padStart(2, "0")}:${(contact.duration % 60).toString().padStart(2, "0")}` : "00:00"}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">{selectedCampaign.schedule}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">{formatDateTime(contact.datetime || selectedCampaign.schedule)}</td>
                         </tr>
                       ))}
                       {(!selectedCampaignDetail?.contacts || selectedCampaignDetail.contacts.length === 0) && (

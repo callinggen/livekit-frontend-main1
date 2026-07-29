@@ -24,7 +24,7 @@ import {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const { credits } = useCredits();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [calls, setCalls] = useState<any[]>([]);
@@ -52,12 +52,12 @@ export default function Dashboard() {
   const totalCampaigns = campaigns.length;
   const totalCalls = campaigns.reduce((acc, c) => acc + c.totalCalls, 0);
   const completedCalls = campaigns.reduce((acc, c) => acc + c.completedCalls, 0);
-  const interestedLeads = campaigns.reduce((acc, c) => acc + (c.interested || 0), 0);
+  const interestedLeads = calls.filter(c => ["HOT", "WARM", "COLD"].includes((c.category || "").toUpperCase())).length;
   const callbacks = campaigns.reduce((acc, c) => acc + (c.callbacks || 0), 0);
   const activeAgents = Array.from(new Set(campaigns.filter(c => c.status === "Running").map(c => c.agent))).filter(Boolean).length;
   const successRate = totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0;
 
-  const stats = campaigns.length > 0 ? [
+  const stats = [
     {
       icon: FileText,
       value: String(totalCampaigns),
@@ -100,7 +100,7 @@ export default function Dashboard() {
     },
     {
       icon: Coins,
-      value: credits !== null ? String(credits) : "...",
+      value: credits !== null ? String(credits) : "5000",
       label: "Credits",
       accentClassName: "bg-cyan-100/50 dark:bg-cyan-900/10",
       iconBackgroundClassName: "bg-cyan-100",
@@ -122,74 +122,9 @@ export default function Dashboard() {
       iconBackgroundClassName: "bg-emerald-100",
       iconColorClassName: "text-emerald-600 dark:text-emerald-400",
     },
-  ] : [
-    {
-      icon: FileText,
-      value: "12",
-      label: "Total Campaigns",
-      accentClassName: "bg-violet-100/50 dark:bg-violet-900/10",
-      iconBackgroundClassName: "bg-violet-100",
-      iconColorClassName: "text-violet-600 dark:text-violet-400",
-    },
-    {
-      icon: PhoneCall,
-      value: "5.2k",
-      label: "Total Calls",
-      accentClassName: "bg-blue-100/50 dark:bg-blue-900/10",
-      iconBackgroundClassName: "bg-blue-100",
-      iconColorClassName: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      icon: CheckCircle2,
-      value: "4.8k",
-      label: "Completed Calls",
-      accentClassName: "bg-emerald-100/50 dark:bg-emerald-900/10",
-      iconBackgroundClassName: "bg-emerald-100",
-      iconColorClassName: "text-emerald-600 dark:text-emerald-400",
-    },
-    {
-      icon: Target,
-      value: "342",
-      label: "Interested Leads",
-      accentClassName: "bg-rose-100/50 dark:bg-rose-900/10",
-      iconBackgroundClassName: "bg-rose-100",
-      iconColorClassName: "text-rose-600 dark:text-rose-400",
-    },
-    {
-      icon: PhoneForwarded,
-      value: "156",
-      label: "Callbacks",
-      accentClassName: "bg-amber-100/50 dark:bg-amber-900/10",
-      iconBackgroundClassName: "bg-amber-100",
-      iconColorClassName: "text-amber-600 dark:text-amber-400",
-    },
-    {
-      icon: Coins,
-      value: "2000",
-      label: "Credits",
-      accentClassName: "bg-cyan-100/50 dark:bg-cyan-900/10",
-      iconBackgroundClassName: "bg-cyan-100",
-      iconColorClassName: "text-cyan-600 dark:text-cyan-400",
-    },
-    {
-      icon: Bot,
-      value: "4",
-      label: "Active Agents",
-      accentClassName: "bg-fuchsia-100/50 dark:bg-fuchsia-900/10",
-      iconBackgroundClassName: "bg-fuchsia-100",
-      iconColorClassName: "text-fuchsia-600 dark:text-fuchsia-400",
-    },
-    {
-      icon: TrendingUp,
-      value: "92.4%",
-      label: "Success Rate",
-      accentClassName: "bg-emerald-100/50 dark:bg-emerald-900/10",
-      iconBackgroundClassName: "bg-emerald-100",
-      iconColorClassName: "text-emerald-600 dark:text-emerald-400",
-    },
   ];
 
-  const activityItems = calls.length > 0 ? calls.slice(0, 4).map(c => {
+  const activityItems = calls.slice(0, 4).map(c => {
     const isCompleted = c.status.toLowerCase() === "completed";
     const title = isCompleted ? "Call Completed" : "Call Attempt Failed";
     const description = isCompleted
@@ -202,36 +137,7 @@ export default function Dashboard() {
       outerDotClassName: isCompleted ? "bg-emerald-100 dark:bg-emerald-500/20" : "bg-rose-100 dark:bg-rose-500/20",
       innerDotClassName: isCompleted ? "bg-emerald-500" : "bg-rose-500",
     };
-  }) : [
-    {
-      title: "Campaign Scheduled",
-      description: '"Holiday Special" was scheduled for Nov 20.',
-      time: "10 mins ago",
-      outerDotClassName: "bg-emerald-100 dark:bg-emerald-500/20",
-      innerDotClassName: "bg-emerald-500",
-    },
-    {
-      title: "Lead Generated",
-      description: "Diana Evans expressed high interest.",
-      time: "2 hours ago",
-      outerDotClassName: "bg-rose-100 dark:bg-rose-500/20",
-      innerDotClassName: "bg-rose-500",
-    },
-    {
-      title: "Calls Completed",
-      description: '"Q4 Outreach" completed 450/1200 calls.',
-      time: "Yesterday",
-      outerDotClassName: "bg-blue-100 dark:bg-blue-500/20",
-      innerDotClassName: "bg-blue-500",
-    },
-    {
-      title: "Campaign Created",
-      description: '"New Feature Announcement" drafted by Admin.',
-      time: "Oct 12",
-      outerDotClassName: "bg-violet-100 dark:bg-violet-500/20",
-      innerDotClassName: "bg-violet-500",
-    },
-  ];
+  });
 
   const quickActions = [
     {
@@ -244,7 +150,7 @@ export default function Dashboard() {
       arrowHoverClassName: "group-hover:text-violet-600 dark:group-hover:text-violet-400",
     },
     {
-      href: "/responses",
+      href: "/call-logs",
       icon: PhoneCall,
       title: "View Responses",
       hoverClassName: "hover:border-blue-400 hover:bg-blue-50 dark:hover:border-blue-500/50 dark:hover:bg-blue-500/10",
@@ -253,9 +159,9 @@ export default function Dashboard() {
       arrowHoverClassName: "group-hover:text-blue-600 dark:group-hover:text-blue-400",
     },
     {
-      href: "/leads",
+      href: "/report",
       icon: Target,
-      title: "Manage Leads",
+      title: "AI Report",
       hoverClassName: "hover:border-rose-400 hover:bg-rose-50 dark:hover:border-rose-500/50 dark:hover:bg-rose-500/10",
       iconWrapperClassName: "bg-rose-100 dark:bg-rose-900/30",
       iconColorClassName: "text-rose-600 dark:text-rose-400",
@@ -279,7 +185,7 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">Welcome back, Admin 👋</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">Welcome back, {user?.name || "Admin"} 👋</h1>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               Here is what's happening with your campaigns today.
             </p>

@@ -1,156 +1,157 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle2, Play, Sparkles, PhoneCall } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, CheckCircle2, Phone, Mic, Calendar, BarChart3, UserCheck } from "lucide-react";
 
 export default function Hero() {
   return (
-    <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
-      {/* Background Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
-        <div className="absolute -top-[300px] left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full bg-primary/20 blur-[120px] opacity-50" />
-      </div>
-
-      <div className="container mx-auto px-6 max-w-7xl relative z-10">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+    <section className="pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden bg-[#F8FAFC] dark:bg-black transition-colors">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1200px]">
+        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-8">
           
-          {/* Left Column - Text Content */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex flex-col gap-8"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary w-fit border border-primary/20">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-semibold">🚀 AI Voice Calling Platform for Modern Businesses</span>
+          {/* Left Content */}
+          <div className="w-full lg:w-1/2 flex flex-col items-start text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#4F6BFF]/10 text-[#4F6BFF] font-medium text-sm mb-6 border border-[#4F6BFF]/20">
+              <span className="flex h-2 w-2 rounded-full bg-[#4F6BFF] animate-pulse"></span>
+              AI Voice Calling Platform
             </div>
-
-            <h1 className="text-5xl md:text-6xl font-extrabold leading-[1.1] tracking-tight">
-              AI Voice Agents That <br className="hidden md:block" />
-              <span className="gradient-text">Call, Talk, Follow Up</span> & Convert Automatically
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#111827] dark:text-white leading-tight mb-6">
+              AI Voice Agents That Handle Your Business Calls <span className="text-[#4F6BFF]">Automatically</span>
             </h1>
-
-            <p className="text-lg text-muted-foreground leading-relaxed max-w-xl">
-              CallingGen enables businesses to automate outbound calls, inbound customer support, lead qualification, appointment booking, multilingual conversations, and follow-up campaigns using human-like AI voice agents.
+            
+            <p className="text-lg text-[#6B7280] mb-8 max-w-xl leading-relaxed">
+              CallingGen helps businesses automate inbound and outbound calls, qualify leads, book appointments, answer customer queries, and save valuable time using AI voice agents.
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 pt-2">
-              <Link href="#demo">
-                <Button size="lg" className="h-14 px-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg w-full sm:w-auto glow-primary">
-                  Book Free Demo <ArrowRight className="ml-2 w-5 h-5" />
+            
+            <div className="flex flex-col sm:flex-row gap-4 mb-10 w-full sm:w-auto">
+              <Link href="/contact">
+                <Button size="lg" className="bg-[#4F6BFF] hover:bg-[#6a82ff] text-white rounded-full px-8 py-6 text-base font-medium shadow-lg shadow-[#4F6BFF]/25 transition-all hover:-translate-y-1">
+                  Book Demo
                 </Button>
               </Link>
-              <Link href="/login">
-                <Button size="lg" variant="outline" className="h-14 px-8 rounded-full text-lg w-full sm:w-auto border-border bg-background/50 backdrop-blur hover:bg-accent">
-                  <Play className="mr-2 w-5 h-5" /> See in Action
-                </Button>
-              </Link>
+              <Button size="lg" variant="outline" className="rounded-full px-8 py-6 text-base font-medium border-gray-200 text-[#111827] hover:bg-gray-50 transition-all hover:-translate-y-1">
+                See How It Works
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
             </div>
-
-            <div className="flex flex-wrap gap-x-6 gap-y-3 pt-4">
-              {["Human-like AI", "Multi-language", "CRM Integration", "Secure Platform", "24/7 Availability"].map((feature, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm font-medium text-foreground/80">
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  {feature}
-                </div>
-              ))}
+            
+            <div className="flex flex-wrap gap-4 sm:gap-6 text-sm font-medium text-[#6B7280]">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#4F6BFF]" />
+                <span>24/7 AI Calling</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#4F6BFF]" />
+                <span>Multi-language Support</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#4F6BFF]" />
+                <span>CRM Integration</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#4F6BFF]" />
+                <span>WhatsApp Integration</span>
+              </div>
             </div>
-          </motion.div>
-
-          {/* Right Column - Dashboard Mockup */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative lg:h-[600px] flex items-center justify-center"
-          >
-            {/* Main Dashboard Card */}
-            <div className="relative z-10 w-full max-w-[550px] aspect-[4/3] rounded-2xl glass-card border border-border/50 shadow-2xl overflow-hidden flex flex-col">
-              {/* Fake Window Header */}
-              <div className="h-12 border-b border-border/50 bg-background/50 flex items-center px-4 gap-2">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
+          </div>
+          
+          {/* Right Content - Dashboard Mockup */}
+          <div className="w-full lg:w-1/2 relative mt-10 lg:mt-0">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-tr from-[#4F6BFF]/20 to-[#7B61FF]/20 blur-3xl rounded-full opacity-60 -z-10"></div>
+            
+            {/* Dashboard Container */}
+            <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden transform md:rotate-2 hover:rotate-0 transition-transform duration-500">
+              {/* Header */}
+              <div className="border-b border-gray-100 p-4 flex items-center justify-between bg-gray-50/50">
+                <div className="flex gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-400"></div>
                 </div>
-                <div className="mx-auto text-xs font-medium text-muted-foreground bg-accent/50 px-3 py-1 rounded-md">
-                  callinggen.ai/dashboard
-                </div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Live Dashboard</div>
+                <div className="w-8 h-8 rounded-full bg-gray-200"></div>
               </div>
               
-              {/* Dashboard Content Mock */}
-              <div className="flex-1 p-6 bg-gradient-to-br from-background/80 to-background/40 flex flex-col gap-4">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <h3 className="text-xl font-bold">Active Campaign</h3>
-                    <p className="text-sm text-muted-foreground">Lead Qualification (Q3)</p>
+              <div className="p-6 grid grid-cols-2 gap-4">
+                {/* Active Call Card */}
+                <div className="col-span-2 bg-gradient-to-br from-[#4F6BFF] to-[#7B61FF] rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl -translate-y-10 translate-x-10"></div>
+                  <div className="flex justify-between items-start mb-4 relative z-10">
+                    <div>
+                      <div className="text-white/80 text-sm font-medium mb-1 flex items-center gap-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400"></span>
+                        </span>
+                        Live Call with Client
+                      </div>
+                      <div className="text-xl font-bold">John Doe (+1 234 567 8900)</div>
+                    </div>
+                    <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                      <Mic className="w-5 h-5" />
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-primary">84%</div>
-                    <p className="text-xs text-muted-foreground">Success Rate</p>
+                  
+                  <div className="bg-white/10 rounded-lg p-3 text-sm border border-white/20 relative z-10">
+                    <p className="text-white/90">&quot;Hi John, this is CallingGen. I saw you were looking at our pricing page. Can I help answer any questions?&quot;</p>
                   </div>
                 </div>
                 
-                {/* Chart Mockup */}
-                <div className="h-32 rounded-xl bg-accent/30 border border-border/50 flex items-end px-4 gap-2 pt-8">
-                  {[40, 70, 45, 90, 65, 100, 80].map((h, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ height: 0 }}
-                      animate={{ height: `${h}%` }}
-                      transition={{ duration: 1, delay: 0.5 + i * 0.1 }}
-                      className="flex-1 bg-primary/80 rounded-t-sm"
-                    />
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="p-4 rounded-xl bg-accent/30 border border-border/50">
-                    <div className="text-sm text-muted-foreground mb-1">Live Calls</div>
-                    <div className="text-2xl font-bold flex items-center gap-2">
-                      12 <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                {/* Stats Cards */}
+                <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="bg-green-100 p-2 rounded-lg text-green-600">
+                      <UserCheck className="w-4 h-4" />
                     </div>
+                    <div className="text-sm text-gray-500 font-medium">Lead Qualified</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-accent/30 border border-border/50">
-                    <div className="text-sm text-muted-foreground mb-1">Today's Calls</div>
-                    <div className="text-2xl font-bold">1,248</div>
+                  <div className="text-2xl font-bold text-[#111827] mb-1">84%</div>
+                  <div className="text-xs text-green-600 font-medium">+12% from last week</div>
+                </div>
+                
+                <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div className="text-sm text-gray-500 font-medium">Appointments</div>
                   </div>
+                  <div className="text-2xl font-bold text-[#111827] mb-1">24</div>
+                  <div className="text-xs text-blue-600 font-medium">Today</div>
+                </div>
+                
+                {/* Graph mockup */}
+                <div className="col-span-2 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm text-gray-600 font-medium">Call Analytics</div>
+                    <BarChart3 className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <div className="flex items-end gap-2 h-20">
+                    {[40, 70, 45, 90, 65, 85, 100].map((height, i) => (
+                      <div key={i} className="flex-1 bg-[#4F6BFF]/20 rounded-t-md hover:bg-[#4F6BFF] transition-colors cursor-pointer" style={{ height: `${height}%` }}></div>
+                    ))}
+                  </div>
+                </div>
+                
+              </div>
+            </div>
+            
+            {/* Floating elements */}
+            <div className="absolute -left-4 md:-left-8 top-1/4 bg-white p-3 rounded-xl shadow-xl border border-gray-100 animate-bounce" style={{ animationDuration: '3s' }}>
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-100 p-2 rounded-full text-amber-600">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Inbound Call</div>
+                  <div className="text-sm font-bold text-[#111827]">Answered by AI</div>
                 </div>
               </div>
             </div>
-
-            {/* Floating Element 1 */}
-            <motion.div
-              animate={{ y: [-10, 10, -10] }}
-              transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-              className="absolute -right-8 top-20 z-20 p-4 rounded-2xl glass-card shadow-xl border border-border/50 flex items-center gap-4"
-            >
-              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500">
-                <PhoneCall className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold">Agent Connected</div>
-                <div className="text-xs text-muted-foreground">Speaking with John Doe</div>
-              </div>
-            </motion.div>
-
-            {/* Floating Element 2 */}
-            <motion.div
-              animate={{ y: [10, -10, 10] }}
-              transition={{ repeat: Infinity, duration: 6, ease: "easeInOut", delay: 1 }}
-              className="absolute -left-12 bottom-32 z-20 p-4 rounded-2xl glass-card shadow-xl border border-border/50 flex items-center gap-4"
-            >
-              <div className="text-3xl">🇺🇸</div>
-              <div>
-                <div className="text-sm font-bold">Multi-lingual</div>
-                <div className="text-xs text-muted-foreground">English & Spanish Active</div>
-              </div>
-            </motion.div>
-
-          </motion.div>
+          </div>
+          
         </div>
       </div>
     </section>
