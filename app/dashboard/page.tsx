@@ -139,21 +139,6 @@ export default function Dashboard() {
     };
   });
 
-      title: "Calls Completed",
-      description: '"Q4 Outreach" completed 450/1200 calls.',
-      time: "Yesterday",
-      outerDotClassName: "bg-blue-100 dark:bg-blue-500/20",
-      innerDotClassName: "bg-blue-500",
-    },
-    {
-      title: "Campaign Created",
-      description: '"New Feature Announcement" drafted by Admin.',
-      time: "Oct 12",
-      outerDotClassName: "bg-violet-100 dark:bg-violet-500/20",
-      innerDotClassName: "bg-violet-500",
-    },
-  ];
-
   const quickActions = [
     {
       href: "/call-manager",
