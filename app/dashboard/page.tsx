@@ -52,7 +52,7 @@ export default function Dashboard() {
   const totalCampaigns = campaigns.length;
   const totalCalls = campaigns.reduce((acc, c) => acc + c.totalCalls, 0);
   const completedCalls = campaigns.reduce((acc, c) => acc + c.completedCalls, 0);
-  const interestedLeads = campaigns.reduce((acc, c) => acc + (c.interested || 0), 0);
+  const interestedLeads = calls.filter(c => ["HOT", "WARM", "COLD"].includes((c.category || "").toUpperCase())).length;
   const callbacks = campaigns.reduce((acc, c) => acc + (c.callbacks || 0), 0);
   const activeAgents = Array.from(new Set(campaigns.filter(c => c.status === "Running").map(c => c.agent))).filter(Boolean).length;
   const successRate = totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0;
