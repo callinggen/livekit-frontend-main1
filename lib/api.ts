@@ -165,6 +165,10 @@ export const api = {
       `/api/reports`
     ),
 
+  /** Get current user profile and credits balance. */
+  getCredits: () =>
+    request<{ credits: number; id: number; email: string; phone_number: string }>("/api/auth/me"),
+
   /** Get a single report by ID. */
   getReport: (id: number) =>
     request<{ id: number; title: string; start_date: string; end_date: string; content: string; stats: any; generated_at: string }>(
