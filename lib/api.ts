@@ -92,7 +92,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   /** Get current user credits. */
   getCredits: (token?: string) =>
-    request<{ credits: number }>("/api/auth/user/credits", {
+    request<{ credits: number }>("/api/auth/me", {
       headers: {
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
@@ -163,13 +163,6 @@ export const api = {
   getReports: () =>
     request<{ id: number; title: string; start_date: string; end_date: string; generated_at: string }[]>(
       `/api/reports`
-    ),
-
-  /** Get current user profile and credits balance. */
-  getCredits: (token?: string) =>
-    request<{ credits: number; id: number; email: string; phone_number: string }>(
-      "/api/auth/me",
-      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
     ),
 
   /** Get a single report by ID. */
