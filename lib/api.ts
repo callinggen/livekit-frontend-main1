@@ -166,8 +166,11 @@ export const api = {
     ),
 
   /** Get current user profile and credits balance. */
-  getCredits: () =>
-    request<{ credits: number; id: number; email: string; phone_number: string }>("/api/auth/me"),
+  getCredits: (token?: string) =>
+    request<{ credits: number; id: number; email: string; phone_number: string }>(
+      "/api/auth/me",
+      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+    ),
 
   /** Get a single report by ID. */
   getReport: (id: number) =>
