@@ -40,6 +40,37 @@ export interface CampaignRow {
   notes: string;
 }
 
+export interface CampaignDetail {
+  id: string;
+  name: string;
+  agent: string;
+  script: string;
+  schedule_date: string;
+  schedule_time: string;
+  status: string;
+  created_at: string;
+  creditsUsed: number;
+  job: {
+    total_contacts: number;
+    completed_contacts: number;
+    failed_contacts: number;
+    status: string;
+  };
+  contacts: {
+    id: number;
+    name: string;
+    phone: string;
+    status: string;
+    response: string;
+    customer_name?: string;
+    appointment_date?: string;
+    appointment_time?: string;
+    transcript?: any;
+    duration?: number;
+    datetime?: string;
+  }[];
+}
+
 export interface ResponseLog {
   id: string;
   name: string;
@@ -115,7 +146,7 @@ export const api = {
   getCampaigns: () => request<CampaignRow[]>("/api/campaigns"),
 
   /** Single campaign detail. */
-  getCampaign: (id: number) => request<CampaignRow>(`/api/campaigns/${id}`),
+  getCampaign: (id: number) => request<CampaignDetail>(`/api/campaigns/${id}`),
 
   /** Contacts for a campaign. */
   getCampaignContacts: (campaignId: number) =>
@@ -154,4 +185,27 @@ export const api = {
 
   /** Get user credits. */
   getCredits: (_token?: string) => request<{ credits: number }>("/api/auth/user/credits"),
+
+  /** Get all report history. */
+  getReports: () =>
+    request<{ id: number; title: string; start_date: string; end_date: string; generated_at: string }[]>("/api/reports"),
+
+  /** Generate a new report for date range. */
+  generateReport: (startDate: string, endDate: string) =>
+    request<{ report: string; stats: any }>("/api/reports/generate", {
+      method: "POST",
+      body: JSON.stringify({ start_date: startDate, end_date: endDate }),
+    }),
+
+  /** Get a single report by id. */
+  getReport: (id: number) =>
+    request<{
+      id: number;
+      title: string;
+      start_date: string;
+      end_date: string;
+      content: string;
+      stats: any;
+      generated_at: string;
+    }>(`/api/reports/${id}`),
 };
