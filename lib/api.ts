@@ -40,18 +40,6 @@ export interface CampaignRow {
   notes: string;
 }
 
-export interface CampaignDetail extends CampaignRow {
-  contacts: {
-    id: number;
-    name: string;
-    phone: string;
-    status: string;
-    response: string;
-    duration: number;
-    datetime: string;
-  }[];
-}
-
 export interface ResponseLog {
   id: string;
   name: string;
@@ -70,15 +58,34 @@ export interface ResponseLog {
   customer_name?: string;
   recording_url?: string;
   human_response?: string;
-  creditsDeducted?: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Read the auth token from session storage on every request
+  let token: string | null = null;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = sessionStorage.getItem("callinggen-auth");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        token = parsed.token ?? null;
+      }
+    } catch {}
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers,
   });
   if (!res.ok) {
     const text = await res.text();
@@ -90,14 +97,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Campaign endpoints ─────────────────────────────────────────────────────
 
 export const api = {
-  /** Get current user credits. */
-  getCredits: (token?: string) =>
-    request<{ credits: number }>("/api/auth/me", {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { "Authorization": `Bearer ${token}` } : {})
-      }
-    }),
   /** Create a new campaign with contacts. Returns { campaign_id }. */
   createCampaign: (payload: CampaignCreatePayload) =>
     request<{ campaign_id: number; message: string }>("/api/campaigns", {
@@ -116,7 +115,7 @@ export const api = {
   getCampaigns: () => request<CampaignRow[]>("/api/campaigns"),
 
   /** Single campaign detail. */
-  getCampaign: (id: number) => request<CampaignDetail>(`/api/campaigns/${id}`),
+  getCampaign: (id: number) => request<CampaignRow>(`/api/campaigns/${id}`),
 
   /** Contacts for a campaign. */
   getCampaignContacts: (campaignId: number) =>
@@ -153,21 +152,6 @@ export const api = {
       }
     ),
 
-  /** Generate an AI report over a date range. */
-  generateReport: (startDate: string, endDate: string) =>
-    request<{ report: string; stats: any; id: number }>(
-      `/api/reports/generate?start_date=${startDate}&end_date=${endDate}`
-    ),
-
-  /** Get all generated reports. */
-  getReports: () =>
-    request<{ id: number; title: string; start_date: string; end_date: string; generated_at: string }[]>(
-      `/api/reports`
-    ),
-
-  /** Get a single report by ID. */
-  getReport: (id: number) =>
-    request<{ id: number; title: string; start_date: string; end_date: string; content: string; stats: any; generated_at: string }>(
-      `/api/reports/${id}`
-    ),
+  /** Get user credits. */
+  getCredits: (_token?: string) => request<{ credits: number }>("/api/auth/user/credits"),
 };

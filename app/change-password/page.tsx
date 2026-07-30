@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { validatePassword, PasswordValidationRules } from "@/components/PasswordValidator";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
