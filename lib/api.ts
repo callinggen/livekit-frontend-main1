@@ -76,9 +76,29 @@ export interface ResponseLog {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Read the auth token from session storage on every request
+  let token: string | null = null;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = sessionStorage.getItem("callinggen-auth");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        token = parsed.token ?? null;
+      }
+    } catch {}
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers,
   });
   if (!res.ok) {
     const text = await res.text();
