@@ -51,6 +51,7 @@ export default function CallLogsPage() {
   
   // Modals/Popups
   const [selectedCall, setSelectedCall] = useState<any | null>(null);
+  const [audioError, setAudioError] = useState(false);
   
   // Edit mode tracking
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -348,7 +349,7 @@ export default function CallLogsPage() {
                       <tr 
                         key={row.id}
                         className={`hover:bg-accent/40 transition-all cursor-pointer ${isSelected ? 'bg-primary/5 hover:bg-primary/10' : ''}`}
-                        onClick={() => setSelectedCall(row)}
+                        onClick={() => { setAudioError(false); setSelectedCall(row); }}
                       >
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input 
@@ -545,9 +546,9 @@ export default function CallLogsPage() {
                   <div className="flex flex-col">
                     <h4 className="font-semibold flex items-center gap-2 mb-3"><PlayCircle className="w-4 h-4 text-primary" /> Recording</h4>
                     <div className="bg-background border border-border/50 rounded-xl p-6 shadow-sm flex flex-col items-center justify-center min-h-[140px]">
-                      {!selectedCall.recording_url ? (
-                        <div className="text-muted-foreground italic">
-                          No recording available for this call.
+                      {!selectedCall.recording_url || audioError ? (
+                        <div className="text-muted-foreground italic text-center text-sm">
+                          {audioError ? "Audio file is no longer available on server." : "No recording available for this call."}
                         </div>
                       ) : (
                         <audio 
@@ -555,6 +556,7 @@ export default function CallLogsPage() {
                           controls 
                           className="w-full outline-none"
                           preload="metadata"
+                          onError={() => setAudioError(true)}
                         />
                       )}
                     </div>
