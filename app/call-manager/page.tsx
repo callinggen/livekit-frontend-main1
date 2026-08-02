@@ -10,6 +10,7 @@ import CampaignForm from "@/components/call-manager/CampaignForm";
 import LiveTracking from "@/components/call-manager/LiveTracking";
 import ContactsTable from "@/components/call-manager/ContactsTable";
 import { CampaignFormData, Contact, LiveTrackingStats, UploadSourceType } from "@/components/call-manager/types";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -370,63 +371,65 @@ export default function CallManagerPage() {
   const isFormDisabled = launching || ["Scheduled", "Running", "Paused"].includes(liveStats.campaign_status as string);
 
   return (
-    <DashboardShell title="Call Manager">
-      <div className="flex flex-col gap-6 p-1 sm:p-4">
-        {/* Top Section: Two Columns */}
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-          {/* Left Column: Form */}
-          <div className="h-full">
-            <CampaignForm
-              formData={formData}
-              onChange={handleChange}
-              onSubmit={handleSubmit}
-              errors={errors}
-              onFileUpload={handleFileUpload}
-              fileUploaded={fileUploaded}
-              fileName={fileName}
-              fileSize={fileSize}
-              totalContacts={contacts.length}
-              onGoogleSheetLoaded={handleGoogleSheetLoaded}
-              disabled={isFormDisabled}
-            />
-          </div>
+    <ErrorBoundary fallbackTitle="Error loading Call Manager">
+      <DashboardShell title="Call Manager">
+        <div className="flex flex-col gap-6 p-1 sm:p-4">
+          {/* Top Section: Two Columns */}
+          <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+            {/* Left Column: Form */}
+            <div className="h-full">
+              <CampaignForm
+                formData={formData}
+                onChange={handleChange}
+                onSubmit={handleSubmit}
+                errors={errors}
+                onFileUpload={handleFileUpload}
+                fileUploaded={fileUploaded}
+                fileName={fileName}
+                fileSize={fileSize}
+                totalContacts={contacts.length}
+                onGoogleSheetLoaded={handleGoogleSheetLoaded}
+                disabled={isFormDisabled}
+              />
+            </div>
 
-          {/* Right Column: Live Tracking */}
-          <div className="h-full">
-            <LiveTracking stats={liveStats} />
-          </div>
-        </div>
-
-        {/* Bottom Section: Contacts Table */}
-        <div className="mt-2">
-          <ContactsTable contacts={contacts} onDeleteContact={handleDeleteContact} />
-        </div>
-      </div>
-
-      {/* Credits Exhausted Modal */}
-      {showExhaustedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900 border border-red-200 dark:border-red-900/50 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex flex-col items-center text-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400">
-                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-extrabold text-zinc-900 dark:text-white">Credits Exhausted</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                Your credits have exhausted. Please recharge in order to continue.
-              </p>
-              <button
-                onClick={() => setShowExhaustedModal(false)}
-                className="mt-4 w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 active:scale-[0.98] transition-all shadow-md shadow-red-600/20"
-              >
-                OK, Understood
-              </button>
+            {/* Right Column: Live Tracking */}
+            <div className="h-full">
+              <LiveTracking stats={liveStats} />
             </div>
           </div>
+
+          {/* Bottom Section: Contacts Table */}
+          <div className="mt-2">
+            <ContactsTable contacts={contacts} onDeleteContact={handleDeleteContact} />
+          </div>
         </div>
-      )}
-    </DashboardShell>
+
+        {/* Credits Exhausted Modal */}
+        {showExhaustedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900 border border-red-200 dark:border-red-900/50 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400">
+                  <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-extrabold text-zinc-900 dark:text-white">Credits Exhausted</h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                  Your credits have exhausted. Please recharge in order to continue.
+                </p>
+                <button
+                  onClick={() => setShowExhaustedModal(false)}
+                  className="mt-4 w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 active:scale-[0.98] transition-all shadow-md shadow-red-600/20"
+                >
+                  OK, Understood
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </DashboardShell>
+    </ErrorBoundary>
   );
 }

@@ -48,8 +48,13 @@ export interface CampaignDetail {
   schedule_date: string;
   schedule_time: string;
   status: string;
+  pause_reason?: string;
   created_at: string;
   creditsUsed: number;
+  total?: number;
+  page?: number;
+  limit?: number;
+  pages?: number;
   job: {
     total_contacts: number;
     completed_contacts: number;
@@ -145,17 +150,52 @@ export const api = {
   /** List all campaigns. */
   getCampaigns: () => request<CampaignRow[]>("/api/campaigns"),
 
-  /** Single campaign detail. */
-  getCampaign: (id: number) => request<CampaignDetail>(`/api/campaigns/${id}`),
+  /** Single campaign detail with pagination. */
+  getCampaign: (id: number, page: number = 1, limit: number = 50, search?: string, statusFilter?: string) => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", String(limit));
+    if (search) params.set("search", search);
+    if (statusFilter) params.set("status_filter", statusFilter);
+    return request<CampaignDetail>(`/api/campaigns/${id}?${params.toString()}`);
+  },
 
   /** Contacts for a campaign. */
-  getCampaignContacts: (campaignId: number) =>
-    request<{ id: number; name: string; phone: string; status: string; response: string }[]>(
-      `/api/campaigns/${campaignId}/contacts`
-    ),
+  getCampaignContacts: (campaignId: number, page: number = 1, limit: number = 50, search?: string) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (search) params.set("search", search);
+    return request<{ id: number; name: string; phone: string; status: string; response: string }[]>(
+      `/api/campaigns/${campaignId}/contacts?${params.toString()}`
+    );
+  },
+
+  /** Pause campaign. */
+  pauseCampaign: (campaignId: number) =>
+    request<{ success: boolean; message: string; status: string }>(`/api/campaigns/${campaignId}/pause`, { method: "POST" }),
+
+  /** Resume campaign. */
+  resumeCampaign: (campaignId: number) =>
+    request<{ success: boolean; message: string; status: string }>(`/api/campaigns/${campaignId}/resume`, { method: "POST" }),
+
+  /** Stop campaign. */
+  stopCampaign: (campaignId: number) =>
+    request<{ success: boolean; message: string; status: string }>(`/api/campaigns/${campaignId}/stop`, { method: "POST" }),
 
   /** All completed/in-progress calls (Responses page). */
-  getCalls: () => request<ResponseLog[]>("/api/calls"),
+  getCalls: (page?: number, limit?: number, search?: string, status?: string, campaignId?: number) => {
+    const params = new URLSearchParams();
+    if (page) params.set("page", String(page));
+    if (limit) params.set("limit", String(limit));
+    if (search) params.set("search", search);
+    if (status) params.set("status", status);
+    if (campaignId) params.set("campaign_id", String(campaignId));
+    const queryStr = params.toString() ? `?${params.toString()}` : "";
+    return request<ResponseLog[] | { calls: ResponseLog[] }>(`/api/calls${queryStr}`).then(res => {
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray((res as any).calls)) return (res as any).calls as ResponseLog[];
+      return [] as ResponseLog[];
+    });
+  },
 
   /** BUG-007: Live contact-status counts for the Live Journey panel. */
   getCampaignLive: (campaignId: number) =>
