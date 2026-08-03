@@ -214,6 +214,81 @@ export default function CampaignForm({
             disabled={disabled}
           />
 
+          {/* Contact Selection */}
+          {formData.uploadSource !== "single" && (fileUploaded || formData.googleSheetUrl) && totalContacts !== undefined && totalContacts > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
+                <User className="h-3.5 w-3.5" />
+                Contact Selection
+              </label>
+              
+              <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <div className="flex items-center gap-6">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={formData.selectionType === "all"}
+                      onChange={() => onChange({ selectionType: "all", startRow: undefined, endRow: undefined })}
+                      disabled={disabled}
+                      className="text-violet-600 focus:ring-violet-500 cursor-pointer"
+                    />
+                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">All Contacts ({totalContacts})</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={formData.selectionType === "range"}
+                      onChange={() => onChange({ selectionType: "range", startRow: 1, endRow: totalContacts })}
+                      disabled={disabled}
+                      className="text-violet-600 focus:ring-violet-500 cursor-pointer"
+                    />
+                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">Custom Range</span>
+                  </label>
+                </div>
+
+                {formData.selectionType === "range" && (
+                  <div className="flex items-center gap-4 mt-1 border-t border-zinc-100 dark:border-zinc-700/50 pt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Start Row:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={totalContacts}
+                        value={formData.startRow || ""}
+                        onChange={(e) => onChange({ startRow: parseInt(e.target.value) || undefined })}
+                        disabled={disabled}
+                        className="w-20 rounded-md border border-zinc-200 px-2 py-1 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">End Row:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={totalContacts}
+                        value={formData.endRow || ""}
+                        onChange={(e) => onChange({ endRow: parseInt(e.target.value) || undefined })}
+                        disabled={disabled}
+                        className="w-20 rounded-md border border-zinc-200 px-2 py-1 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                    </div>
+                    
+                    <div className="ml-auto flex items-center">
+                      <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 rounded-full">
+                        Selected: {
+                          (formData.startRow && formData.endRow && formData.startRow >= 1 && formData.endRow <= totalContacts && formData.startRow <= formData.endRow)
+                            ? (formData.endRow - formData.startRow + 1)
+                            : 0
+                        }
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Editable Script */}
           <EditableScript
             script={formData.script}

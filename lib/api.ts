@@ -18,6 +18,9 @@ export interface CampaignCreatePayload {
   script: string;
   schedule_date: string;
   schedule_time: string;
+  selection_type?: "all" | "range";
+  start_row?: number;
+  end_row?: number;
   contacts: ApiContact[];
 }
 

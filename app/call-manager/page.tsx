@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
@@ -46,6 +46,7 @@ export default function CallManagerPage() {
       googleSheetUrl: "",
       singleContactName: "",
       singleContactPhone: "",
+      selectionType: "all",
     };
   });
 
@@ -321,6 +322,23 @@ export default function CallManagerPage() {
       return;
     }
 
+    if (formData.uploadSource !== "single" && formData.selectionType === "range") {
+      const start = formData.startRow ?? 0;
+      const end = formData.endRow ?? 0;
+      if (start < 1) {
+        alert("Start Row must be 1 or greater.");
+        return;
+      }
+      if (end > contactList.length) {
+        alert(`End Row cannot exceed Total Contacts (${contactList.length}).`);
+        return;
+      }
+      if (start > end) {
+        alert("Start Row cannot be greater than End Row.");
+        return;
+      }
+    }
+
     try {
       setLaunching(true);
 
@@ -334,6 +352,9 @@ export default function CallManagerPage() {
         script: formData.script.trim(),
         schedule_date: isoUtcStr,
         schedule_time: "UTC",
+        selection_type: formData.selectionType,
+        start_row: formData.startRow,
+        end_row: formData.endRow,
         contacts: contactList,
       });
 
@@ -369,6 +390,21 @@ export default function CallManagerPage() {
 
   const isFormDisabled = launching || ["Scheduled", "Running", "Paused"].includes(liveStats.campaign_status as string);
 
+  // Compute the displayed contacts based on selection
+  const displayedContacts = useMemo(() => {
+    if (formData.uploadSource === "single") {
+      return contacts;
+    }
+    
+    if (formData.selectionType === "range" && formData.startRow && formData.endRow) {
+      const start = Math.max(0, formData.startRow - 1);
+      const end = Math.min(contacts.length, formData.endRow);
+      return contacts.slice(start, end);
+    }
+    
+    return contacts;
+  }, [contacts, formData.selectionType, formData.startRow, formData.endRow, formData.uploadSource]);
+
   return (
     <DashboardShell title="Call Manager">
       <div className="flex flex-col gap-6 p-1 sm:p-4">
@@ -399,7 +435,7 @@ export default function CallManagerPage() {
 
         {/* Bottom Section: Contacts Table */}
         <div className="mt-2">
-          <ContactsTable contacts={contacts} onDeleteContact={handleDeleteContact} />
+          <ContactsTable contacts={displayedContacts} onDeleteContact={handleDeleteContact} />
         </div>
       </div>
 
