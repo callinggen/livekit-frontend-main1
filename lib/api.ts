@@ -113,6 +113,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Campaign endpoints ─────────────────────────────────────────────────────
 
 export const api = {
+  /** Get user agents. */
+  getAgents: () => request<{ id: number; name: string; language: string; voice: string; script: string }[]>("/api/agents"),
   /** Get current user credits. */
   getCredits: (token?: string) =>
     request<{ credits: number }>("/api/auth/me", {

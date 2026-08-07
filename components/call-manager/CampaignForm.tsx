@@ -3,7 +3,7 @@ import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock } from "luc
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
 import { CampaignFormData, UploadSourceType } from "./types";
-import { agents, DEFAULT_AGENT_SCRIPTS } from "@/lib/constants";
+
 
 // BUG-028: Parse a time string like "09:00" or "09:00 AM" into parts
 function parseTime(raw: string): { hour: string; minute: string; ampm: "AM" | "PM" } {
@@ -33,6 +33,7 @@ interface CampaignFormProps {
   totalContacts?: number;
   onGoogleSheetLoaded?: (contacts: any[], sheetId: string) => void;
   disabled?: boolean;
+  agents?: { id: number; name: string; language: string; voice: string; script: string }[];
 }
 
 
@@ -71,6 +72,7 @@ export default function CampaignForm({
   totalContacts,
   onGoogleSheetLoaded,
   disabled = false,
+  agents = [],
 }: CampaignFormProps) {
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
 
@@ -128,32 +130,36 @@ export default function CampaignForm({
               </button>
               {showAgentDropdown && (
                 <div className="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                  {agents.length === 0 && (
+                    <div className="px-4 py-3 text-sm text-zinc-500">No agents available</div>
+                  )}
                   {agents.map((agent) => (
                     <button
-                      key={agent}
+                      key={agent.id}
                       type="button"
                       onClick={() => {
-                        const newDefault = DEFAULT_AGENT_SCRIPTS[agent] || "";
+                        const newDefault = agent.script || "";
                         const currentScript = formData.script || "";
-                        const previousAgentDefault = formData.agent ? (DEFAULT_AGENT_SCRIPTS[formData.agent] || "") : "";
+                        const previousAgentObj = agents.find(a => a.name === formData.agent);
+                        const previousAgentDefault = previousAgentObj ? (previousAgentObj.script || "") : "";
 
-                        const isUnchanged = !currentScript || currentScript.trim() === previousAgentDefault.trim();
+                        const isUnchanged = !currentScript || currentScript.trim() === previousAgentDefault.trim() || currentScript.trim() === TAXES_AGENT_DEFAULT_SCRIPT.trim();
 
                         if (!isUnchanged) {
                           if (window.confirm("You have edited the current script. Selecting a new agent will replace it with the new default. Proceed?")) {
-                            onChange({ agent, script: newDefault });
+                            onChange({ agent: agent.name, script: newDefault });
                           } else {
                             setShowAgentDropdown(false);
                             return;
                           }
                         } else {
-                          onChange({ agent, script: newDefault });
+                          onChange({ agent: agent.name, script: newDefault });
                         }
                         setShowAgentDropdown(false);
                       }}
                       className="flex w-full px-4 py-2 text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-800 text-left"
                     >
-                      {agent}
+                      {agent.name}
                     </button>
                   ))}
                 </div>
