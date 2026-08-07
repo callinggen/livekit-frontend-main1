@@ -18,6 +18,7 @@ export interface UserData {
   isFirstLogin: boolean;
   isAdmin: boolean;
   token?: string;
+  subscription_plan?: string;
 }
 
 interface AuthContextType {
@@ -67,7 +68,8 @@ export default function AuthProvider({
               const updatedUser = {
                 ...parsed,
                 isFirstLogin: data.is_first_login,
-                isAdmin: data.is_admin
+                isAdmin: data.is_admin,
+                subscription_plan: data.subscription_plan
               };
               setUser(updatedUser);
               setIsLoggedIn(true);
@@ -126,7 +128,8 @@ export default function AuthProvider({
             name: displayName, 
             isFirstLogin: data.is_first_login,
             isAdmin: data.is_admin,
-            token: data.access_token 
+            token: data.access_token,
+            subscription_plan: data.subscription_plan
           };
           
           setUser(userData);
