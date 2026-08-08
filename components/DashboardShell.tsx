@@ -22,6 +22,7 @@ import {
   Zap,
   CreditCard,
   ArrowUpCircle,
+  Settings,
 } from "lucide-react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -165,18 +166,31 @@ export default function DashboardShell({
 
         {/* User section at bottom */}
         <div className="shrink-0 border-t border-zinc-200 p-3 dark:border-zinc-800">
-          <div className="mb-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500">
-              <UserCircle2 className="h-5 w-5 text-white" />
+          <div
+            onClick={() => router.push("/profile")}
+            className="mb-2 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 transition hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
+            title="View Profile Overview"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+                <UserCircle2 className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold">{user?.name ?? "Admin User"}</p>
+                <p className="truncate text-[10px] text-zinc-500">{user?.email ?? "admin@callinggen.com"}</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-semibold">{user?.name ?? "Admin User"}</p>
-              <p className="truncate text-[10px] text-zinc-500">{user?.email ?? "admin@callinggen.com"}</p>
-            </div>
+            <button 
+              type="button" 
+              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition"
+              title="Settings"
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+            </button>
           </div>
           <button
             onClick={logout}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
           >
             <LogOut className="h-3.5 w-3.5" />
             Logout
@@ -260,7 +274,11 @@ export default function DashboardShell({
             </button>
 
             {/* User avatar pill */}
-            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 dark:border-zinc-700 dark:bg-zinc-800">
+            <div 
+              onClick={() => router.push("/profile")}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700/80"
+              title="View Profile Overview"
+            >
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500">
                 <span className="text-[10px] font-bold text-white">
                   {(user?.name ?? "A")[0].toUpperCase()}

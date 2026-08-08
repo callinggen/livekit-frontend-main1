@@ -83,7 +83,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let token: string | null = null;
   if (typeof window !== "undefined") {
     try {
-      const stored = sessionStorage.getItem("callinggen-auth");
+      const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
       if (stored) {
         const parsed = JSON.parse(stored);
         token = parsed.token ?? null;
@@ -113,6 +113,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Campaign endpoints ─────────────────────────────────────────────────────
 
 export const api = {
+  /** Get current user details. */
+  getMe: () => request<any>("/api/auth/me"),
+  /** Update user profile information. */
+  updateProfile: (data: { full_name?: string; company_name?: string; industry?: string; phone_number?: string }) =>
+    request<any>("/api/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
   /** Get current user credits. */
   getCredits: (token?: string) =>
     request<{ credits: number }>("/api/auth/me", {
