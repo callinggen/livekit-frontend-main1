@@ -104,6 +104,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers,
   });
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("unauthorized-access"));
+    }
     const text = await res.text();
     throw new Error(`API ${init?.method ?? "GET"} ${path} → ${res.status}: ${text}`);
   }
