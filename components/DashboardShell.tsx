@@ -60,6 +60,13 @@ export default function DashboardShell({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Force first-login password change redirect
+  useEffect(() => {
+    if (user?.isFirstLogin) {
+      router.replace("/change-password");
+    }
+  }, [user, router]);
+
   // Theme toggle — BUG-022/027: persist to localStorage
   const [isDark, setIsDark] = useState(false);
 
