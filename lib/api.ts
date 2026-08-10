@@ -124,6 +124,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+  /** Get user agents. */
+  getAgents: () => request<{ id: number; name: string; language: string; voice: string; script: string }[]>("/api/agents"),
   /** Get current user credits. */
   getCredits: (token?: string) =>
     request<{ credits: number }>("/api/auth/me", {

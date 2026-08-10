@@ -70,6 +70,23 @@ export default function CallManagerPage() {
   // BUG-007: Ref to store the polling interval so we can clear it
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Agent State
+  const [fetchedAgents, setFetchedAgents] = useState<{ id: number; name: string; language: string; voice: string; script: string }[]>([]);
+
+  useEffect(() => {
+    async function loadAgents() {
+      try {
+        const agentsData = await api.getAgents();
+        setFetchedAgents(agentsData);
+      } catch (err) {
+        console.warn("Failed to fetch agents:", err);
+      }
+    }
+    if (isLoggedIn) {
+      loadAgents();
+    }
+  }, [isLoggedIn]);
+
   // Stop polling on unmount
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
@@ -413,6 +430,7 @@ export default function CallManagerPage() {
           {/* Left Column: Form */}
           <div className="h-full">
             <CampaignForm
+              agents={fetchedAgents}
               formData={formData}
               onChange={handleChange}
               onSubmit={handleSubmit}
