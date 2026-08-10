@@ -83,7 +83,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let token: string | null = null;
   if (typeof window !== "undefined") {
     try {
-      const stored = sessionStorage.getItem("callinggen-auth");
+      const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
       if (stored) {
         const parsed = JSON.parse(stored);
         token = parsed.token ?? null;
@@ -104,6 +104,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers,
   });
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("unauthorized-access"));
+    }
     const text = await res.text();
     throw new Error(`API ${init?.method ?? "GET"} ${path} → ${res.status}: ${text}`);
   }
@@ -113,6 +116,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Campaign endpoints ─────────────────────────────────────────────────────
 
 export const api = {
+  /** Get current user details. */
+  getMe: () => request<any>("/api/auth/me"),
+  /** Update user profile information. */
+  updateProfile: (data: { full_name?: string; company_name?: string; industry?: string; phone_number?: string }) =>
+    request<any>("/api/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
   /** Get user agents. */
   getAgents: () => request<{ id: number; name: string; language: string; voice: string; script: string }[]>("/api/agents"),
   /** Get current user credits. */

@@ -45,7 +45,7 @@ export default function ChangePasswordPage() {
 
         const data = await res.json();
         if (data.is_first_login !== true) {
-          router.replace("/login");
+          router.replace("/dashboard");
           return;
         }
 

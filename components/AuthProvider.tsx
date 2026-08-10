@@ -19,6 +19,14 @@ export interface UserData {
   isAdmin: boolean;
   token?: string;
   subscription_plan?: string;
+  company_name?: string;
+  industry?: string;
+  phone_number?: string;
+  credits?: number;
+  agent_name?: string;
+  agent_language?: string;
+  agent_voice?: string;
+  agent_script?: string;
 }
 
 interface AuthContextType {
@@ -65,20 +73,23 @@ export default function AuthProvider({
             });
             if (res.ok) {
               const data = await res.json();
-              const updatedUser = {
+              const updatedUser: UserData = {
                 ...parsed,
                 isFirstLogin: data.is_first_login,
                 isAdmin: data.is_admin,
-                subscription_plan: data.subscription_plan
+                subscription_plan: data.subscription_plan,
+                company_name: data.company_name,
+                industry: data.industry,
+                phone_number: data.phone_number,
+                credits: data.credits,
+                agent_name: data.agent_name,
+                agent_language: data.agent_language,
+                agent_voice: data.agent_voice,
+                agent_script: data.agent_script,
               };
               setUser(updatedUser);
               setIsLoggedIn(true);
-              
-              if (!data.is_first_login) {
-                sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
-              } else {
-                sessionStorage.removeItem("callinggen-auth");
-              }
+              sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
             } else {
               sessionStorage.removeItem("callinggen-auth");
               setUser(null);
@@ -129,16 +140,20 @@ export default function AuthProvider({
             isFirstLogin: data.is_first_login,
             isAdmin: data.is_admin,
             token: data.access_token,
-            subscription_plan: data.subscription_plan
+            subscription_plan: data.subscription_plan,
+            company_name: data.company_name,
+            industry: data.industry,
+            phone_number: data.phone_number,
+            credits: data.credits,
+            agent_name: data.agent_name,
+            agent_language: data.agent_language,
+            agent_voice: data.agent_voice,
+            agent_script: data.agent_script,
           };
           
           setUser(userData);
-          
-          // Only persist to sessionStorage if it's not a first login
-          if (!data.is_first_login) {
-            sessionStorage.setItem("callinggen-auth", JSON.stringify(userData));
-          }
-          
+          // Always persist auth token to sessionStorage so API client functions correctly
+          sessionStorage.setItem("callinggen-auth", JSON.stringify(userData));
           setIsLoggedIn(true);
           
           return { success: true, isFirstLogin: data.is_first_login, isAdmin: data.is_admin };
