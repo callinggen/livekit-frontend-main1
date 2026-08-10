@@ -78,6 +78,20 @@ export default function CallManagerPage() {
       try {
         const agentsData = await api.getAgents();
         setFetchedAgents(agentsData);
+        if (agentsData.length > 0) {
+          setFormData(prev => {
+            const exists = agentsData.some(a => a.name === prev.agent);
+            if (!prev.agent || !exists) {
+              const firstAgent = agentsData[0];
+              return {
+                ...prev,
+                agent: firstAgent.name,
+                script: prev.script && prev.script.trim() !== "" ? prev.script : (firstAgent.script || "")
+              };
+            }
+            return prev;
+          });
+        }
       } catch (err) {
         console.warn("Failed to fetch agents:", err);
       }
