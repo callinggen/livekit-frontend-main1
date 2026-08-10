@@ -98,10 +98,14 @@ export default function ForgotPasswordModal({ isOpen, onClose, emailToPrefill }:
         const res = await fetch(`${backendUrl}/api/auth/forgot-password`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resetEmail })
+          body: JSON.stringify({ email: resetEmail.trim() })
         });
-        if (!res.ok) throw new Error("Failed");
-        setResetMessage(`OTP is sent to ${resetEmail}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || "Failed to send code.");
+        }
+        const data = await res.json().catch(() => ({}));
+        setResetMessage(data.message || `OTP sent to ${resetEmail.trim()}. Please check inbox & Spam folder.`);
         setResetStep("verify");
       } else if (resetStep === "verify") {
         if (verificationCode.length < 6) {
@@ -112,9 +116,12 @@ export default function ForgotPasswordModal({ isOpen, onClose, emailToPrefill }:
         const res = await fetch(`${backendUrl}/api/auth/verify-reset-code`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resetEmail, reset_code: verificationCode })
+          body: JSON.stringify({ email: resetEmail.trim(), reset_code: verificationCode.trim() })
         });
-        if (!res.ok) throw new Error("Invalid code");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || "Invalid code");
+        }
         setResetMessage("Code verified successfully.");
         setResetStep("reset");
       } else if (resetStep === "reset") {
@@ -132,16 +139,17 @@ export default function ForgotPasswordModal({ isOpen, onClose, emailToPrefill }:
         const res = await fetch(`${backendUrl}/api/auth/reset-password`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resetEmail, reset_code: verificationCode, new_password: newPassword })
+          body: JSON.stringify({ email: resetEmail.trim(), reset_code: verificationCode.trim(), new_password: newPassword })
         });
-        if (!res.ok) throw new Error("Failed to reset");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || "Failed to reset");
+        }
         setResetMessage("Your password has been reset successfully.");
         setResetStep("done");
       }
-    } catch (err) {
-      if (resetStep === "email") setResetMessage("Error: Could not send verification code.");
-      if (resetStep === "verify") setResetMessage("Error: Invalid or expired verification code.");
-      if (resetStep === "reset") setResetMessage("Error: Failed to reset password.");
+    } catch (err: any) {
+      setResetMessage(err.message || "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
