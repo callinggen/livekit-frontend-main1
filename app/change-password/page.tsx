@@ -44,12 +44,7 @@ export default function ChangePasswordPage() {
         }
 
         const data = await res.json();
-        if (data.is_first_login !== true) {
-          router.replace("/dashboard");
-          return;
-        }
-
-        // Passed all checks
+        // Allow all authenticated users to access change password page
         setIsVerifying(false);
       } catch (err) {
         router.replace("/login");
@@ -58,6 +53,7 @@ export default function ChangePasswordPage() {
 
     verifyAuth();
   }, [isLoggedIn, user, router]);
+
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -129,8 +125,11 @@ export default function ChangePasswordPage() {
             </div>
             <h2 className="text-2xl font-semibold">Change Password</h2>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              This is your first time logging in. Please set a secure password to continue.
+              {user?.isFirstLogin 
+                ? "This is your first time logging in. Please set a secure password to continue." 
+                : "Set a new secure password for your CallingGen account."}
             </p>
+
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
