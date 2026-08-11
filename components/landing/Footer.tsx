@@ -1,88 +1,107 @@
+"use client";
+
 import Link from "next/link";
-import { PhoneCall, Globe, Video, Code } from "lucide-react";
+import { PhoneCall, Globe, MessageSquare, Share2, Mail } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="bg-white dark:bg-black pt-20 pb-8 border-t border-gray-100 dark:border-gray-800 transition-colors">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1200px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
+    <footer className="bg-slate-900 dark:bg-[#070A12] text-white pt-16 pb-8 border-t border-slate-800 transition-colors">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1280px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-14">
           
-          {/* Brand Column */}
-          <div className="lg:col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-6">
-              <div className="bg-[#4F6BFF] p-2 rounded-lg">
-                <PhoneCall className="w-5 h-5 text-white" />
+          {/* Brand Column (Col 2) */}
+          <div className="lg:col-span-2 space-y-4">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="bg-[#4F6BFF] p-2 rounded-xl text-white shadow-md shadow-[#4F6BFF]/20">
+                <PhoneCall className="w-5 h-5" />
               </div>
-              <span className="text-xl font-bold text-[#111827]">CallingGen</span>
+              <span className="text-xl font-extrabold text-white tracking-tight">CallingGen</span>
             </Link>
-            <p className="text-[#6B7280] mb-6 max-w-sm">
-              The AI Voice Calling Platform that helps businesses automate inbound and outbound calls, qualify leads, and book appointments.
+            <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
+              CallingGen is an enterprise-grade AI Voice Calling SaaS platform. Automate inbound support, outbound lead qualification, and calendar bookings with human-like conversational AI.
             </p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#6B7280] hover:text-[#4F6BFF] hover:bg-[#4F6BFF]/10 transition-colors">
-                <Globe className="w-5 h-5" />
+            <div className="flex items-center gap-3 pt-2">
+              <a href="#" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-[#4F6BFF] hover:bg-slate-700 transition-colors">
+                <Globe className="w-4 h-4" />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#6B7280] hover:text-[#4F6BFF] hover:bg-[#4F6BFF]/10 transition-colors">
-                <Video className="w-5 h-5" />
+              <a href="#" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-[#4F6BFF] hover:bg-slate-700 transition-colors">
+                <MessageSquare className="w-4 h-4" />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#6B7280] hover:text-[#4F6BFF] hover:bg-[#4F6BFF]/10 transition-colors">
-                <Code className="w-5 h-5" />
+              <a href="#" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-[#4F6BFF] hover:bg-slate-700 transition-colors">
+                <Share2 className="w-4 h-4" />
+              </a>
+              <a href="#" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-[#4F6BFF] hover:bg-slate-700 transition-colors">
+                <Mail className="w-4 h-4" />
               </a>
             </div>
           </div>
 
-          {/* Links Columns */}
+          {/* Column 1: Platform / Product */}
           <div>
-            <h4 className="font-bold text-[#111827] mb-6">Product</h4>
-            <ul className="space-y-4">
+            <h4 className="font-bold text-white text-sm uppercase tracking-wider mb-5">Product</h4>
+            <ul className="space-y-3 text-xs sm:text-sm">
               <li>
-                <Link href="#features" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">Features</Link>
+                <Link href="/#features" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Features</Link>
               </li>
               <li>
-                <Link href="/pricing" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">Pricing</Link>
+                <Link href="/pricing" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Pricing Plans</Link>
               </li>
               <li>
-                <Link href="/login" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">Dashboard</Link>
+                <Link href="/book-demo" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Book Demo</Link>
+              </li>
+              <li>
+                <Link href="/login" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Dashboard Login</Link>
               </li>
             </ul>
           </div>
 
+          {/* Column 2: Solutions */}
           <div>
-            <h4 className="font-bold text-[#111827] mb-6">Company</h4>
-            <ul className="space-y-4">
+            <h4 className="font-bold text-white text-sm uppercase tracking-wider mb-5">Solutions</h4>
+            <ul className="space-y-3 text-xs sm:text-sm">
               <li>
-                <Link href="#about" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">About</Link>
+                <Link href="/#about" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">About Platform</Link>
               </li>
               <li>
-                <Link href="#contact" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">Contact</Link>
+                <Link href="/#why-us" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Why CallingGen</Link>
               </li>
               <li>
-                <Link href="#" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">Careers</Link>
+                <Link href="/#industries" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Industries</Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Contact Team</Link>
               </li>
             </ul>
           </div>
 
+          {/* Column 3: Resources & Legal */}
           <div>
-            <h4 className="font-bold text-[#111827] mb-6">Resources</h4>
-            <ul className="space-y-4">
+            <h4 className="font-bold text-white text-sm uppercase tracking-wider mb-5">Resources</h4>
+            <ul className="space-y-3 text-xs sm:text-sm">
               <li>
-                <Link href="#faqs" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">FAQs</Link>
+                <Link href="/#faqs" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">FAQs</Link>
               </li>
               <li>
-                <Link href="#" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">Documentation</Link>
+                <Link href="/contact" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Support Center</Link>
               </li>
               <li>
-                <Link href="#" className="text-[#6B7280] hover:text-[#4F6BFF] transition-colors">Privacy Policy</Link>
+                <Link href="#" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link href="#" className="text-slate-400 hover:text-[#4F6BFF] transition-colors">Terms of Service</Link>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[#6B7280] text-sm">
-            Copyright © CallingGen. All Rights Reserved.
-          </p>
+        {/* Bottom Copyright Bar */}
+        <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+          <p>© {new Date().getFullYear()} CallingGen Inc. All rights reserved.</p>
+          <div className="flex items-center gap-6">
+            <Link href="#" className="hover:text-slate-400 transition-colors">Privacy Policy</Link>
+            <Link href="#" className="hover:text-slate-400 transition-colors">Terms of Service</Link>
+            <Link href="#" className="hover:text-slate-400 transition-colors">Security & Compliance</Link>
+          </div>
         </div>
       </div>
     </footer>

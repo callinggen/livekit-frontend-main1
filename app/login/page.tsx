@@ -63,6 +63,14 @@ export default function LoginPage() {
             </div>
             <span className="text-lg font-semibold tracking-tight">CallingGen</span>
           </Link>
+          <div className="flex items-center gap-6 text-sm font-medium">
+            <Link href="/" className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
+              Home
+            </Link>
+            <Link href="/contact" className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
+              Support
+            </Link>
+          </div>
         </div>
       </nav>
 

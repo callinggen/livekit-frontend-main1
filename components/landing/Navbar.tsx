@@ -2,13 +2,22 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, PhoneCall, Moon, Sun } from "lucide-react";
+import { Menu, X, PhoneCall, Moon, Sun, Globe, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [selectedLang, setSelectedLang] = useState("English (US)");
+  const [isLangOpen, setIsLangOpen] = useState(false);
+
+  const languages = [
+    { code: "en", name: "English", flag: "🌐" },
+    { code: "hi", name: "Hindi (हिंदी)", flag: "🇮🇳" },
+    { code: "te", name: "Telugu (తెలుగు)", flag: "🇮🇳" },
+    { code: "ta", name: "Tamil (தமிழ்)", flag: "🇮🇳" },
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -16,12 +25,29 @@ export default function Navbar() {
     };
     window.addEventListener("scroll", handleScroll);
 
-    // Initialize dark mode
     const isDark = document.documentElement.classList.contains("dark");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDarkMode(isDark);
 
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Set up Google Translate script
+  useEffect(() => {
+    // Only add if it doesn't exist
+    if (!document.getElementById("google-translate-script")) {
+      const script = document.createElement("script");
+      script.id = "google-translate-script";
+      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      script.async = true;
+      document.body.appendChild(script);
+
+      (window as any).googleTranslateElementInit = () => {
+        new (window as any).google.translate.TranslateElement(
+          { pageLanguage: "en", includedLanguages: "en,hi,te,ta", layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE },
+          "google_translate_element"
+        );
+      };
+    }
   }, []);
 
   const toggleDarkMode = () => {
@@ -37,130 +63,149 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Features", href: "/#features" },
-    { name: "Industries", href: "/#industries" },
     { name: "Pricing", href: "/pricing" },
-    { name: "FAQs", href: "/#faqs" },
     { name: "Contact", href: "/contact" },
   ];
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith("/#") && window.location.pathname === "/") {
-      e.preventDefault();
-      const targetId = href.replace("/#", "");
-      const elem = document.getElementById(targetId);
-      if (elem) {
-        const offset = 80;
-        const bodyRect = document.body.getBoundingClientRect().top;
-        const elementRect = elem.getBoundingClientRect().top;
-        const elementPosition = elementRect - bodyRect;
-        const offsetPosition = elementPosition - offset;
-        
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: "smooth"
-        });
-      }
-    }
-    setIsMobileMenuOpen(false);
-  };
-
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-white shadow-sm py-3 dark:bg-[#111827] dark:border-b dark:border-gray-800" : "bg-transparent py-5"
-      }`}
-    >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1200px]">
-        <div className="flex items-center justify-between">
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        .goog-te-banner-frame { display: none !important; }
+        .goog-te-menu-value { display: none !important; }
+        .goog-tooltip { display: none !important; }
+        .goog-tooltip:hover { display: none !important; }
+        .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+        body { top: 0 !important; }
+        #google_translate_element select {
+          opacity: 0;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          cursor: pointer;
+        }
+      `}} />
+      <header
+        className={`fixed top-4 left-0 right-0 z-50 transition-all duration-300 px-4`}
+      >
+        <div
+          className={`mx-auto max-w-[1000px] transition-all duration-300 rounded-full ${
+            isScrolled
+              ? "bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md shadow-lg border border-slate-200/80 dark:border-slate-800 py-3 px-5"
+              : "bg-white/60 dark:bg-[#0B0F19]/60 backdrop-blur-sm border border-slate-200/50 dark:border-slate-800/50 py-4 px-6 shadow-sm"
+          }`}
+        >
+          <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="bg-[#4F6BFF] p-2 rounded-lg">
-              <PhoneCall className="w-5 h-5 text-white" />
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="bg-[#4F6BFF] p-2 rounded-xl text-white shadow-md shadow-[#4F6BFF]/20">
+              <PhoneCall className="w-5 h-5" />
             </div>
-            <span className="text-xl font-bold text-[#111827] dark:text-white">CallingGen</span>
+            <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              CallingGen
+            </span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation (Clean Minimal: Pricing, Contact) */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                onClick={(e) => handleNavClick(e, link.href)}
-                className={`text-sm font-medium transition-colors hover:text-[#4F6BFF] ${
-                  isScrolled ? "text-[#6B7280] dark:text-gray-300" : "text-[#6B7280] hover:text-[#4F6BFF] dark:text-gray-300 dark:hover:text-[#4F6BFF]"
-                }`}
+                className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[#4F6BFF] dark:hover:text-[#4F6BFF] transition-colors"
               >
                 {link.name}
               </Link>
             ))}
           </nav>
 
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          {/* Desktop Actions (Language, Theme, Login, Get Call) */}
+          <div className="hidden md:flex items-center gap-3.5">
+            {/* Language Selector using native Google Translate */}
+            <div className="relative overflow-hidden w-32 h-8 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-[#131B2E]">
+              <Globe className="w-3.5 h-3.5 text-[#4F6BFF] absolute left-2 pointer-events-none" />
+              <div id="google_translate_element" className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"></div>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 pointer-events-none">Language</span>
+              <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 pointer-events-none" />
+            </div>
+
+            {/* Dark/Light Mode Toggle */}
             <button
               onClick={toggleDarkMode}
-              className="p-2 text-[#6B7280] hover:text-[#4F6BFF] transition-colors dark:text-gray-300"
+              className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:text-[#4F6BFF] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               aria-label="Toggle Dark Mode"
             >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {isDarkMode ? <Sun className="w-4.5 h-4.5 text-amber-400" /> : <Moon className="w-4.5 h-4.5" />}
             </button>
-            <Link href="/login" className="text-sm font-medium text-[#111827] hover:text-[#4F6BFF] transition-colors dark:text-white">
+
+            {/* Login Link */}
+            <Link
+              href="/login"
+              className="text-sm font-semibold text-slate-800 dark:text-white hover:text-[#4F6BFF] transition-colors px-1"
+            >
               Login
             </Link>
-            <Link href="/contact">
-              <Button className="bg-[#4F6BFF] hover:bg-[#6a82ff] text-white shadow-md shadow-[#4F6BFF]/20 rounded-full px-6 transition-all duration-300">
-                Book Demo
-              </Button>
+
+            {/* Get Call Button */}
+            <Link href="/contact" className="hidden lg:block group">
+              <div className="relative inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#4F6BFF] text-white rounded-full font-semibold text-sm transition-all shadow-[0_0_0_2px_rgba(79,107,255,0.2)] hover:shadow-[0_0_0_4px_rgba(79,107,255,0.3)] hover:-translate-y-0.5">
+                Get Call
+              </div>
             </Link>
           </div>
 
-          {/* Mobile Menu Toggle */}
+          {/* Mobile Actions */}
           <div className="md:hidden flex items-center gap-2">
             <button
               onClick={toggleDarkMode}
-              className="p-2 text-[#111827] dark:text-white"
+              className="p-2 text-slate-800 dark:text-white"
               aria-label="Toggle Dark Mode"
             >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5" />}
             </button>
+
             <button
-              className="p-2 text-[#111827] dark:text-white"
+              className="p-2 text-slate-800 dark:text-white"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-[#111827] shadow-lg border-t border-gray-100 dark:border-gray-800 py-4 px-4 flex flex-col gap-4">
+        <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-[#111827] shadow-xl border-t border-slate-200 dark:border-slate-800 py-5 px-6 flex flex-col gap-3">
           {navLinks.map((link) => (
             <Link
               key={link.name}
               href={link.href}
-              className="text-base font-medium text-[#6B7280] dark:text-gray-300 hover:text-[#4F6BFF] p-2 rounded-md hover:bg-[#F8FAFC] dark:hover:bg-gray-800"
-              onClick={(e) => handleNavClick(e, link.href)}
+              className="text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-[#4F6BFF] py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 px-3"
+              onClick={() => setIsMobileMenuOpen(false)}
             >
               {link.name}
             </Link>
           ))}
-          <div className="flex flex-col gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-            <Link href="/login" className="text-center font-medium text-[#111827] dark:text-white p-2 border border-gray-200 dark:border-gray-700 rounded-md">
+
+          <div className="flex flex-col gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <Link
+              href="/login"
+              className="text-center font-bold text-slate-800 dark:text-white py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
               Login
             </Link>
-            <Link href="/contact" className="w-full">
-              <Button className="bg-[#4F6BFF] hover:bg-[#6a82ff] text-white rounded-md w-full">
-                Book Demo
-              </Button>
+              <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-xl font-bold text-sm transition-colors shadow-lg shadow-[#4F6BFF]/25">
+                Get Call
+              </div>
             </Link>
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }

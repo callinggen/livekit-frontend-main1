@@ -23,7 +23,7 @@ export default function FinalCtaSection() {
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link href="/contact">
             <Button size="lg" className="bg-white text-[#4F6BFF] hover:bg-gray-50 rounded-full px-8 py-6 text-base font-bold shadow-lg transition-all hover:-translate-y-1">
-              Book Demo
+              Get Call
             </Button>
           </Link>
           <Button size="lg" variant="outline" className="rounded-full px-8 py-6 text-base font-bold border-white/30 text-white hover:bg-white/10 hover:text-white transition-all hover:-translate-y-1 bg-transparent">
