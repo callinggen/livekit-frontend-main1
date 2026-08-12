@@ -93,7 +93,7 @@ export default function CampaignsPage() {
     { key: "date", label: "Date", sortable: true, render: (c) => <span>{formatDateTime(c.date)}</span> },
     { key: "sheetName", label: "Data Source", sortable: true, render: (c) => <span className="text-xs text-zinc-500">{c.sheetName}</span> },
     { key: "totalCalls", label: "Total Calls", sortable: true, render: (c) => <span className="font-mono">{c.totalCalls}</span> },
-    { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">{c.creditsUsed}</span> },
+    { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">${Number(c.creditsUsed || 0).toFixed(2)}</span> },
     { key: "agent", label: "AI Agent", sortable: true },
     { key: "status", label: "Status", sortable: true, render: (c) => getStatusBadge(c.status) },
   ];
@@ -104,6 +104,9 @@ export default function CampaignsPage() {
   const scheduled = campaigns.filter(c => c.status === "Scheduled").length;
   const completed = campaigns.filter(c => c.status === "Completed").length;
   const draft = campaigns.filter(c => c.status === "Draft").length;
+
+  const activeCampaigns = campaigns.filter(c => c.status !== "Completed");
+  const completedCampaigns = campaigns.filter(c => c.status === "Completed");
 
   if (loading) {
     return (
@@ -156,25 +159,46 @@ export default function CampaignsPage() {
           </div>
         </div>
 
-        {/* Table Section */}
-        <section className="flex flex-col flex-1 gap-4 min-h-[500px]">
+        {/* Active & Scheduled Campaigns Table Section */}
+        <section className="flex flex-col gap-4 mb-8 shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">All Campaigns</h2>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Active & Scheduled Campaigns</h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Manage your call campaigns, track live progress, and review past performance.
+              Manage your upcoming and running call campaigns. Click on a campaign to view details.
             </p>
           </div>
-          <div className="flex-1 min-h-0">
+          <div>
             <DataTable 
-              data={campaigns}
+              data={activeCampaigns}
               columns={columns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
-                { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Completed", value: "Completed"}, {label: "Draft", value: "Draft"}] },
-                // BUG-025: derive agent options dynamically from actual loaded campaigns
-                { key: "agent", label: "Agent", options: Array.from(new Set(campaigns.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
+                { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Draft", value: "Draft"}, {label: "Paused", value: "Paused"}, {label: "Failed", value: "Failed"}] },
+                { key: "agent", label: "Agent", options: Array.from(new Set(activeCampaigns.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
               ]}
-              exportFileName="campaigns_export.xlsx"
+              exportFileName="active_campaigns_export.xlsx"
+              onRowClick={setSelectedCampaign}
+            />
+          </div>
+        </section>
+
+        {/* Completed Campaigns Table Section */}
+        <section className="flex flex-col gap-4 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Completed Campaigns</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Review performance and history of finished campaigns. Click on a campaign to view details.
+            </p>
+          </div>
+          <div>
+            <DataTable 
+              data={completedCampaigns}
+              columns={columns}
+              searchableKeys={["name", "agent", "sheetName"]}
+              filters={[
+                { key: "agent", label: "Agent", options: Array.from(new Set(completedCampaigns.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
+              ]}
+              exportFileName="completed_campaigns_export.xlsx"
               onRowClick={setSelectedCampaign}
             />
           </div>
