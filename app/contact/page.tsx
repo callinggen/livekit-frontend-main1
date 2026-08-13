@@ -1,19 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle2, PhoneCall, ShieldCheck, Globe } from "lucide-react";
 
+import { api } from "@/lib/api";
+
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [countryCode, setCountryCode] = useState("+91");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(true);
+  const [availableSlotsData, setAvailableSlotsData] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [company, setCompany] = useState("");
+  const [industry, setIndustry] = useState("");
+  
+  const fetchSlots = async () => {
+    try {
+      setIsLoadingSlots(true);
+      const data = await api.getCalendarSlots();
+      setAvailableSlotsData(data.available_slots || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingSlots(false);
+    }
   };
+
+  useEffect(() => {
+    fetchSlots();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setErrorMsg("");
+
+    try {
+      const selectedIsoStr = availableSlotsData.find(s => {
+        const d = new Date(s);
+        return d.getDate() === selectedDate && 
+               d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) === selectedSlot;
+      });
+
+      await api.bookCalendarSlot({
+        name,
+        email,
+        phone: `${countryCode}${phone}`,
+        company: company || "Not Provided",
+        industry: industry || "Other",
+        appointment_time: selectedIsoStr || new Date().toISOString()
+      });
+
+      setSubmitted(true);
+    } catch (error: any) {
+      setErrorMsg(error.message || "Failed to book slot");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
 
   const countries = [
     { code: "+91", label: "India (+91)" },
@@ -30,22 +85,30 @@ export default function ContactPage() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [showDetailsForm, setShowDetailsForm] = useState(false);
 
-  const availableDates = [
-    { day: "Mon", date: 14 },
-    { day: "Tue", date: 15 },
-    { day: "Wed", date: 16 },
-    { day: "Thu", date: 17 },
-    { day: "Fri", date: 18 },
-  ];
+  // Derived Dates and Slots
+  const groupedDates = availableSlotsData.reduce((acc: any, isoStr: string) => {
+    const d = new Date(isoStr);
+    const dateNum = d.getDate();
+    if (!acc[dateNum]) {
+      acc[dateNum] = {
+        day: d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short' }),
+        date: dateNum,
+        month: d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', month: 'long', year: 'numeric' }),
+        slots: []
+      };
+    }
+    acc[dateNum].slots.push(d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }));
 
-  const timeSlots = [
-    "09:00 AM",
-    "10:00 AM",
-    "11:30 AM",
-    "01:00 PM",
-    "02:30 PM",
-    "04:00 PM",
-  ];
+    return acc;
+  }, {});
+
+  const availableDates = Object.values(groupedDates).slice(0, 5) as any[];
+  
+  const currentMonthYear = availableDates.length > 0 ? availableDates[0].month : "Loading...";
+  
+  const timeSlots = selectedDate && groupedDates[selectedDate] 
+    ? groupedDates[selectedDate].slots 
+    : [];
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] transition-colors duration-300">
@@ -115,20 +178,24 @@ export default function ContactPage() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Select a Date & Time</h3>
-                    <p className="text-sm text-slate-500">Duration: 30 Min • Video Call (Google Meet)</p>
+                    <p className="text-sm text-slate-500">Duration: 1 Hour • Video Call (Google Meet)</p>
+
                   </div>
 
                   {/* Calendar Dates */}
                   <div className="pt-2">
                     <div className="flex items-center justify-between mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                      <span>October 2024</span>
+                      <span>{currentMonthYear}</span>
                       <div className="flex gap-2">
                         <button className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center">&lt;</button>
                         <button className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center">&gt;</button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-2">
-                      {availableDates.map((d, i) => (
+                    {isLoadingSlots ? (
+                      <div className="py-8 text-center text-sm text-slate-500">Loading available slots...</div>
+                    ) : (
+                      <div className="grid grid-cols-5 gap-2">
+                        {availableDates.map((d, i) => (
                         <button
                           key={i}
                           onClick={() => { setSelectedDate(d.date); setSelectedSlot(null); }}
@@ -141,8 +208,9 @@ export default function ContactPage() {
                           <span className="text-[10px] uppercase font-bold tracking-wider mb-1 opacity-80">{d.day}</span>
                           <span className="text-lg font-black">{d.date}</span>
                         </button>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Time Slots */}
@@ -150,7 +218,7 @@ export default function ContactPage() {
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Available Slots (IST)</h4>
                       <div className="grid grid-cols-2 gap-3">
-                        {timeSlots.map((time, i) => (
+                        {timeSlots.map((time: string, i: number) => (
                           <button
                             key={i}
                             onClick={() => setSelectedSlot(time)}
@@ -199,11 +267,11 @@ export default function ContactPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Full Name *</label>
-                        <input type="text" required className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF]" placeholder="John Miller" />
+                        <input value={name} onChange={e => setName(e.target.value)} type="text" required className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF]" placeholder="John Miller" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Work Email *</label>
-                        <input type="email" required className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF]" placeholder="john@company.com" />
+                        <input value={email} onChange={e => setEmail(e.target.value)} type="email" required className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF]" placeholder="john@company.com" />
                       </div>
                     </div>
 
@@ -219,17 +287,19 @@ export default function ContactPage() {
                             <option key={i} value={c.code}>{c.code}</option>
                           ))}
                         </select>
-                        <input type="tel" required className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF]" placeholder="98765 43210" />
+                        <input value={phone} onChange={e => setPhone(e.target.value)} type="tel" required className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF]" placeholder="98765 43210" />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Use Case (Optional)</label>
-                      <textarea rows={3} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF] resize-none" placeholder="Briefly describe what you're looking to automate..." />
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Company (Optional)</label>
+                      <input value={company} onChange={e => setCompany(e.target.value)} type="text" className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4F6BFF]" placeholder="Acme Inc" />
                     </div>
 
-                    <Button type="submit" className="w-full py-6 text-base font-bold bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-xl shadow-lg shadow-[#4F6BFF]/25 mt-2">
-                      Schedule Event
+                    {errorMsg && <p className="text-red-500 text-sm font-medium">{errorMsg}</p>}
+
+                    <Button disabled={isSubmitting} type="submit" className="w-full py-6 text-base font-bold bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-xl shadow-lg shadow-[#4F6BFF]/25 mt-2">
+                      {isSubmitting ? "Scheduling..." : "Schedule Event"}
                     </Button>
                   </form>
                 </div>

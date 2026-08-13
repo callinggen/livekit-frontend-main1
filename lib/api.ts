@@ -3,7 +3,8 @@
  * Base URL comes from NEXT_PUBLIC_API_URL (.env.local).
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -206,4 +207,23 @@ export const api = {
     request<{ id: number; title: string; start_date: string; end_date: string; content: string; stats: any; generated_at: string }>(
       `/api/reports/${id}`
     ),
+
+  /** Get available calendar booking slots. */
+  getCalendarSlots: () =>
+    request<{ available_slots: string[] }>("/api/calendar/slots"),
+
+  /** Book an appointment slot on the calendar. */
+  bookCalendarSlot: (payload: { name: string; email: string; phone: string; company: string; industry: string; appointment_time: string }) =>
+    request<{ status: string; message: string }>("/api/calendar/book", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Trigger an instant demo call. */
+  triggerDemoCall: (payload: { name: string; email?: string; company?: string; phone: string; industry?: string }) =>
+    request<{ success: boolean; message: string }>("/api/demo/trigger-call", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
+
