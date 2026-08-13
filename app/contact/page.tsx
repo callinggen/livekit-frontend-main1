@@ -228,7 +228,7 @@ export default function ContactPage() {
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Available Slots (IST)</h4>
                       <div className="grid grid-cols-2 gap-3">
-                        {timeSlots.map((time, i) => (
+                        {timeSlots.map((time: string, i: number) => (
                           <button
                             key={i}
                             onClick={() => setSelectedSlot(time)}
