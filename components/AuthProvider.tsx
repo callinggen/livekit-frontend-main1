@@ -169,11 +169,14 @@ export default function AuthProvider({
   );
 
   const logout = useCallback(() => {
+    sessionStorage.removeItem("callinggen-auth");
+    localStorage.removeItem("callinggen-auth");
     setUser(null);
     setIsLoggedIn(false);
-    sessionStorage.removeItem("callinggen-auth");
-    router.push("/login");
-  }, [router]);
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+  }, []);
 
   const updateToken = useCallback((newToken: string, isFirstLogin: boolean, isAdmin: boolean) => {
     setUser(prev => {
