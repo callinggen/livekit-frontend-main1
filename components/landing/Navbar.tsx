@@ -9,15 +9,7 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [selectedLang, setSelectedLang] = useState("English (US)");
-  const [isLangOpen, setIsLangOpen] = useState(false);
 
-  const languages = [
-    { code: "en", name: "English", flag: "🌐" },
-    { code: "hi", name: "Hindi (हिंदी)", flag: "🇮🇳" },
-    { code: "te", name: "Telugu (తెలుగు)", flag: "🇮🇳" },
-    { code: "ta", name: "Tamil (தமிழ்)", flag: "🇮🇳" },
-  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,24 +23,6 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Set up Google Translate script
-  useEffect(() => {
-    // Only add if it doesn't exist
-    if (!document.getElementById("google-translate-script")) {
-      const script = document.createElement("script");
-      script.id = "google-translate-script";
-      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-      script.async = true;
-      document.body.appendChild(script);
-
-      (window as any).googleTranslateElementInit = () => {
-        new (window as any).google.translate.TranslateElement(
-          { pageLanguage: "en", includedLanguages: "en,hi,te,ta", layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE },
-          "google_translate_element"
-        );
-      };
-    }
-  }, []);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -69,23 +43,6 @@ export default function Navbar() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{__html: `
-        .goog-te-banner-frame { display: none !important; }
-        .goog-te-menu-value { display: none !important; }
-        .goog-tooltip { display: none !important; }
-        .goog-tooltip:hover { display: none !important; }
-        .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
-        body { top: 0 !important; }
-        #google_translate_element select {
-          opacity: 0;
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          cursor: pointer;
-        }
-      `}} />
       <header
         className={`fixed top-4 left-0 right-0 z-50 transition-all duration-300 px-4`}
       >
@@ -122,14 +79,6 @@ export default function Navbar() {
 
           {/* Desktop Actions (Language, Theme, Login, Get Call) */}
           <div className="hidden md:flex items-center gap-3.5">
-            {/* Language Selector using native Google Translate */}
-            <div className="relative overflow-hidden w-32 h-8 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-[#131B2E]">
-              <Globe className="w-3.5 h-3.5 text-[#4F6BFF] absolute left-2 pointer-events-none" />
-              <div id="google_translate_element" className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"></div>
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 pointer-events-none">Language</span>
-              <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 pointer-events-none" />
-            </div>
-
             {/* Dark/Light Mode Toggle */}
             <button
               onClick={toggleDarkMode}
@@ -148,11 +97,11 @@ export default function Navbar() {
             </Link>
 
             {/* Get Call Button */}
-            <Link href="/contact" className="hidden lg:block group">
+            <button onClick={() => window.dispatchEvent(new Event("open-get-call-modal"))} className="hidden lg:block group">
               <div className="relative inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#4F6BFF] text-white rounded-full font-semibold text-sm transition-all shadow-[0_0_0_2px_rgba(79,107,255,0.2)] hover:shadow-[0_0_0_4px_rgba(79,107,255,0.3)] hover:-translate-y-0.5">
                 Get Call
               </div>
-            </Link>
+            </button>
           </div>
 
           {/* Mobile Actions */}
@@ -198,11 +147,11 @@ export default function Navbar() {
             >
               Login
             </Link>
-              <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>
+              <button onClick={() => { setIsMobileMenuOpen(false); window.dispatchEvent(new Event("open-get-call-modal")); }} className="w-full">
                 <div className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-xl font-bold text-sm transition-colors shadow-lg shadow-[#4F6BFF]/25">
                 Get Call
               </div>
-            </Link>
+            </button>
           </div>
         </div>
       )}

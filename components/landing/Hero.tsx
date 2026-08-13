@@ -113,14 +113,13 @@ export default function Hero() {
               }`}
             >
               {/* Primary CTA */}
-              <Link href="/contact" className="w-full sm:w-auto">
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-full px-8 py-6 text-base font-semibold shadow-lg shadow-[#4F6BFF]/25 hover:shadow-xl hover:shadow-[#4F6BFF]/35 transition-all duration-200 active:scale-[0.98] focus:ring-2 focus:ring-[#4F6BFF] focus:ring-offset-2 dark:focus:ring-offset-[#090D16]"
-                >
-                  Get Call
-                </Button>
-              </Link>
+              <Button
+                onClick={() => window.dispatchEvent(new Event("open-get-call-modal"))}
+                size="lg"
+                className="w-full sm:w-auto bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-full px-8 py-6 text-base font-semibold shadow-lg shadow-[#4F6BFF]/25 hover:shadow-xl hover:shadow-[#4F6BFF]/35 transition-all duration-200 active:scale-[0.98] focus:ring-2 focus:ring-[#4F6BFF] focus:ring-offset-2 dark:focus:ring-offset-[#090D16]"
+              >
+                Get Call
+              </Button>
 
               {/* Secondary CTA */}
               <Button

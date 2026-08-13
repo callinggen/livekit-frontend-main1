@@ -21,11 +21,13 @@ export default function FinalCtaSection() {
         </p>
         
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Link href="/contact">
-            <Button size="lg" className="bg-white text-[#4F6BFF] hover:bg-gray-50 rounded-full px-8 py-6 text-base font-bold shadow-lg transition-all hover:-translate-y-1">
-              Get Call
-            </Button>
-          </Link>
+          <Button 
+            onClick={() => window.dispatchEvent(new Event("open-get-call-modal"))}
+            size="lg" 
+            className="bg-white text-[#4F6BFF] hover:bg-gray-50 rounded-full px-8 py-6 text-base font-bold shadow-lg transition-all hover:-translate-y-1"
+          >
+            Get Call
+          </Button>
           <Button size="lg" variant="outline" className="rounded-full px-8 py-6 text-base font-bold border-white/30 text-white hover:bg-white/10 hover:text-white transition-all hover:-translate-y-1 bg-transparent">
             Contact Sales
             <ArrowRight className="w-4 h-4 ml-2" />
