@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Phone, Loader2, CheckCircle2, User, Building2, Mail, Briefcase, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
+import { api } from "@/lib/api";
 
 const industries = [
   "Real Estate",
@@ -61,24 +62,14 @@ export default function GetCallModal() {
     setIsSubmitting(true);
 
     try {
-      // API call to backend to save lead & trigger call
-      const response = await fetch("http://localhost:8000/api/demo/trigger-call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          company,
-          phone: `${countryCode}${phone}`,
-          industry
-        })
+      await api.triggerDemoCall({
+        name,
+        email,
+        company,
+        phone: `${countryCode}${phone}`,
+        industry
       });
-
-      if (response.ok) {
-        setIsSuccess(true);
-      } else {
-        alert("Failed to initiate call. Please try again later.");
-      }
+      setIsSuccess(true);
     } catch (error) {
       console.error(error);
       alert("Error connecting to server.");

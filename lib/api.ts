@@ -218,5 +218,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /** Trigger an instant demo call. */
+  triggerDemoCall: (payload: { name: string; email?: string; company?: string; phone: string; industry?: string }) =>
+    request<{ success: boolean; message: string }>("/api/demo/trigger-call", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 

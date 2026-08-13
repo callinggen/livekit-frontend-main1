@@ -26,8 +26,7 @@ export default function ContactPage() {
   const fetchSlots = async () => {
     try {
       setIsLoadingSlots(true);
-      const res = await fetch("http://localhost:8000/api/calendar/slots");
-      const data = await res.json();
+      const data = await api.getCalendarSlots();
       setAvailableSlotsData(data.available_slots || []);
     } catch (err) {
       console.error(err);
@@ -52,23 +51,14 @@ export default function ContactPage() {
                d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) === selectedSlot;
       });
 
-      const res = await fetch("http://localhost:8000/api/calendar/book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          phone: `${countryCode}${phone}`,
-          company: company || "Not Provided",
-          industry: industry || "Other",
-          appointment_time: selectedIsoStr || new Date().toISOString()
-        })
+      await api.bookCalendarSlot({
+        name,
+        email,
+        phone: `${countryCode}${phone}`,
+        company: company || "Not Provided",
+        industry: industry || "Other",
+        appointment_time: selectedIsoStr || new Date().toISOString()
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Failed to book slot");
-      }
 
       setSubmitted(true);
     } catch (error: any) {
