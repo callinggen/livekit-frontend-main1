@@ -387,6 +387,12 @@ export default function CallManagerPage() {
         start_row: formData.startRow,
         end_row: formData.endRow,
         contacts: contactList,
+        upload_source: formData.uploadSource,
+        sheet_name: formData.uploadSource === "single"
+          ? "Single Call Input"
+          : formData.uploadSource === "google_sheet"
+          ? "Google Sheet"
+          : fileName || "File Upload",
       });
 
       // 2. Launch it (creates the job + starts the worker loop)

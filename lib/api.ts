@@ -23,6 +23,8 @@ export interface CampaignCreatePayload {
   start_row?: number;
   end_row?: number;
   contacts: ApiContact[];
+  upload_source?: string;
+  sheet_name?: string;
 }
 
 export interface CampaignRow {
@@ -42,9 +44,23 @@ export interface CampaignRow {
   script: string;
   uploadSource: string;
   notes: string;
+  upload_source?: string;
+  sheet_name?: string;
 }
 
 export interface CampaignDetail extends CampaignRow {
+  upload_source?: string;
+  sheet_name?: string;
+  schedule_date?: string;
+  schedule_time?: string;
+  job?: {
+    total_contacts: number;
+    completed_contacts: number;
+    failed_contacts: number;
+    status: string;
+    started_at?: string | null;
+    finished_at?: string | null;
+  };
   contacts: {
     id: number;
     name: string;
@@ -53,6 +69,11 @@ export interface CampaignDetail extends CampaignRow {
     response: string;
     duration: number;
     datetime: string;
+    appointment_date?: string | null;
+    appointment_time?: string | null;
+    customer_name?: string | null;
+    transcript?: string;
+    credits?: number;
   }[];
 }
 
