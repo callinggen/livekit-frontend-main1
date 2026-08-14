@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X, PhoneCall, Moon, Sun, Globe, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function Navbar() {
+  const { isLoggedIn } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,7 +23,6 @@ export default function Navbar() {
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -54,8 +54,8 @@ export default function Navbar() {
           }`}
         >
           <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
+          {/* Logo - Redirects to /dashboard if logged in, otherwise / */}
+          <Link href={isLoggedIn ? "/dashboard" : "/"} className="flex items-center gap-2.5">
             <div className="bg-[#4F6BFF] p-2 rounded-xl text-white shadow-md shadow-[#4F6BFF]/20">
               <PhoneCall className="w-5 h-5" />
             </div>
@@ -77,7 +77,7 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* Desktop Actions (Language, Theme, Login, Get Call) */}
+          {/* Desktop Actions (Language, Theme, Login/Dashboard, Get Call) */}
           <div className="hidden md:flex items-center gap-3.5">
             {/* Dark/Light Mode Toggle */}
             <button
@@ -88,12 +88,12 @@ export default function Navbar() {
               {isDarkMode ? <Sun className="w-4.5 h-4.5 text-amber-400" /> : <Moon className="w-4.5 h-4.5" />}
             </button>
 
-            {/* Login Link */}
+            {/* Login / Dashboard Link */}
             <Link
-              href="/login"
+              href={isLoggedIn ? "/dashboard" : "/login"}
               className="text-sm font-semibold text-slate-800 dark:text-white hover:text-[#4F6BFF] transition-colors px-1"
             >
-              Login
+              {isLoggedIn ? "Dashboard" : "Login"}
             </Link>
 
             {/* Get Call Button */}
@@ -132,26 +132,20 @@ export default function Navbar() {
             <Link
               key={link.name}
               href={link.href}
-              className="text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-[#4F6BFF] py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 px-3"
+              className="text-base font-semibold text-slate-800 dark:text-white py-2"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               {link.name}
             </Link>
           ))}
-
-          <div className="flex flex-col gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-3">
             <Link
-              href="/login"
-              className="text-center font-bold text-slate-800 dark:text-white py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl"
+              href={isLoggedIn ? "/dashboard" : "/login"}
+              className="text-center w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-semibold text-slate-800 dark:text-white"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Login
+              {isLoggedIn ? "Dashboard" : "Login"}
             </Link>
-              <button onClick={() => { setIsMobileMenuOpen(false); window.dispatchEvent(new Event("open-get-call-modal")); }} className="w-full">
-                <div className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-xl font-bold text-sm transition-colors shadow-lg shadow-[#4F6BFF]/25">
-                Get Call
-              </div>
-            </button>
           </div>
         </div>
       )}

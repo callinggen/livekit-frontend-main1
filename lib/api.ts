@@ -30,7 +30,9 @@ export interface CampaignRow {
   name: string;
   date: string;
   schedule: string;
+  schedule_date?: string;
   sheetName: string;
+
   totalCalls: number;
   completedCalls: number;
   failedCalls: number;
@@ -53,8 +55,11 @@ export interface CampaignDetail extends CampaignRow {
     response: string;
     duration: number;
     datetime: string;
+    appointment_date?: string;
+    appointment_time?: string;
   }[];
 }
+
 
 export interface ResponseLog {
   id: string;

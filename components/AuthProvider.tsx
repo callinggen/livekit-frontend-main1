@@ -8,7 +8,7 @@ import {
   useCallback,
   ReactNode
 } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -49,56 +49,70 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+const getInitialUser = (): UserData | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const storedUser = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch {
+    return null;
+  }
+};
+
 export default function AuthProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<UserData | null>(null);
+  const [user, setUser] = useState<UserData | null>(getInitialUser);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => !!getInitialUser()?.token);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedUser = sessionStorage.getItem("callinggen-auth");
+      const stored = getInitialUser();
       
-      if (storedUser) {
+      if (stored && stored.token) {
+        setUser(stored);
+        setIsLoggedIn(true);
+
         try {
-          const parsed = JSON.parse(storedUser);
-          const token = parsed.token;
-          if (token) {
-            const res = await fetch(`${API_BASE}/api/auth/me`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-              const data = await res.json();
-              const updatedUser: UserData = {
-                ...parsed,
-                isFirstLogin: data.is_first_login,
-                isAdmin: data.is_admin,
-                subscription_plan: data.subscription_plan,
-                company_name: data.company_name,
-                industry: data.industry,
-                phone_number: data.phone_number,
-                credits: data.credits,
-                agent_name: data.agent_name,
-                agent_language: data.agent_language,
-                agent_voice: data.agent_voice,
-                agent_script: data.agent_script,
-              };
-              setUser(updatedUser);
-              setIsLoggedIn(true);
-              sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
-            } else {
-              sessionStorage.removeItem("callinggen-auth");
-              setUser(null);
-              setIsLoggedIn(false);
-            }
+          const res = await fetch(`${API_BASE}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${stored.token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const updatedUser: UserData = {
+              ...stored,
+              isFirstLogin: data.is_first_login,
+              isAdmin: data.is_admin,
+              subscription_plan: data.subscription_plan,
+              company_name: data.company_name,
+              industry: data.industry,
+              phone_number: data.phone_number,
+              credits: data.credits,
+              agent_name: data.agent_name,
+              agent_language: data.agent_language,
+              agent_voice: data.agent_voice,
+              agent_script: data.agent_script,
+            };
+            setUser(updatedUser);
+            setIsLoggedIn(true);
+            sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
+            localStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
+          } else {
+            sessionStorage.removeItem("callinggen-auth");
+            localStorage.removeItem("callinggen-auth");
+            setUser(null);
+            setIsLoggedIn(false);
           }
         } catch (e) {
-          sessionStorage.removeItem("callinggen-auth");
+          console.warn("Auth sync warning:", e);
         }
+      } else {
+        setUser(null);
+        setIsLoggedIn(false);
       }
       setMounted(true);
     };
@@ -108,6 +122,7 @@ export default function AuthProvider({
   useEffect(() => {
     const handleUnauthorized = () => {
       sessionStorage.removeItem("callinggen-auth");
+      localStorage.removeItem("callinggen-auth");
       setUser(null);
       setIsLoggedIn(false);
       router.push("/login");
@@ -152,8 +167,8 @@ export default function AuthProvider({
           };
           
           setUser(userData);
-          // Always persist auth token to sessionStorage so API client functions correctly
           sessionStorage.setItem("callinggen-auth", JSON.stringify(userData));
+          localStorage.setItem("callinggen-auth", JSON.stringify(userData));
           setIsLoggedIn(true);
           
           return { success: true, isFirstLogin: data.is_first_login, isAdmin: data.is_admin };
@@ -183,9 +198,9 @@ export default function AuthProvider({
       if (!prev) return null;
       const updatedUser = { ...prev, token: newToken, isFirstLogin, isAdmin };
       
-      // Update sessionStorage since the user has now changed their password
       if (!isFirstLogin) {
         sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
+        localStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
       }
       
       return updatedUser;
