@@ -11,6 +11,8 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface ApiContact {
   name: string;
   phone: string;
+  metadata_fields?: Record<string, string>;
+  original_row?: number;
 }
 
 export interface CampaignCreatePayload {
@@ -44,6 +46,10 @@ export interface CampaignRow {
   script: string;
   uploadSource: string;
   notes: string;
+  campaignType?: string;
+  parentCampaignId?: number;
+  parentCampaignName?: string;
+  contactCount?: number;
 }
 
 export interface CampaignDetail extends CampaignRow {
@@ -155,7 +161,7 @@ export const api = {
     ),
 
   /** List all campaigns. */
-  getCampaigns: () => request<CampaignRow[]>("/api/campaigns"),
+  getCampaigns: (type?: string) => request<CampaignRow[]>(type ? `/api/campaigns?type=${type}` : "/api/campaigns"),
 
   /** Single campaign detail. */
   getCampaign: (id: number) => request<CampaignDetail>(`/api/campaigns/${id}`),

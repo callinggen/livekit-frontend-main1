@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import React from "react";
 import { api } from "@/lib/api";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 // Dummy Data matching the screenshot
 const INITIAL_DATA = [
