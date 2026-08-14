@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
@@ -53,7 +53,25 @@ export default function CampaignDetailPage() {
   const { isLoggedIn } = useAuth();
 
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
+  const [calls, setCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Enrich contacts with datetime and credits from matched call records
+  const enrichedContacts = useMemo(() => {
+    if (!campaign || !campaign.contacts) return [];
+    return campaign.contacts.map(contact => {
+      const matchingCall = calls.find(call => {
+        const cleanCallPhone = (call.phone || "").replace(/\D/g, "");
+        const cleanContactPhone = (contact.phone || "").replace(/\D/g, "");
+        return cleanCallPhone === cleanContactPhone && cleanContactPhone !== "";
+      });
+      return {
+        ...contact,
+        datetime: matchingCall ? matchingCall.datetime : (contact.datetime || ""),
+        credits: matchingCall ? (matchingCall.creditsDeducted ?? 0) : (contact.credits ?? 0)
+      };
+    });
+  }, [campaign, calls]);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -65,9 +83,13 @@ export default function CampaignDetailPage() {
 
     const fetchDetail = async () => {
       try {
-        const data = await api.getCampaign(Number(id));
+        const [data, callsData] = await Promise.all([
+          api.getCampaign(Number(id)),
+          api.getCalls().catch(() => [])
+        ]);
         if (active) {
           setCampaign(data);
+          setCalls(callsData || []);
           setLoading(false);
         }
       } catch (err) {
@@ -117,23 +139,24 @@ export default function CampaignDetailPage() {
     );
   }
 
+
   // Calculate statistics
-  const totalContacts = campaign.contacts?.length || 0;
-  const dialedCount = campaign.contacts?.filter(c => c.status !== "pending").length || 0;
-  const connectedCount = campaign.contacts?.filter(c => c.status === "completed").length || 0;
+  const totalContacts = enrichedContacts.length || 0;
+  const dialedCount = enrichedContacts.filter((c: any) => c.status !== "pending").length || 0;
+  const connectedCount = enrichedContacts.filter((c: any) => c.status === "completed").length || 0;
   const disconnectedCount = dialedCount - connectedCount;
   
-  const interestedCount = campaign.contacts?.filter(c => {
+  const interestedCount = enrichedContacts.filter((c: any) => {
     const resp = (c.response || "").toLowerCase();
     return resp.includes("interested") && !resp.includes("not interested");
   }).length || 0;
 
-  const notInterestedCount = campaign.contacts?.filter(c => {
+  const notInterestedCount = enrichedContacts.filter((c: any) => {
     const resp = (c.response || "").toLowerCase();
     return resp.includes("not interested") || resp.includes("decline") || resp.includes("reject");
   }).length || 0;
 
-  const hotLeadsCount = campaign.contacts?.filter(c => {
+  const hotLeadsCount = enrichedContacts.filter((c: any) => {
     const resp = (c.response || "").toLowerCase();
     return resp.includes("appointment") || resp.includes("booked") || c.appointment_date;
   }).length || 0;
@@ -206,7 +229,7 @@ export default function CampaignDetailPage() {
         });
 
         // Sum up the duration of all calls in the campaign from contacts (in seconds)
-        const totalDurationSeconds = campaign.contacts?.reduce((acc, c) => acc + (c.duration || 0), 0) || 0;
+        const totalDurationSeconds = enrichedContacts.reduce((acc: number, c: any) => acc + Number(c.duration || 0), 0) || 0;
 
         if (campaign.status === "Running") {
           endedText = "In Progress";
@@ -231,9 +254,13 @@ export default function CampaignDetailPage() {
     { key: "name", label: "CONTACT NAME", sortable: true, render: (c) => <span className="font-semibold text-zinc-900 dark:text-white">{c.name}</span> },
     { key: "phone", label: "PHONE NUMBER", sortable: true },
     { key: "type", label: "TYPE", render: () => <Badge variant="neutral">OUTBOUND</Badge> },
-    { key: "duration", label: "DURATION", sortable: true, render: (c) => <span>{c.duration ? `${Math.floor(c.duration / 60).toString().padStart(2, "0")}:${(c.duration % 60).toString().padStart(2, "0")}` : "00:00"}</span> },
-    { key: "datetime", label: "TIME", sortable: true },
-    { key: "credits", label: "CREDITS", sortable: true },
+    { key: "duration", label: "DURATION", sortable: true, render: (c) => {
+        const dur = Number(c.duration || 0);
+        return <span>{dur ? `${Math.floor(dur / 60).toString().padStart(2, "0")}:${(dur % 60).toString().padStart(2, "0")}` : "00:00"}</span>;
+      }
+    },
+    { key: "datetime", label: "TIME", sortable: true, render: (c) => <span>{c.datetime || "—"}</span> },
+    { key: "credits", label: "CREDITS", sortable: true, render: (c) => <span>{c.credits !== undefined && c.credits !== null ? c.credits : "—"}</span> },
     { key: "response", label: "RESPONSE", sortable: true, render: (c) => {
         const resp = c.response || "—";
         const isInvalid = resp.toLowerCase().includes("invalid") || resp.toLowerCase().includes("fail");
@@ -388,7 +415,7 @@ export default function CampaignDetailPage() {
           </div>
           <div>
             <DataTable 
-              data={campaign.contacts || []}
+              data={enrichedContacts}
               columns={columns}
               searchableKeys={["name", "phone", "response", "status"]}
               exportFileName={`${campaign.name}_call_logs.xlsx`}
