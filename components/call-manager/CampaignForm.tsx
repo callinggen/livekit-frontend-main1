@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock, Globe, Phone } from "lucide-react";
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
 import { CampaignFormData, UploadSourceType } from "./types";
+import { api, UserPhoneNumber } from "@/lib/api";
 
 
 // BUG-028: Parse a time string like "09:00" or "09:00 AM" into parts
@@ -75,6 +76,25 @@ export default function CampaignForm({
   agents = [],
 }: CampaignFormProps) {
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+  const [userNumbers, setUserNumbers] = useState<UserPhoneNumber[]>([]);
+
+  useEffect(() => {
+    async function loadPhoneNumbers() {
+      try {
+        const nums = await api.getUserPhoneNumbers();
+        if (nums && nums.length > 0) {
+          setUserNumbers(nums);
+          const defaultNum = nums.find(n => n.is_default) || nums[0];
+          if (!formData.outboundPhoneNumber && defaultNum) {
+            onChange({ outboundPhoneNumber: defaultNum.phone_number });
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load user phone numbers:", err);
+      }
+    }
+    loadPhoneNumbers();
+  }, []);
 
   useEffect(() => {
     if (formData.agent === "Taxes Agent" && formData.script.trim() === "") {
@@ -168,6 +188,29 @@ export default function CampaignForm({
             {errors.agent && <p className="text-xs font-medium text-red-500">{errors.agent}</p>}
           </div>
 
+          {/* Outbound Phone Number / Region Dropdown */}
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
+              <Globe className="h-3.5 w-3.5 text-indigo-500" />
+              Outbound Number & Region <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={formData.outboundPhoneNumber || (userNumbers[0]?.phone_number ?? "")}
+                onChange={(e) => onChange({ outboundPhoneNumber: e.target.value })}
+                disabled={disabled}
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium transition dark:border-zinc-700 dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50"
+              >
+                {userNumbers.map((num) => (
+                  <option key={num.id} value={num.phone_number}>
+                    {num.region.includes("India") ? "🇮🇳 " : num.region.includes("United States") || num.region.includes("US") ? "🇺🇸 " : num.region.includes("United Kingdom") || num.region.includes("UK") ? "🇬🇧 " : "🌐 "}
+                    {num.region} ({num.phone_number}) — {num.provider_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Schedule Date & Time */}
           <div className="flex flex-col gap-1.5">
             <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
@@ -181,208 +224,113 @@ export default function CampaignForm({
                   type="date"
                   value={formData.scheduleDate}
                   onChange={(e) => onChange({ scheduleDate: e.target.value })}
-                  disabled={disabled}
-                  className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-900 ${errors.scheduleDate ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
+                  className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed ${errors.scheduleDate ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
                     }`}
-                />
-                {errors.scheduleDate && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleDate}</p>}
-              </div>
-              {/* BUG-028: Custom AM/PM time picker */}
-              <div>
-                <TimePicker
-                  value={formData.scheduleTime}
-                  onChange={(t) => onChange({ scheduleTime: t })}
-                  error={!!errors.scheduleTime}
                   disabled={disabled}
                 />
-                {errors.scheduleTime && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleTime}</p>}
               </div>
+
+              {/* Time picker dropdowns */}
+              {(() => {
+                const parsed = parseTime(formData.scheduleTime);
+                const updateScheduleTime = (h: string, m: string, ap: "AM" | "PM") => {
+                  let h24 = parseInt(h, 10);
+                  if (ap === "PM" && h24 < 12) h24 += 12;
+                  if (ap === "AM" && h24 === 12) h24 = 0;
+                  const newTimeStr = `${String(h24).padStart(2, "0")}:${m}`;
+                  onChange({ scheduleTime: newTimeStr });
+                };
+
+                return (
+                  <div className="flex gap-1">
+                    {/* Hour dropdown */}
+                    <select
+                      value={parsed.hour}
+                      onChange={(e) => updateScheduleTime(e.target.value, parsed.minute, parsed.ampm)}
+                      className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-2.5 text-xs font-medium focus:border-violet-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={disabled}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+
+                    {/* Minute dropdown */}
+                    <select
+                      value={parsed.minute}
+                      onChange={(e) => updateScheduleTime(parsed.hour, e.target.value, parsed.ampm)}
+                      className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-2.5 text-xs font-medium focus:border-violet-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={disabled}
+                    >
+                      {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+
+                    {/* AM/PM toggle */}
+                    <button
+                      type="button"
+                      onClick={() => updateScheduleTime(parsed.hour, parsed.minute, parsed.ampm === "AM" ? "PM" : "AM")}
+                      className="rounded-lg border border-zinc-200 bg-zinc-100 px-2.5 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={disabled}
+                    >
+                      {parsed.ampm}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
+            {errors.scheduleDate && <p className="text-xs font-medium text-red-500">{errors.scheduleDate}</p>}
+            {errors.scheduleTime && <p className="text-xs font-medium text-red-500">{errors.scheduleTime}</p>}
           </div>
 
-          {/* Upload Contacts */}
-          <UploadSource
-            sourceType={formData.uploadSource}
-            onChangeSource={(type) => onChange({ uploadSource: type })}
-            onFileUpload={onFileUpload}
-            fileUploaded={fileUploaded}
-            fileName={fileName}
-            fileSize={fileSize}
-            totalContacts={totalContacts}
-            googleSheetUrl={formData.googleSheetUrl}
-            onChangeGoogleSheetUrl={(url) => onChange({ googleSheetUrl: url })}
-            singleContactName={formData.singleContactName}
-            onChangeSingleName={(name) => onChange({ singleContactName: name })}
-            singleContactPhone={formData.singleContactPhone}
-            onChangeSinglePhone={(phone) => onChange({ singleContactPhone: phone })}
-            errors={errors}
-            onGoogleSheetLoaded={onGoogleSheetLoaded}
-            disabled={disabled}
-          />
+          {/* Upload Data Source Section */}
+          <div className="flex flex-col gap-1.5 pt-1">
+            <UploadSource
+              sourceType={formData.uploadSource}
+              onChangeSource={(type) => onChange({ uploadSource: type })}
+              onFileUpload={onFileUpload}
+              fileUploaded={fileUploaded}
+              fileName={fileName}
+              fileSize={fileSize}
+              totalContacts={totalContacts}
+              googleSheetUrl={formData.googleSheetUrl}
+              onChangeGoogleSheetUrl={(url) => onChange({ googleSheetUrl: url })}
+              singleContactName={formData.singleContactName}
+              onChangeSingleName={(name) => onChange({ singleContactName: name })}
+              singleContactPhone={formData.singleContactPhone}
+              onChangeSinglePhone={(phone) => onChange({ singleContactPhone: phone })}
+              errors={errors}
+              onGoogleSheetLoaded={onGoogleSheetLoaded}
+              disabled={disabled}
+            />
 
-          {/* Contact Selection */}
-          {formData.uploadSource !== "single" && (fileUploaded || formData.googleSheetUrl) && totalContacts !== undefined && totalContacts > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
-                <User className="h-3.5 w-3.5" />
-                Contact Selection
-              </label>
-              
-              <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-                <div className="flex items-center gap-6">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={formData.selectionType === "all"}
-                      onChange={() => onChange({ selectionType: "all", startRow: undefined, endRow: undefined })}
-                      disabled={disabled}
-                      className="text-violet-600 focus:ring-violet-500 cursor-pointer"
-                    />
-                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">All Contacts ({totalContacts})</span>
-                  </label>
-                  
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={formData.selectionType === "range"}
-                      onChange={() => onChange({ selectionType: "range", startRow: 1, endRow: totalContacts })}
-                      disabled={disabled}
-                      className="text-violet-600 focus:ring-violet-500 cursor-pointer"
-                    />
-                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">Custom Range</span>
-                  </label>
-                </div>
+          </div>
 
-                {formData.selectionType === "range" && (
-                  <div className="flex items-center gap-4 mt-1 border-t border-zinc-100 dark:border-zinc-700/50 pt-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Start Row:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={totalContacts}
-                        value={formData.startRow || ""}
-                        onChange={(e) => onChange({ startRow: parseInt(e.target.value) || undefined })}
-                        disabled={disabled}
-                        className="w-20 rounded-md border border-zinc-200 px-2 py-1 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-900"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">End Row:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={totalContacts}
-                        value={formData.endRow || ""}
-                        onChange={(e) => onChange({ endRow: parseInt(e.target.value) || undefined })}
-                        disabled={disabled}
-                        className="w-20 rounded-md border border-zinc-200 px-2 py-1 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-900"
-                      />
-                    </div>
-                    
-                    <div className="ml-auto flex items-center">
-                      <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 rounded-full">
-                        Selected: {
-                          (formData.startRow && formData.endRow && formData.startRow >= 1 && formData.endRow <= totalContacts && formData.startRow <= formData.endRow)
-                            ? (formData.endRow - formData.startRow + 1)
-                            : 0
-                        }
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Editable AI Prompt Script */}
+          <div className="flex flex-col gap-1.5 pt-1">
+            <EditableScript
+              script={formData.script}
+              onChange={(newScript) => onChange({ script: newScript })}
+              error={errors.script}
+              disabled={disabled}
+            />
 
-          {/* Editable Script */}
-          <EditableScript
-            script={formData.script}
-            onChange={(script) => onChange({ script })}
-            error={errors.script}
-            disabled={disabled}
-          />
+          </div>
         </div>
       </div>
 
-      <button
-        onClick={onSubmit}
-        disabled={disabled}
-        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#111827] py-3 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
-      >
-        <Rocket className="h-4 w-4" />
-        Launch Campaign
-      </button>
-    </div>
-  );
-}
-
-// ── BUG-028: Custom AM/PM Time Picker ─────────────────────────────────────────
-
-interface TimePickerProps {
-  value: string;
-  onChange: (v: string) => void;
-  error?: boolean;
-  disabled?: boolean;
-}
-
-function TimePicker({ value, onChange, error, disabled = false }: TimePickerProps) {
-  const { hour, minute, ampm } = useMemo(() => parseTime(value || "09:00"), [value]);
-
-  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
-
-  const emit = (h: string, m: string, ap: "AM" | "PM") => {
-    let h24 = parseInt(h, 10);
-    if (ap === "PM" && h24 !== 12) h24 += 12;
-    if (ap === "AM" && h24 === 12) h24 = 0;
-    onChange(`${String(h24).padStart(2, "0")}:${m}`);
-  };
-
-  const baseSelect =
-    `rounded-lg border bg-white px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 dark:text-zinc-100 ${error ? "border-red-400 dark:border-red-500" : "border-zinc-200 focus:border-violet-400 dark:border-zinc-700"
-    }`;
-
-  return (
-    <div className={`flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 dark:bg-zinc-900 ${error ? "border-red-400 dark:border-red-500" : "border-zinc-200 dark:border-zinc-700"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}>
-      <Clock className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-      {/* Hour */}
-      <select
-        value={hour}
-        onChange={e => emit(e.target.value, minute, ampm)}
-        disabled={disabled}
-        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer disabled:cursor-not-allowed"
-        aria-label="Hour"
-      >
-        {hours.map(h => <option key={h} value={h}>{h}</option>)}
-      </select>
-      <span className="text-zinc-400 font-bold text-sm">:</span>
-      {/* Minute */}
-      <select
-        value={minute}
-        onChange={e => emit(hour, e.target.value, ampm)}
-        disabled={disabled}
-        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer disabled:cursor-not-allowed"
-        aria-label="Minute"
-      >
-        {minutes.map(m => <option key={m} value={m}>{m}</option>)}
-      </select>
-      {/* AM/PM toggle */}
-      <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0">
-        {(["AM", "PM"] as const).map(ap => (
-          <button
-            key={ap}
-            type="button"
-            onClick={() => emit(hour, minute, ap)}
-            disabled={disabled}
-            className={`px-2 py-1 text-xs font-bold transition disabled:cursor-not-allowed ${ampm === ap
-              ? "bg-violet-600 text-white"
-              : "bg-white text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-          >
-            {ap}
-          </button>
-        ))}
+      {/* Action Footer Button */}
+      <div className="mt-auto border-t border-zinc-100 pt-5 dark:border-zinc-800">
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={disabled}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Rocket className="h-4 w-4" />
+          Launch Campaign
+        </button>
       </div>
     </div>
   );

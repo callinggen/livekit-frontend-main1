@@ -2,35 +2,33 @@
 
 import { useState } from "react";
 import { ChevronDown, HelpCircle, Sparkles } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
+
 
 export default function FaqSection() {
+  const { t } = useLanguage();
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const faqs = [
     {
-      question: "1. What is CallingGen and how does it work for my business?",
-      answer:
-        "CallingGen is an AI Voice Calling SaaS platform that builds custom AI agents to handle both inbound and outbound business calls. It answers customer calls 24/7 in natural human speech, qualifies leads, schedules appointments directly into your calendar, and logs call data into your CRM.",
+      question: t("faq1Q"),
+      answer: t("faq1A"),
     },
     {
-      question: "2. Can CallingGen AI agents handle both inbound customer support & outbound sales campaigns?",
-      answer:
-        "Yes! CallingGen supports both inbound phone reception (answering support queries, booking appointments, routing calls) and high-volume outbound campaigns (contacting ad leads, follow-up calls, policy renewals, and event reminders).",
+      question: t("faq2Q"),
+      answer: t("faq2A"),
     },
     {
-      question: "3. Does CallingGen integrate with CRMs, WhatsApp, and Google Calendar?",
-      answer:
-        "CallingGen offers seamless integrations with major CRMs (HubSpot, Salesforce, Zoho), WhatsApp Business (sending automated call confirmations & reminders), Google Calendar, and custom webhooks/APIs to keep your business data in sync.",
+      question: t("faq3Q"),
+      answer: t("faq3A"),
     },
     {
-      question: "4. Which languages and regional accents does CallingGen AI support?",
-      answer:
-        "CallingGen supports over 12+ global and regional languages including English (US, UK, IN), Hindi, Telugu, Tamil, Spanish, French, and more with natural human speech accents and ultra-low response latency (<300ms).",
+      question: t("faq4Q"),
+      answer: t("faq4A"),
     },
     {
-      question: "5. How quickly can I set up and deploy my first CallingGen AI voice agent?",
-      answer:
-        "You can configure and launch your first AI Voice Agent in under 10 minutes! Simply choose an agent persona, set your business script/goals, connect your calendar or contact list, and launch your campaign.",
+      question: t("faq5Q"),
+      answer: t("faq5A"),
     },
   ];
 
@@ -46,17 +44,14 @@ export default function FaqSection() {
         <div className="flex flex-col items-center text-center max-w-2xl mx-auto mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 text-[#4F6BFF] dark:text-[#818CF8] text-xs sm:text-sm font-semibold tracking-wide mb-4">
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>GOT QUESTIONS?</span>
+            <span>{t("faqTag")}</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
-            Frequently Asked{" "}
-            <span className="bg-gradient-to-r from-[#4F6BFF] to-[#7B61FF] bg-clip-text text-transparent">
-              Questions
-            </span>
+            {t("faqTitle")}
           </h2>
           <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base">
-            Everything you need to know about deploying AI voice agents for your organization.
+            {t("faqSubtitle")}
           </p>
         </div>
 

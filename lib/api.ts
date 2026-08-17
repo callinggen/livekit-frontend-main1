@@ -21,11 +21,22 @@ export interface CampaignCreatePayload {
   script: string;
   schedule_date: string;
   schedule_time: string;
+  outbound_phone_number?: string;
   selection_type?: "all" | "range";
   start_row?: number;
   end_row?: number;
   contacts: ApiContact[];
 }
+
+export interface UserPhoneNumber {
+  id: number;
+  phone_number: string;
+  provider_name: string;
+  region: string;
+  sip_trunk_id?: string;
+  is_default: boolean;
+}
+
 
 export interface CampaignRow {
   id: string;
@@ -236,5 +247,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /** Get user assigned provider phone numbers and region metadata. */
+  getUserPhoneNumbers: () =>
+    request<UserPhoneNumber[]>("/api/user/phone-numbers"),
 };
+
 

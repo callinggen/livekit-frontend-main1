@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Phone, Loader2, CheckCircle2, User, Building2, Mail, Briefcase, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { api } from "@/lib/api";
+import { useLanguage } from "@/components/LanguageContext";
 
 const industries = [
   "Real Estate",
@@ -25,6 +26,7 @@ const countryCodes = [
 ];
 
 export default function GetCallModal() {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -59,20 +61,24 @@ export default function GetCallModal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phone || !name) return;
+
     setIsSubmitting(true);
 
     try {
+      const fullPhone = `${countryCode}${phone.replace(/\s+/g, "")}`;
       await api.triggerDemoCall({
         name,
         email,
         company,
-        phone: `${countryCode}${phone}`,
-        industry
+        phone: fullPhone,
+        industry,
       });
       setIsSuccess(true);
-    } catch (error) {
+    } catch (error: any) {
+
       console.error(error);
-      alert("Error connecting to server.");
+      alert(error.message || "Error connecting to server.");
     } finally {
       setIsSubmitting(false);
     }
@@ -81,15 +87,10 @@ export default function GetCallModal() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={() => !isSubmitting && setIsOpen(false)}
-      />
-
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-300">
+      
       {/* Modal Content */}
-      <div className="relative w-full max-w-[440px] bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden border border-white/40 dark:border-white/10 animate-in fade-in zoom-in-95 duration-300">
+      <div className="relative w-full max-w-lg bg-white dark:bg-[#0B101D] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden transition-all">
         
         {/* Decorative Gradients */}
         <div className="absolute -top-32 -left-32 w-64 h-64 bg-blue-500/20 dark:bg-blue-500/10 rounded-full blur-[3rem] pointer-events-none" />
@@ -103,7 +104,7 @@ export default function GetCallModal() {
             </div>
             <div>
               <h3 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 leading-tight">CallingGen AI</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">Experience the future of voice</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">{t("getCallSubtitle")}</p>
             </div>
           </div>
           <button 
@@ -142,19 +143,19 @@ export default function GetCallModal() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                Fill in your details below and our AI will call you instantly, ready to discuss your specific industry needs.
+                {t("getCallSubtitle")}
               </p>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">Name</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">{t("fullNameLabel")}</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
                     <input required value={name} onChange={e => setName(e.target.value)} type="text" className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131B2E]/50 text-sm focus:ring-2 focus:ring-[#4F6BFF]/50 focus:border-[#4F6BFF] transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400" placeholder="John Doe" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">Company</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">{t("companyNameLabel")}</label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
                     <input required value={company} onChange={e => setCompany(e.target.value)} type="text" className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131B2E]/50 text-sm focus:ring-2 focus:ring-[#4F6BFF]/50 focus:border-[#4F6BFF] transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400" placeholder="Acme Inc" />
@@ -163,7 +164,7 @@ export default function GetCallModal() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">Work Email</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">{t("workEmailLabel")}</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
                   <input required value={email} onChange={e => setEmail(e.target.value)} type="email" className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131B2E]/50 text-sm focus:ring-2 focus:ring-[#4F6BFF]/50 focus:border-[#4F6BFF] transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400" placeholder="john@company.com" />
@@ -171,7 +172,7 @@ export default function GetCallModal() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">Phone Number</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">{t("phoneNumberLabel")}</label>
                 <div className="flex gap-2">
                   <select value={countryCode} onChange={e => setCountryCode(e.target.value)} className="w-[110px] px-3 py-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131B2E]/50 text-xs focus:ring-2 focus:ring-[#4F6BFF]/50 focus:border-[#4F6BFF] transition-all outline-none font-medium text-slate-900 dark:text-white cursor-pointer">
                     {countryCodes.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
@@ -184,7 +185,7 @@ export default function GetCallModal() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">Industry</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 ml-1">{t("industryLabel")}</label>
                 <div className="relative">
                   <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 pointer-events-none" />
                   <select value={industry} onChange={e => setIndustry(e.target.value)} className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131B2E]/50 text-sm focus:ring-2 focus:ring-[#4F6BFF]/50 focus:border-[#4F6BFF] transition-all outline-none font-medium text-slate-900 dark:text-white cursor-pointer appearance-none">
@@ -202,7 +203,7 @@ export default function GetCallModal() {
                   <><Loader2 className="w-5 h-5 animate-spin" /> Initiating Call...</>
                 ) : (
                   <>
-                    Call Me Now
+                    {t("triggerCallBtn")}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}

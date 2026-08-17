@@ -5,12 +5,16 @@ import Link from "next/link";
 import { Menu, X, PhoneCall, Moon, Sun, Globe, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
+import { useLanguage } from "@/components/LanguageContext";
+import { Language, languageNames } from "@/lib/translations";
 
 export default function Navbar() {
   const { isLoggedIn } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,8 +41,8 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { name: "Pricing", href: "/pricing" },
-    { name: "Contact", href: "/contact" },
+    { name: t("navPricing"), href: "/pricing" },
+    { name: t("navContact"), href: "/contact" },
   ];
 
   return (
@@ -64,7 +68,7 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Navigation (Clean Minimal: Pricing, Contact) */}
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
@@ -77,8 +81,44 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* Desktop Actions (Language, Theme, Login/Dashboard, Get Call) */}
-          <div className="hidden md:flex items-center gap-3.5">
+          {/* Desktop Actions */}
+          <div className="hidden md:flex items-center gap-3">
+            {/* Language Selector Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowLangDropdown(!showLangDropdown)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 hover:border-[#4F6BFF] transition-all"
+              >
+                <Globe className="w-3.5 h-3.5 text-[#4F6BFF]" />
+                <span>{languageNames[language].flag} {languageNames[language].nativeName}</span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showLangDropdown ? "rotate-180" : ""}`} />
+              </button>
+
+              {showLangDropdown && (
+                <div className="absolute right-0 mt-2 w-36 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] py-1.5 shadow-xl z-50">
+                  {(["en", "te", "hi"] as Language[]).map((langKey) => (
+                    <button
+                      key={langKey}
+                      type="button"
+                      onClick={() => {
+                        setLanguage(langKey);
+                        setShowLangDropdown(false);
+                      }}
+                      className={`flex w-full items-center justify-between px-3.5 py-2 text-xs font-semibold transition-colors ${
+                        language === langKey
+                          ? "bg-indigo-50 text-[#4F6BFF] dark:bg-indigo-950/40 dark:text-[#818CF8]"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                      }`}
+                    >
+                      <span>{languageNames[langKey].flag} {languageNames[langKey].nativeName}</span>
+                      {language === langKey && <span className="text-xs font-bold text-[#4F6BFF]">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Dark/Light Mode Toggle */}
             <button
               onClick={toggleDarkMode}
@@ -93,13 +133,13 @@ export default function Navbar() {
               href={isLoggedIn ? "/dashboard" : "/login"}
               className="text-sm font-semibold text-slate-800 dark:text-white hover:text-[#4F6BFF] transition-colors px-1"
             >
-              {isLoggedIn ? "Dashboard" : "Login"}
+              {isLoggedIn ? t("navDashboard") : t("navLogin")}
             </Link>
 
             {/* Get Call Button */}
             <button onClick={() => window.dispatchEvent(new Event("open-get-call-modal"))} className="hidden lg:block group">
               <div className="relative inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#4F6BFF] text-white rounded-full font-semibold text-sm transition-all shadow-[0_0_0_2px_rgba(79,107,255,0.2)] hover:shadow-[0_0_0_4px_rgba(79,107,255,0.3)] hover:-translate-y-0.5">
-                Get Call
+                {t("getCall")}
               </div>
             </button>
           </div>

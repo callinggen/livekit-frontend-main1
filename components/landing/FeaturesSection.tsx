@@ -21,101 +21,27 @@ import {
   Database,
 } from "lucide-react";
 
+import { useLanguage } from "@/components/LanguageContext";
+import { featuresData } from "@/lib/translations";
+
+const tabIcons = [
+  <Bot className="w-4 h-4" key="voice" />,
+  <FolderKanban className="w-4 h-4" key="campaign" />,
+  <UserCheck className="w-4 h-4" key="lead" />,
+  <Calendar className="w-4 h-4" key="booking" />,
+  <Share2 className="w-4 h-4" key="integrations" />,
+  <BarChart3 className="w-4 h-4" key="analytics" />,
+];
+
 export default function FeaturesSection() {
+  const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<number>(0);
 
-  const tabs = [
-    {
-      id: "voice",
-      title: "AI Voice Calling",
-      icon: <Bot className="w-4 h-4" />,
-      tagline: "Human-like AI Voice Conversations",
-      description:
-        "Our AI agents speak with human-like rhythm, natural pauses, and regional accents. Handle thousands of concurrent inbound & outbound calls with instant response.",
-      highlights: [
-        "Human-like Natural Speech (<300ms latency)",
-        "Multi-language & Accent Support",
-        "Inbound Receptionist & Outbound Sales",
-        "Contextual AI Response Generation",
-      ],
-      previewType: "voice",
-    },
-    {
-      id: "campaign",
-      title: "Campaign Management",
-      icon: <FolderKanban className="w-4 h-4" />,
-      tagline: "High-Volume Automated Calling Campaigns",
-      description:
-        "Schedule, launch, and monitor automated phone campaigns in minutes. Set customized call windows, auto-retry rules, and agent scripts.",
-      highlights: [
-        "One-Click Campaign Launcher",
-        "Bulk Dialing & Automated Retry Logic",
-        "Custom Script & Persona Builder",
-        "Live Campaign Performance Tracking",
-      ],
-      previewType: "campaign",
-    },
-    {
-      id: "lead",
-      title: "Lead Management",
-      icon: <UserCheck className="w-4 h-4" />,
-      tagline: "Automated Lead Qualification & Scoring",
-      description:
-        "Screen and qualify incoming leads automatically. CallingGen asks pre-configured qualification questions and instantly labels high-intent leads.",
-      highlights: [
-        "AI Lead Screening & Intent Scoring",
-        "Contact List Upload & Tagging",
-        "Real-time Lead Qualification Badges",
-        "Instant CRM Sync & Notifications",
-      ],
-      previewType: "lead",
-    },
-    {
-      id: "booking",
-      title: "Appointment Booking",
-      icon: <Calendar className="w-4 h-4" />,
-      tagline: "Seamless Calendar & Meeting Scheduling",
-      description:
-        "AI agents check calendar availability during calls, propose open slots, and confirm appointments without any back-and-forth friction.",
-      highlights: [
-        "Direct Google Calendar & Outlook Sync",
-        "Automated Meeting Confirmations & Reminders",
-        "Conflict Prevention & Rescheduling",
-        "Instant WhatsApp & SMS Invite Delivery",
-      ],
-      previewType: "booking",
-    },
-    {
-      id: "integrations",
-      title: "CRM & Integrations",
-      icon: <Share2 className="w-4 h-4" />,
-      tagline: "Universal CRM & Communication Sync",
-      description:
-        "Connect CallingGen directly into HubSpot, Salesforce, Zoho, WhatsApp, and custom webhooks to maintain complete data harmony across your stack.",
-      highlights: [
-        "HubSpot, Salesforce & Zoho Connectors",
-        "WhatsApp Business Message Triggers",
-        "Zapier & Webhook API Endpoints",
-        "Automated Contact Record Updating",
-      ],
-      previewType: "integrations",
-    },
-    {
-      id: "analytics",
-      title: "Analytics & Reports",
-      icon: <BarChart3 className="w-4 h-4" />,
-      tagline: "Real-time Voice Intelligence & Analytics",
-      description:
-        "Deep analytical insights into call volumes, success rates, transcriptions, and customer sentiment to continuously optimize conversion.",
-      highlights: [
-        "Real-Time Call Analytics Dashboard",
-        "Full Text Transcripts & Audio Recordings",
-        "Sentiment & Keyword Analysis",
-        "Exportable PDF & CSV Reports",
-      ],
-      previewType: "analytics",
-    },
-  ];
+  const rawTabs = featuresData[language] || featuresData["en"];
+  const tabs = rawTabs.map((tab, idx) => ({
+    ...tab,
+    icon: tabIcons[idx] || <Bot className="w-4 h-4" />,
+  }));
 
   return (
     <section className="py-20 md:py-28 bg-white dark:bg-[#090D16] transition-colors duration-300 relative overflow-hidden" id="features">
@@ -128,18 +54,15 @@ export default function FeaturesSection() {
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 text-[#4F6BFF] dark:text-[#818CF8] text-xs sm:text-sm font-semibold tracking-wide mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>PLATFORM CAPABILITIES</span>
+            <span>{t("featuresTag")}</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-5 leading-[1.15]">
-            Everything You Need to Automate{" "}
-            <span className="bg-gradient-to-r from-[#4F6BFF] to-[#7B61FF] bg-clip-text text-transparent">
-              Business Calls
-            </span>
+            {t("featuresTitleMain")}
           </h2>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
-            Discover how CallingGen's voice AI features streamline your entire calling workflow, from dialing to lead qualification and meeting booking.
+            {t("featuresSubtitleMain")}
           </p>
         </div>
 

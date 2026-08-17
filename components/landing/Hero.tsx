@@ -31,9 +31,11 @@ import {
   LogOut,
   PhoneForwarded,
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 
 export default function Hero() {
   const [isLoaded, setIsLoaded] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -68,7 +70,7 @@ export default function Hero() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           
           {/* ================================================== */}
-          {/* LEFT SIDE: Marketing Content (~45% on desktop = col-span-5) */}
+          {/* LEFT SIDE: Marketing Content */}
           {/* ================================================== */}
           <div className="lg:col-span-5 flex flex-col items-start text-left z-10">
             
@@ -82,7 +84,7 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4F6BFF] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#4F6BFF]"></span>
               </span>
-              <span>AI Voice Calling Platform</span>
+              <span>✦ {t("heroBadge")}</span>
             </div>
 
             {/* 2. Main Hero Heading */}
@@ -91,9 +93,9 @@ export default function Hero() {
                 isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
             >
-              AI Voice Agents That Handle Your Business Calls{" "}
+              {t("heroHeading")}{" "}
               <span className="bg-gradient-to-r from-[#4F6BFF] via-[#6366F1] to-[#7B61FF] bg-clip-text text-transparent inline-block">
-                Automatically
+                {t("heroHeadingHighlight")}
               </span>
             </h1>
 
@@ -103,7 +105,7 @@ export default function Hero() {
                 isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
             >
-              CallingGen helps businesses automate inbound and outbound calls, qualify leads, book appointments, answer customer queries, and save valuable time using AI voice agents.
+              {t("heroSubheading")}
             </p>
 
             {/* 4 & 5. Primary and Secondary CTAs */}
@@ -118,7 +120,7 @@ export default function Hero() {
                 size="lg"
                 className="w-full sm:w-auto bg-[#4F6BFF] hover:bg-[#435BE0] text-white rounded-full px-8 py-6 text-base font-semibold shadow-lg shadow-[#4F6BFF]/25 hover:shadow-xl hover:shadow-[#4F6BFF]/35 transition-all duration-200 active:scale-[0.98] focus:ring-2 focus:ring-[#4F6BFF] focus:ring-offset-2 dark:focus:ring-offset-[#090D16]"
               >
-                Get Call
+                {t("primaryCta")}
               </Button>
 
               {/* Secondary CTA */}
@@ -128,7 +130,7 @@ export default function Hero() {
                 onClick={handleSecondaryCtaClick}
                 className="group w-full sm:w-auto rounded-full px-7 py-6 text-base font-medium border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200"
               >
-                <span>See How It Works</span>
+                <span>{t("secondaryCta")}</span>
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200 text-[#4F6BFF] dark:text-[#818CF8]" />
               </Button>
             </div>
@@ -143,35 +145,35 @@ export default function Hero() {
                 <div className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>24/7 AI Calling</span>
+                <span>{t("feature247")}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>Multi-language Support</span>
+                <span>{t("featureMultiLang")}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>CRM Integration</span>
+                <span>{t("featureCrm")}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>WhatsApp Integration</span>
+                <span>{t("featureWhatsapp")}</span>
               </div>
             </div>
 
           </div>
 
           {/* ================================================== */}
-          {/* RIGHT SIDE: Real CallingGen Dashboard Visualization (~55% on desktop = col-span-7) */}
+          {/* RIGHT SIDE: Real CallingGen Dashboard Visualization */}
           {/* ================================================== */}
           <div
             className={`lg:col-span-7 relative mt-10 lg:mt-0 transition-all duration-1000 delay-500 ${
@@ -191,28 +193,28 @@ export default function Hero() {
                   <div className="w-3 h-3 rounded-full bg-amber-400/90" />
                   <div className="w-3 h-3 rounded-full bg-emerald-400/90" />
                   <div className="ml-2 flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">OVERVIEW</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{t("overview")}</span>
                     <span>/</span>
-                    <span className="text-slate-500 dark:text-slate-400">Dashboard</span>
+                    <span className="text-slate-500 dark:text-slate-400">{t("dashboard")}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   {/* Demo Plan Tag */}
                   <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                    Pro Plan
+                    {t("proPlan")}
                   </span>
 
                   {/* Credits Indicator */}
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <Coins className="w-3.5 h-3.5 text-cyan-500" />
-                    <span>850 Credits</span>
+                    <span>{t("credits")}</span>
                   </div>
 
                   {/* User Profile Avatar Pill */}
                   <div className="flex items-center gap-1.5 bg-[#4F6BFF] text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-sm">
                     <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">U</span>
-                    <span className="hidden md:inline-block">User Name</span>
+                    <span className="hidden md:inline-block">{t("userName")}</span>
                   </div>
                 </div>
               </div>
@@ -220,7 +222,7 @@ export default function Hero() {
               {/* Main Dashboard Workspace (Sidebar + Content Area) */}
               <div className="grid grid-cols-12 min-h-[440px]">
                 
-                {/* Left Navigation Sidebar (Col 3 on desktop) */}
+                {/* Left Navigation Sidebar */}
                 <div className="hidden sm:block sm:col-span-3 bg-white dark:bg-[#111827] border-r border-slate-200/80 dark:border-slate-800 p-3 space-y-4">
                   {/* CallingGen Logo in Sidebar */}
                   <div className="flex items-center gap-2 px-2 py-1 mb-3">
@@ -233,34 +235,34 @@ export default function Hero() {
                   </div>
 
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
-                    Navigation
+                    {t("navigation")}
                   </div>
 
                   {/* Navigation Links */}
                   <nav className="space-y-1">
                     <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-[#4F6BFF] text-white font-semibold text-xs shadow-md shadow-[#4F6BFF]/20 cursor-pointer">
                       <LayoutDashboard className="w-4 h-4" />
-                      <span>Dashboard</span>
+                      <span>{t("dashboard")}</span>
                     </div>
                     <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium text-xs cursor-pointer transition-colors">
                       <Calendar className="w-4 h-4" />
-                      <span>Calendar</span>
+                      <span>{t("navCalendar")}</span>
                     </div>
                     <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium text-xs cursor-pointer transition-colors">
                       <PhoneCall className="w-4 h-4" />
-                      <span>Call Manager</span>
+                      <span>{t("navCallManager")}</span>
                     </div>
                     <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium text-xs cursor-pointer transition-colors">
                       <FileText className="w-4 h-4" />
-                      <span>Call Logs</span>
+                      <span>{t("navCallLogs")}</span>
                     </div>
                     <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium text-xs cursor-pointer transition-colors">
                       <FolderKanban className="w-4 h-4" />
-                      <span>Campaign</span>
+                      <span>{t("navCampaign")}</span>
                     </div>
                     <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium text-xs cursor-pointer transition-colors">
                       <BarChart3 className="w-4 h-4" />
-                      <span>Report</span>
+                      <span>{t("navReport")}</span>
                     </div>
                   </nav>
 
@@ -272,36 +274,36 @@ export default function Hero() {
                           U
                         </div>
                         <div className="overflow-hidden">
-                          <div className="font-bold text-slate-800 dark:text-slate-200 truncate text-[11px]">User Name</div>
-                          <div className="text-[9px] text-slate-400 truncate">callinggen.com</div>
+                          <div className="font-bold text-slate-800 dark:text-slate-200 truncate text-[11px]">{t("userName")}</div>
+                          <div className="text-[9px] text-slate-400 truncate">user@gmail.com</div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Main Content Area (Col 9 on desktop / 12 on mobile) */}
+                {/* Main Content Area */}
                 <div className="col-span-12 sm:col-span-9 p-4 space-y-4 overflow-hidden">
                   
                   {/* Greeting Header Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <span>Welcome back, User Name</span>
+                        <span>{t("welcomeBack")}</span>
                         <span>👋</span>
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Here is what's happening with your campaigns today.
+                        {t("campaignSubtitle")}
                       </p>
                     </div>
 
                     <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#4F6BFF] hover:bg-[#435BE0] text-white text-xs font-semibold shadow-sm transition-all">
                       <Plus className="w-3.5 h-3.5" />
-                      <span>New Campaign</span>
+                      <span>{t("newCampaign")}</span>
                     </button>
                   </div>
 
-                  {/* 8 DASHBOARD METRIC CARDS (Exact Match to callinggen.in UI) */}
+                  {/* 8 DASHBOARD METRIC CARDS */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
                     
                     {/* Card 1: Total Campaigns */}
@@ -311,7 +313,7 @@ export default function Hero() {
                         <FolderKanban className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-slate-900 dark:text-white">12</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Campaigns</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("totalCampaigns")}</div>
                     </div>
 
                     {/* Card 2: Total Calls */}
@@ -321,7 +323,7 @@ export default function Hero() {
                         <PhoneCall className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-slate-900 dark:text-white">1,420</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Calls</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("totalCalls")}</div>
                     </div>
 
                     {/* Card 3: Completed Calls */}
@@ -331,7 +333,7 @@ export default function Hero() {
                         <CheckCircle2 className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-slate-900 dark:text-white">1,280</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Completed Calls</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("completedCalls")}</div>
                     </div>
 
                     {/* Card 4: Interested Leads */}
@@ -341,7 +343,7 @@ export default function Hero() {
                         <Target className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-slate-900 dark:text-white">348</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Interested Leads</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("interestedLeads")}</div>
                     </div>
 
                     {/* Card 5: Callbacks */}
@@ -351,7 +353,7 @@ export default function Hero() {
                         <PhoneForwarded className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-slate-900 dark:text-white">42</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Callbacks</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("callbacks")}</div>
                     </div>
 
                     {/* Card 6: Credits */}
@@ -361,7 +363,7 @@ export default function Hero() {
                         <Coins className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-slate-900 dark:text-white">850</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Credits</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("metricCredits")}</div>
                     </div>
 
                     {/* Card 7: Active Agents */}
@@ -371,7 +373,7 @@ export default function Hero() {
                         <Bot className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-slate-900 dark:text-white">5</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Active Agents</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("activeAgents")}</div>
                     </div>
 
                     {/* Card 8: Success Rate */}
@@ -381,7 +383,7 @@ export default function Hero() {
                         <TrendingUp className="w-4 h-4" />
                       </div>
                       <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">94.2%</div>
-                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Success Rate</div>
+                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("successRate")}</div>
                     </div>
 
                   </div>
@@ -398,10 +400,10 @@ export default function Hero() {
               </div>
               <div>
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
-                  Inbound Call
+                  {t("inboundCall")}
                 </div>
                 <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                  <span>Answered by AI</span>
+                  <span>{t("answeredByAi")}</span>
                   <span className="text-[10px] text-emerald-500 font-normal">(+91 98765 43210)</span>
                 </div>
               </div>
@@ -414,10 +416,10 @@ export default function Hero() {
               </div>
               <div>
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
-                  Lead Qualified
+                  {t("leadQualified")}
                 </div>
                 <div className="text-xs font-bold text-slate-900 dark:text-white">
-                  Appointment Synced to CRM
+                  {t("appointmentSynced")}
                 </div>
               </div>
             </div>

@@ -19,7 +19,20 @@ import {
   Sliders,
 } from "lucide-react";
 
+import { useLanguage } from "@/components/LanguageContext";
+import { industriesData } from "@/lib/translations";
+
+const indIcons = [
+  <Building2 className="w-5 h-5 text-[#4F6BFF]" key="real-estate" />,
+  <GraduationCap className="w-5 h-5 text-amber-500" key="education" />,
+  <Stethoscope className="w-5 h-5 text-emerald-500" key="healthcare" />,
+  <Landmark className="w-5 h-5 text-[#7B61FF]" key="finance" />,
+  <Megaphone className="w-5 h-5 text-pink-500" key="agency" />,
+  <Briefcase className="w-5 h-5 text-cyan-500" key="services" />,
+];
+
 export default function IndustriesSection() {
+  const { language, t } = useLanguage();
   const [activeIndustry, setActiveIndustry] = useState<number>(0);
   const [activeVoiceLang, setActiveVoiceLang] = useState<"en" | "hi" | "te">("en");
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -68,110 +81,11 @@ export default function IndustriesSection() {
     },
   };
 
-  const industries = [
-    {
-      id: "real-estate",
-      name: "Real Estate",
-      subtitle: "Property Buyers & Site Visit Automation",
-      icon: <Building2 className="w-5 h-5 text-[#4F6BFF]" />,
-      challenges: [
-        "High volume of property inquiries from Facebook & ad portals.",
-        "Delayed agent callbacks result in buyers choosing competitors.",
-        "Manual scheduling of site visits takes hours of phone tag.",
-      ],
-      solutions: [
-        "AI Agent calls property leads within 10 seconds of form submit.",
-        "Qualifies budget, location preferences, and buyer timeline.",
-        "Schedules site visits directly into agent's calendar with WhatsApp updates.",
-      ],
-      benefits: "+65% Site Visit Conversions • 0s Callback Delay",
-    },
-    {
-      id: "education",
-      name: "Education",
-      subtitle: "Student Admission & Counseling Workflow",
-      icon: <GraduationCap className="w-5 h-5 text-amber-500" />,
-      challenges: [
-        "Thousands of student admission queries during peak admission season.",
-        "Counselors overwhelmed by repetitive course & fee questions.",
-        "Lost prospective student follow-ups due to manual tracking.",
-      ],
-      solutions: [
-        "AI Agent answers 24/7 course, fee structure, and eligibility queries.",
-        "Schedules 1-on-1 counseling sessions with university advisors.",
-        "Sends automated document checklist & fee payment reminders.",
-      ],
-      benefits: "+80% Counseling Booking Rate • 24/7 Student Desk",
-    },
-    {
-      id: "healthcare",
-      name: "Healthcare",
-      subtitle: "Patient Appointment & Reminder Dashboard",
-      icon: <Stethoscope className="w-5 h-5 text-emerald-500" />,
-      challenges: [
-        "High patient no-show rates due to forgotten appointments.",
-        "Busy reception phone lines during morning doctor hours.",
-        "Time-consuming manual appointment rescheduling.",
-      ],
-      solutions: [
-        "AI Agent manages patient appointment bookings 24/7.",
-        "Sends automated voice call reminders 24 hours prior to appointment.",
-        "Handles instant rescheduling and updates doctor's schedule live.",
-      ],
-      benefits: "-50% Patient No-Shows • Instant Phone Reception",
-    },
-    {
-      id: "financial",
-      name: "Financial Services",
-      subtitle: "Loan & Insurance Lead Qualification",
-      icon: <Landmark className="w-5 h-5 text-purple-500" />,
-      challenges: [
-        "Strict compliance requirements for lead verification.",
-        "High drop-off between credit application and advisor call.",
-        "Manual payment & renewal reminder overhead.",
-      ],
-      solutions: [
-        "AI Agent screens applicant eligibility & loan requirements.",
-        "Schedules consultation calls with certified financial advisors.",
-        "Sends automated policy renewal & payment reminder calls.",
-      ],
-      benefits: "100% Verified Qualification • 3x Advisor Productivity",
-    },
-    {
-      id: "marketing",
-      name: "Digital Marketing",
-      subtitle: "High-Speed Ad Lead Funnel Activation",
-      icon: <Megaphone className="w-5 h-5 text-pink-500" />,
-      challenges: [
-        "Ad leads go cold if not contacted within 5 minutes.",
-        "Sales teams spend 80% of time reaching invalid numbers.",
-        "Low conversion rates on Meta & Google lead forms.",
-      ],
-      solutions: [
-        "Instant speed-to-lead outbound calls triggered from Meta & Google ads.",
-        "Filters bad numbers and qualifies intent before passing to sales.",
-        "Books live sales demos directly during the initial AI call.",
-      ],
-      benefits: "<10s Speed-to-Lead • 4x Demo Booking Rate",
-    },
-    {
-      id: "others",
-      name: "Others (SaaS, HR, Retail)",
-      subtitle: "Custom AI Workflow for Any Industry",
-      icon: <Briefcase className="w-5 h-5 text-cyan-500" />,
-      challenges: [
-        "Repetitive customer phone calls draining team productivity.",
-        "Inconsistent phone follow-up across regional offices.",
-        "Lack of central call tracking and sentiment recording.",
-      ],
-      solutions: [
-        "Tailor-made AI Agent persona customized for your specific business logic.",
-        "Integrates with your existing ERP, CRM, and communication stack.",
-        "Full call recording, transcripts, and analytics dashboard.",
-      ],
-      benefits: "Custom Prompt Architecture • Universal Integration",
-    },
-  ];
+  const rawIndustries = industriesData[language] || industriesData["en"];
+  const industries = rawIndustries.map((ind, idx) => ({
+    ...ind,
+    icon: indIcons[idx] || <Building2 className="w-5 h-5 text-[#4F6BFF]" />,
+  }));
 
   const current = industries[activeIndustry];
   const sample = voiceSamples[activeVoiceLang];
@@ -187,18 +101,15 @@ export default function IndustriesSection() {
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 text-[#4F6BFF] dark:text-[#818CF8] text-xs sm:text-sm font-semibold tracking-wide mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>TAILORED INDUSTRY SOLUTIONS</span>
+            <span>{t("indTag")}</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-5 leading-[1.15]">
-            Built for Your{" "}
-            <span className="bg-gradient-to-r from-[#4F6BFF] to-[#7B61FF] bg-clip-text text-transparent">
-              Specific Industry
-            </span>
+            {t("indTitle")}
           </h2>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
-            CallingGen adapts seamlessly to your industry's unique call scenarios, scripts, and multi-language customer preferences.
+            {t("indSubtitle")}
           </p>
         </div>
 
@@ -248,7 +159,7 @@ export default function IndustriesSection() {
             {/* Challenges */}
             <div className="space-y-2">
               <span className="text-xs font-bold text-rose-500 uppercase tracking-wider block">
-                Common Industry Challenges
+                {t("indChallengesHeader")}
               </span>
               {current.challenges.map((c, i) => (
                 <div key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
@@ -261,7 +172,7 @@ export default function IndustriesSection() {
             {/* Solutions */}
             <div className="space-y-2 pt-1">
               <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider block">
-                How CallingGen Solves It
+                {t("indSolutionsHeader")}
               </span>
               {current.solutions.map((s, i) => (
                 <div key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium">
