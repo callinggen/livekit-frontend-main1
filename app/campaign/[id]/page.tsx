@@ -8,9 +8,11 @@ import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import { 
   ArrowLeft, Calendar, User, FileText, CheckCircle2, 
-  PhoneCall, Clock, Database
+  PhoneCall, Clock, Database, Zap, PlayCircle, X, Phone
 } from "lucide-react";
 import { api, CampaignDetail } from "@/lib/api";
+
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const formatDateTime = (dateString: string | undefined | null) => {
   if (!dateString) return "";
@@ -46,6 +48,123 @@ const formatTimeOnly = (dateString: string | undefined | null) => {
   }
 };
 
+const getPillColor = (val: string, type: "response" | "status" | "category" | "type") => {
+  if (type === "type") return val === "INBOUND" ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-200" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200";
+  
+  const v = (val || "").toUpperCase();
+  if (v.includes("DO NOT CALL") || v.includes("REFUSAL") || v === "NOT INTERESTED" || v === "INVALID" || v === "FAILED" || v.includes("CUT")) {
+    return "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-200";
+  }
+  if (v === "INTERESTED" || v === "HOT" || v === "COMPLETED" || v.includes("BOOKED")) {
+    return "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200";
+  }
+  if (v === "CALLBACK" || v === "WARM" || v === "RUNNING") {
+    return "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200";
+  }
+  if (v === "COLD" || v === "NO ANSWER") {
+    return "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200";
+  }
+  return "bg-gray-50 text-gray-600 border-gray-200";
+};
+
+const renderTranscript = (transcriptData: any) => {
+  if (!transcriptData) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center bg-zinc-50/50 dark:bg-zinc-950/30 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+        <FileText className="w-8 h-8 text-zinc-300 dark:text-zinc-700 mb-2" />
+        <p className="text-sm text-zinc-500 italic">No transcript available for this call.</p>
+      </div>
+    );
+  }
+
+  // Case 1: transcriptData is a string
+  if (typeof transcriptData === "string") {
+    const lines = transcriptData.split("\n").filter(line => line.trim() !== "");
+    if (lines.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-center bg-zinc-50/50 dark:bg-zinc-950/30 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+          <FileText className="w-8 h-8 text-zinc-300 dark:text-zinc-700 mb-2" />
+          <p className="text-sm text-zinc-500 italic">No transcript available for this call.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-4 max-h-[350px] overflow-y-auto p-4 rounded-xl border border-zinc-100 bg-zinc-50/30 dark:border-zinc-800/50 dark:bg-zinc-950/10">
+        {lines.map((line, index) => {
+          const isAgent = line.toLowerCase().startsWith("assistant:") || line.toLowerCase().startsWith("agent:");
+          const isUser = line.toLowerCase().startsWith("user:") || line.toLowerCase().startsWith("customer:");
+          
+          let speakerName = "System";
+          let content = line;
+          let bubbleStyle = "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 self-start";
+
+          if (isAgent) {
+            speakerName = "AI Agent";
+            content = line.substring(line.indexOf(":") + 1).trim();
+            bubbleStyle = "bg-violet-50 border border-violet-100 text-violet-900 dark:bg-violet-950/20 dark:border-violet-900/50 dark:text-violet-300 self-start";
+          } else if (isUser) {
+            speakerName = "Customer";
+            content = line.substring(line.indexOf(":") + 1).trim();
+            bubbleStyle = "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 self-end shadow-sm";
+          }
+
+          return (
+            <div key={index} className={`flex flex-col max-w-[80%] ${isUser ? 'self-end' : 'self-start'}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-widest mb-1 text-zinc-400 dark:text-zinc-500 ${isUser ? 'text-right' : 'text-left'}`}>
+                {speakerName}
+              </span>
+              <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${bubbleStyle}`}>
+                {content}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Case 2: transcriptData is an array of messages
+  if (Array.isArray(transcriptData)) {
+    if (transcriptData.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-center bg-zinc-50/50 dark:bg-zinc-950/30 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+          <FileText className="w-8 h-8 text-zinc-300 dark:text-zinc-700 mb-2" />
+          <p className="text-sm text-zinc-500 italic">No transcript available for this call.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-4 max-h-[350px] overflow-y-auto p-4 rounded-xl border border-zinc-100 bg-zinc-50/30 dark:border-zinc-800/50 dark:bg-zinc-950/10">
+        {transcriptData.map((msg: any, index: number) => {
+          const isAgent = msg.speaker.toLowerCase() === "assistant" || msg.speaker.toLowerCase() === "agent";
+          const speakerName = isAgent ? "AI Agent" : "Customer";
+          const bubbleStyle = isAgent
+            ? "bg-violet-50 border border-violet-100 text-violet-900 dark:bg-violet-950/20 dark:border-violet-900/50 dark:text-violet-300 self-start"
+            : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 self-end shadow-sm";
+
+          return (
+            <div key={index} className={`flex flex-col max-w-[80%] ${!isAgent ? 'self-end' : 'self-start'}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-widest mb-1 text-zinc-400 dark:text-zinc-500 ${!isAgent ? 'text-right' : 'text-left'}`}>
+                {speakerName}
+              </span>
+              <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${bubbleStyle}`}>
+                {msg.text}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center p-8 text-center bg-zinc-50/50 dark:bg-zinc-950/30 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+      <FileText className="w-8 h-8 text-zinc-300 dark:text-zinc-700 mb-2" />
+      <p className="text-sm text-zinc-500 italic">No transcript available for this call.</p>
+    </div>
+  );
+};
+
 export default function CampaignDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -55,6 +174,7 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [calls, setCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedContact, setSelectedContact] = useState<any | null>(null);
 
   // Enrich contacts with datetime and credits from matched call records
   const enrichedContacts = useMemo(() => {
@@ -68,10 +188,17 @@ export default function CampaignDetailPage() {
       return {
         ...contact,
         datetime: matchingCall ? matchingCall.datetime : (contact.datetime || ""),
-        credits: matchingCall ? (matchingCall.creditsDeducted ?? 0) : (contact.credits ?? 0)
+        credits: matchingCall ? (matchingCall.creditsDeducted ?? 0) : (contact.credits ?? 0),
+        transcript: matchingCall ? matchingCall.transcript : (contact.transcript || null)
       };
     });
   }, [campaign, calls]);
+
+  // Keep selected contact updated with polling refreshes
+  const activeSelectedContact = useMemo(() => {
+    if (!selectedContact) return null;
+    return enrichedContacts.find((c: any) => c.id === selectedContact.id) || selectedContact;
+  }, [selectedContact, enrichedContacts]);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -369,6 +496,96 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
+        {/* Live Journey Panel (Only for Running campaigns) */}
+        {campaign.status.toLowerCase() === "running" && (
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:bg-gradient-to-r dark:from-[#09090b] dark:to-[#130f1c] dark:border-zinc-800/60 shrink-0">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 shadow-[0_0_10px_rgba(244,63,94,0.1)]">
+                <div className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
+                <span className="text-[10px] font-extrabold tracking-widest text-rose-600 dark:text-rose-400 uppercase">Live Journey</span>
+              </div>
+              <div className="text-[10px] font-bold tracking-widest text-zinc-400 dark:text-zinc-500 uppercase">
+                Mission Control
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-6 items-stretch justify-between w-full">
+              {/* Steps Row */}
+              <div className="flex flex-col md:flex-row items-stretch justify-between gap-4 flex-1">
+                {/* Step 1: Registry */}
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-100 bg-white/90 p-4 shadow-md backdrop-blur-md dark:border-zinc-700/50 dark:bg-[#16161e]/95 flex-1 max-w-full md:max-w-[160px] text-center transition hover:scale-105">
+                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 ring-rose-200 text-rose-500 dark:bg-rose-500/10 dark:ring-rose-500/30">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Registry</p>
+                  <p className="mt-0.5 text-2xl font-black text-rose-500">{totalContacts}</p>
+                  <p className="text-[8px] font-medium text-zinc-400">Input detected</p>
+                </div>
+
+                <div className="hidden md:block flex-1 h-[2px] bg-gradient-to-r from-rose-400 to-amber-400 self-center opacity-40 dark:opacity-80" />
+
+                {/* Step 2: Standby */}
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-100 bg-white/90 p-4 shadow-md backdrop-blur-md dark:border-zinc-700/50 dark:bg-[#16161e]/95 flex-1 max-w-full md:max-w-[160px] text-center transition hover:scale-105">
+                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 ring-amber-200 text-amber-500 dark:bg-amber-500/10 dark:ring-amber-500/30">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Standby</p>
+                  <p className="mt-0.5 text-2xl font-black text-amber-500">{enrichedContacts.filter((c: any) => c.status === "pending").length}</p>
+                  <p className="text-[8px] font-medium text-zinc-400">Waiting in queue</p>
+                </div>
+
+                <div className="hidden md:block flex-1 h-[2px] bg-gradient-to-r from-amber-400 to-cyan-400 self-center opacity-40 dark:opacity-80" />
+
+                {/* Step 3: Dialer */}
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-100 bg-white/90 p-4 shadow-md backdrop-blur-md dark:border-zinc-700/50 dark:bg-[#16161e]/95 flex-1 max-w-full md:max-w-[160px] text-center transition hover:scale-105">
+                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-100 ring-cyan-200 text-cyan-500 dark:bg-cyan-500/10 dark:ring-cyan-500/30">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Dialer</p>
+                  <p className="mt-0.5 text-2xl font-black text-cyan-500">
+                    {totalContacts - enrichedContacts.filter((c: any) => c.status === "pending").length}
+                  </p>
+                  <p className="text-[8px] font-medium text-zinc-400">Active dialing</p>
+                </div>
+
+                <div className="hidden md:block flex-1 h-[2px] bg-gradient-to-r from-cyan-400 to-purple-400 self-center opacity-40 dark:opacity-80" />
+
+                {/* Step 4: Analysis */}
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-100 bg-white/90 p-4 shadow-md backdrop-blur-md dark:border-zinc-700/50 dark:bg-[#16161e]/95 flex-1 max-w-full md:max-w-[160px] text-center transition hover:scale-105">
+                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 ring-purple-200 text-purple-500 dark:bg-rose-500/10 dark:ring-rose-500/30">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Analysis</p>
+                  <p className="mt-0.5 text-2xl font-black text-purple-500">
+                    {enrichedContacts.filter((c: any) => ["completed", "failed", "busy", "no_answer", "incomplete"].includes(c.status)).length}
+                  </p>
+                  <p className="text-[8px] font-medium text-zinc-400">Finished calls</p>
+                </div>
+              </div>
+
+              {/* Vertical connector line (screens >= lg) */}
+              <div className="hidden lg:flex w-[2px] bg-gradient-to-b from-rose-400 to-emerald-400 self-stretch my-2 opacity-50" />
+
+              {/* Outcomes stacked column */}
+              <div className="flex flex-row lg:flex-col gap-3 justify-center items-center shrink-0 w-full lg:w-[150px]">
+                {/* Completed outcome */}
+                <div className="relative flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-white py-3 px-4 shadow-sm dark:border-emerald-500/30 dark:bg-[#121217] w-full max-w-[150px]">
+                  <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-full bg-emerald-500" />
+                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{connectedCount}</p>
+                  <p className="text-[8px] font-bold tracking-wider text-zinc-500 uppercase mt-0.5">Completed</p>
+                </div>
+
+                {/* No Answer outcome */}
+                <div className="relative flex flex-col items-center justify-center rounded-xl border border-blue-200 bg-white py-3 px-4 shadow-sm dark:border-blue-500/30 dark:bg-[#121217] w-full max-w-[150px]">
+                  <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-full bg-blue-500" />
+                  <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{dialedCount - connectedCount}</p>
+                  <p className="text-[8px] font-bold tracking-wider text-zinc-500 uppercase mt-0.5">No Answer</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Performance Metrics Box */}
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19] shrink-0 transition hover:shadow-md">
           <div className="flex items-center gap-2 mb-6">
@@ -419,9 +636,153 @@ export default function CampaignDetailPage() {
               columns={columns}
               searchableKeys={["name", "phone", "response", "status"]}
               exportFileName={`${campaign.name}_call_logs.xlsx`}
+              onRowClick={(item) => setSelectedContact(item)}
             />
           </div>
         </section>
+
+        {/* --- Popup Modal for Details Redesign --- */}
+        {activeSelectedContact && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSelectedContact(null)}></div>
+            <div className="relative bg-white dark:bg-[#0B0F19] w-full max-w-5xl max-h-[95vh] overflow-hidden rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header & Actions */}
+              <div className="bg-white dark:bg-[#0B0F19] z-10 border-b border-zinc-200 dark:border-zinc-800 p-5 flex flex-col md:flex-row md:justify-between md:items-start shrink-0 gap-4">
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                  {/* Detailed Call Info First */}
+                  <div className="flex gap-4 items-center">
+                     <div className="w-14 h-14 rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400 border border-violet-200 dark:border-violet-800/50 shrink-0 flex items-center justify-center">
+                      <User className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold flex items-center gap-3 text-zinc-900 dark:text-white">
+                        {activeSelectedContact.name} 
+                      </h2>
+                      <div className="flex items-center gap-3 mt-1 text-zinc-500 dark:text-zinc-400 text-sm font-medium">
+                        <span className="flex items-center gap-1.5"><Phone className="w-4 h-4"/> {activeSelectedContact.phone}</span>
+                        <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
+                        <span>{activeSelectedContact.datetime || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="h-full w-px bg-zinc-200 dark:bg-zinc-800 hidden md:block mx-2"></div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-sm">
+                    <div>
+                      <p className="text-zinc-400 dark:text-zinc-500 text-[10px] uppercase font-bold tracking-wider mb-1">Status</p>
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(activeSelectedContact.status, "status")}`}>
+                        {activeSelectedContact.status}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-zinc-400 dark:text-zinc-500 text-[10px] uppercase font-bold tracking-wider mb-1">Type</p>
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(activeSelectedContact.type, "type")}`}>
+                        {activeSelectedContact.type}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-zinc-400 dark:text-zinc-500 text-[10px] uppercase font-bold tracking-wider mb-1">Campaign</p>
+                      <p className="font-semibold text-zinc-900 dark:text-white truncate max-w-[120px]">{activeSelectedContact.agent}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-400 dark:text-zinc-500 text-[10px] uppercase font-bold tracking-wider mb-1">Credits</p>
+                      <p className="font-semibold text-zinc-900 dark:text-white flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-500" /> {activeSelectedContact.credits}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Close Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => setSelectedContact(null)} className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-zinc-500 dark:text-zinc-400">
+                    <X className="w-5 h-5"/>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Modal Body: Transcript & Recording Side-by-Side */}
+              <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto bg-zinc-50/30 dark:bg-zinc-950/10">
+                
+                {/* Transcript Section */}
+                <div className="flex flex-col h-full">
+                  <h4 className="font-semibold flex items-center gap-2 mb-3 text-zinc-900 dark:text-white"><FileText className="w-4 h-4 text-violet-600" /> Call Transcript</h4>
+                  <div className="bg-white dark:bg-[#0B0F19] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 flex-1 min-h-[300px] overflow-y-auto space-y-6 text-sm shadow-sm">
+                    {renderTranscript(activeSelectedContact.transcript)}
+                  </div>
+                </div>
+
+                {/* Player & Insights Section */}
+                <div className="flex flex-col gap-6 h-full">
+                  
+                  {/* Player */}
+                  <div className="flex flex-col">
+                    <h4 className="font-semibold flex items-center gap-2 mb-3 text-zinc-900 dark:text-white"><PlayCircle className="w-4 h-4 text-violet-600" /> Recording</h4>
+                    <div className="bg-white dark:bg-[#0B0F19] border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col items-center justify-center min-h-[140px]">
+                      {!activeSelectedContact.recording_url ? (
+                        <div className="text-zinc-400 dark:text-zinc-500 italic text-sm">
+                          No recording available for this call.
+                        </div>
+                      ) : (
+                        <audio 
+                          src={activeSelectedContact.recording_url.startsWith('http') ? activeSelectedContact.recording_url : BASE + activeSelectedContact.recording_url}
+                          controls 
+                          className="w-full outline-none"
+                          preload="metadata"
+                        />
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Extracted Data */}
+                  <div className="flex flex-col flex-1">
+                    <h4 className="font-semibold text-sm mb-3 text-zinc-400 dark:text-zinc-500 flex items-center gap-2">Key Insights</h4>
+                    <div className="bg-white dark:bg-[#0B0F19] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm flex-1">
+                      <ul className="space-y-4 text-sm">
+                        <li className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                          <span className="text-zinc-500 dark:text-zinc-400">AI Classification</span>
+                          <span className="font-semibold text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">{activeSelectedContact.aiClass}</span>
+                        </li>
+                        <li className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                          <span className="text-zinc-500 dark:text-zinc-400">Category</span>
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(activeSelectedContact.category, "category")}`}>
+                            {activeSelectedContact.category}
+                          </span>
+                        </li>
+                        <li className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                          <span className="text-zinc-500 dark:text-zinc-400">Response</span>
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(activeSelectedContact.response, "response")}`}>
+                            {activeSelectedContact.response}
+                          </span>
+                        </li>
+                        <li className="flex justify-between items-center pb-1">
+                          <span className="text-zinc-500 dark:text-zinc-400">Sentiment</span>
+                          {(() => {
+                            const cat = (activeSelectedContact.category || "").toUpperCase();
+                            const resp = (activeSelectedContact.response || "").toLowerCase();
+                            const ai = (activeSelectedContact.aiClass || "").toLowerCase();
+                            const isNeg = cat === "COLD" || resp.includes("do not call") || resp.includes("refusal") || resp.includes("not interested") || resp.includes("no answer") || ai.includes("do not call") || ai.includes("refusal");
+                            const isPos = !isNeg && (cat === "HOT" || resp.includes("appointment") || resp.includes("interested"));
+                            const s = activeSelectedContact.sentiment || (isNeg ? "Negative" : isPos ? "Positive" : "Neutral");
+
+                            if (s === "Negative" || isNeg) {
+                              return <span className="text-rose-500 font-semibold bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">Negative</span>;
+                            } else if (s === "Positive" && !isNeg) {
+                              return <span className="text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Positive</span>;
+                            } else {
+                              return <span className="text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">Neutral</span>;
+                            }
+                          })()}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </DashboardShell>
