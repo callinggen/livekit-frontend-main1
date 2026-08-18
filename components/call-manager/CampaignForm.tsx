@@ -204,7 +204,7 @@ export default function CampaignForm({
                 {userNumbers.map((num) => (
                   <option key={num.id} value={num.phone_number}>
                     {num.region.includes("India") ? "🇮🇳 " : num.region.includes("United States") || num.region.includes("US") ? "🇺🇸 " : num.region.includes("United Kingdom") || num.region.includes("UK") ? "🇬🇧 " : "🌐 "}
-                    {num.region} ({num.phone_number}) — {num.provider_name}
+                    {num.region} ({num.phone_number})
                   </option>
                 ))}
               </select>
