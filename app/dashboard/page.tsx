@@ -192,9 +192,10 @@ export default function Dashboard() {
             <p className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">{currentDate}</p>
           </div>
           <button 
-            onClick={() => router.push("/dashboard/call-manager")}
+            onClick={() => router.push("/call-manager")}
             className="flex w-max items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-500 hover:shadow-lg dark:bg-indigo-600 dark:hover:bg-indigo-500"
           >
+
             <Plus className="h-4 w-4" />
             New Campaign
           </button>

@@ -22,10 +22,12 @@ export interface CampaignFormData {
   googleSheetUrl?: string;
   singleContactName?: string;
   singleContactPhone?: string;
+  outboundPhoneNumber?: string;
   selectionType: "all" | "range";
   startRow?: number;
   endRow?: number;
 }
+
 
 export interface LiveTrackingStats {
   registry: number;

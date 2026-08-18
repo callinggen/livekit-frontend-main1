@@ -47,7 +47,9 @@ export default function CampaignsPage() {
   const { isLoggedIn } = useAuth();
   
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [pendingCampaigns, setPendingCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [launchingId, setLaunchingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -55,24 +57,39 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    // BUG-024: Poll every 10s while any campaign is Running
-    const load = () =>
-      api.getCampaigns()
-        .then(data => {
-          setCampaigns(data ? (data as Campaign[]) : []);
-        })
-        .catch(err => {
-          console.warn("Failed to load campaigns:", err);
-          setCampaigns([]);
-        })
-        .finally(() => setLoading(false));
+    const load = () => {
+      Promise.all([
+        api.getCampaigns("normal"),
+        api.getCampaigns("pending")
+      ])
+      .then(([normalData, pendingData]) => {
+        setCampaigns(normalData ? (normalData as Campaign[]) : []);
+        setPendingCampaigns(pendingData ? (pendingData as Campaign[]) : []);
+      })
+      .catch(err => {
+        console.warn("Failed to load campaigns:", err);
+      })
+      .finally(() => setLoading(false));
+    };
 
     load();
-    const interval = setInterval(() => {
-      load();
-    }, 10000);
+    const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
   }, [isLoggedIn]);
+
+  const handleLaunchPending = async (campaignId: string) => {
+    try {
+      setLaunchingId(campaignId);
+      const { total_contacts } = await api.launchCampaign(Number(campaignId));
+      alert(`Campaign launched! Dialling ${total_contacts} contact(s).`);
+      // It will auto-refresh via interval, or we can force a refresh
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || "Failed to launch pending campaign");
+    } finally {
+      setLaunchingId(null);
+    }
+  };
 
   if (!isLoggedIn) return null;
 
@@ -91,10 +108,11 @@ export default function CampaignsPage() {
   const running = campaigns.filter(c => c.status === "Running").length;
   const scheduled = campaigns.filter(c => c.status === "Scheduled").length;
   const completed = campaigns.filter(c => c.status === "Completed").length;
-  const draft = campaigns.filter(c => c.status === "Draft").length;
+  const draft = campaigns.filter(c => c.status === "Draft" || c.status === "Paused").length;
 
-  const activeCampaigns = campaigns.filter(c => c.status !== "Completed");
-  const completedCampaigns = campaigns.filter(c => c.status === "Completed");
+  const activeCampaignsData = campaigns.filter(c => c.status === "Running" || c.status === "Draft" || c.status === "Paused" || c.status === "pending");
+  const scheduledCampaignsData = campaigns.filter(c => c.status === "Scheduled");
+  const completedCampaignsData = campaigns.filter(c => c.status === "Completed");
 
   if (loading) {
     return (
@@ -157,12 +175,12 @@ export default function CampaignsPage() {
           </div>
           <div>
             <DataTable 
-              data={activeCampaigns}
+              data={activeCampaignsData}
               columns={columns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
                 { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Draft", value: "Draft"}, {label: "Paused", value: "Paused"}, {label: "Failed", value: "Failed"}] },
-                { key: "agent", label: "Agent", options: Array.from(new Set(activeCampaigns.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
+                { key: "agent", label: "Agent", options: Array.from(new Set(activeCampaignsData.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
               ]}
               exportFileName="active_campaigns_export.xlsx"
               onRowClick={(c) => router.push(`/campaign/${c.id}`)}
@@ -171,7 +189,7 @@ export default function CampaignsPage() {
         </section>
 
         {/* Completed Campaigns Table Section */}
-        <section className="flex flex-col gap-4 shrink-0">
+        <section className="flex flex-col gap-4 mb-8 shrink-0">
           <div>
             <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Completed Campaigns</h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -180,15 +198,70 @@ export default function CampaignsPage() {
           </div>
           <div>
             <DataTable 
-              data={completedCampaigns}
+              data={completedCampaignsData}
               columns={columns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
-                { key: "agent", label: "Agent", options: Array.from(new Set(completedCampaigns.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
+                { key: "agent", label: "Agent", options: Array.from(new Set(completedCampaignsData.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
               ]}
               exportFileName="completed_campaigns_export.xlsx"
               onRowClick={(c) => router.push(`/campaign/${c.id}`)}
             />
+          </div>
+        </section>
+
+        {/* Pending Campaigns Section */}
+        <section className="flex flex-col gap-4 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Pending Campaigns</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              These are your remaining contacts from custom range selections. Launch them whenever you're ready.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pendingCampaigns.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-zinc-500">
+                No pending campaigns found.
+              </div>
+            ) : (
+              pendingCampaigns.map(c => (
+                <div key={c.id} className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19]">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{c.name}</h3>
+                    <p className="text-sm text-zinc-500 mt-1">
+                      From: <span className="font-medium text-zinc-700 dark:text-zinc-300">{c.parentCampaignName || "Unknown"}</span>
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-zinc-500">Remaining Contacts</span>
+                      <span className="font-mono text-lg font-semibold dark:text-white">{c.contactCount || 0}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-zinc-500">Status</span>
+                      <div><Badge variant="warning">Pending</Badge></div>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex gap-3">
+                    <button 
+                      onClick={() => router.push(`/campaign/${c.id}`)}
+                      className="flex-1 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    >
+                      View Contacts
+                    </button>
+                    <button 
+                      onClick={() => handleLaunchPending(c.id)}
+                      disabled={launchingId === c.id}
+                      className="flex-1 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                    >
+                      {launchingId === c.id ? "Launching..." : "Run Campaign"}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </div>

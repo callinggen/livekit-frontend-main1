@@ -11,6 +11,8 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface ApiContact {
   name: string;
   phone: string;
+  metadata_fields?: Record<string, string>;
+  original_row?: number;
 }
 
 export interface CampaignCreatePayload {
@@ -19,6 +21,7 @@ export interface CampaignCreatePayload {
   script: string;
   schedule_date: string;
   schedule_time: string;
+  outbound_phone_number?: string;
   selection_type?: "all" | "range";
   start_row?: number;
   end_row?: number;
@@ -27,12 +30,24 @@ export interface CampaignCreatePayload {
   sheet_name?: string;
 }
 
+export interface UserPhoneNumber {
+  id: number;
+  phone_number: string;
+  provider_name: string;
+  region: string;
+  sip_trunk_id?: string;
+  is_default: boolean;
+}
+
+
 export interface CampaignRow {
   id: string;
   name: string;
   date: string;
   schedule: string;
+  schedule_date?: string;
   sheetName: string;
+
   totalCalls: number;
   completedCalls: number;
   failedCalls: number;
@@ -44,6 +59,10 @@ export interface CampaignRow {
   script: string;
   uploadSource: string;
   notes: string;
+  campaignType?: string;
+  parentCampaignId?: number;
+  parentCampaignName?: string;
+  contactCount?: number;
   upload_source?: string;
   sheet_name?: string;
 }
@@ -76,6 +95,7 @@ export interface CampaignDetail extends CampaignRow {
     credits?: number;
   }[];
 }
+
 
 export interface ResponseLog {
   id: string;
@@ -171,7 +191,7 @@ export const api = {
     ),
 
   /** List all campaigns. */
-  getCampaigns: () => request<CampaignRow[]>("/api/campaigns"),
+  getCampaigns: (type?: string) => request<CampaignRow[]>(type ? `/api/campaigns?type=${type}` : "/api/campaigns"),
 
   /** Single campaign detail. */
   getCampaign: (id: number) => request<CampaignDetail>(`/api/campaigns/${id}`),
@@ -246,5 +266,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /** Get user assigned provider phone numbers and region metadata. */
+  getUserPhoneNumbers: () =>
+    request<UserPhoneNumber[]>("/api/user/phone-numbers"),
 };
+
 

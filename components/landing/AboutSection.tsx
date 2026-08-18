@@ -16,50 +16,52 @@ import {
   Volume2,
   Sparkles,
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 
 export default function AboutSection() {
+  const { t } = useLanguage();
   const [activeStep, setActiveStep] = useState<number>(0);
   const [hasAnimated, setHasAnimated] = useState<boolean>(false);
   const sectionRef = useRef<HTMLElement | null>(null);
 
-  // 6 Journey Steps for the Zig-Zag path
+  // 5 Journey Steps for the Zig-Zag path
   const steps = [
     {
       id: 1,
-      title: "Login",
-      subtext: "Access your dashboard",
+      title: t("step1Title"),
+      subtext: t("step1Subtext"),
       icon: <User className="w-4 h-4" />,
       highlightFeatureIndex: 0,
       side: "left",
     },
     {
       id: 2,
-      title: "Create Campaign",
-      subtext: "Set goal, scripts & settings",
+      title: t("step2Title"),
+      subtext: t("step2Subtext"),
       icon: <Megaphone className="w-4 h-4" />,
       highlightFeatureIndex: 3,
       side: "right",
     },
     {
       id: 3,
-      title: "Upload Contacts",
-      subtext: "Upload your contact list",
+      title: t("step3Title"),
+      subtext: t("step3Subtext"),
       icon: <UploadCloud className="w-4 h-4" />,
       highlightFeatureIndex: 1,
       side: "left",
     },
     {
       id: 4,
-      title: "Launch Campaign",
-      subtext: "Review and launch",
+      title: t("step4Title"),
+      subtext: t("step4Subtext"),
       icon: <Rocket className="w-4 h-4" />,
       highlightFeatureIndex: 2,
       side: "right",
     },
     {
       id: 5,
-      title: "AI Starts Calling",
-      subtext: "AI calls and handles conversations",
+      title: t("step5Title"),
+      subtext: t("step5Subtext"),
       icon: <PhoneCall className="w-4 h-4" />,
       highlightFeatureIndex: 0,
       side: "left",
@@ -71,32 +73,32 @@ export default function AboutSection() {
   const features = [
     {
       id: "voice",
-      title: "AI Voice Calls",
-      desc: "Human-like conversations that feel natural.",
+      title: t("feature1Title"),
+      desc: t("feature1Desc"),
       icon: <Bot className="w-5 h-5 text-[#4F6BFF]" />,
       bgColor: "bg-indigo-500/10",
       accentColor: "border-[#4F6BFF] ring-2 ring-[#4F6BFF]/20 text-[#4F6BFF]",
     },
     {
       id: "lead",
-      title: "Lead Qualification",
-      desc: "Qualify leads and capture important information.",
+      title: t("feature2Title"),
+      desc: t("feature2Desc"),
       icon: <Target className="w-5 h-5 text-emerald-500" />,
       bgColor: "bg-emerald-500/10",
       accentColor: "border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-500",
     },
     {
       id: "booking",
-      title: "Appointment Booking",
-      desc: "Automatically book appointments in calendar.",
+      title: t("feature3Title"),
+      desc: t("feature3Desc"),
       icon: <Calendar className="w-5 h-5 text-amber-500" />,
       bgColor: "bg-amber-500/10",
       accentColor: "border-amber-500 ring-2 ring-amber-500/20 text-amber-500",
     },
     {
       id: "automation",
-      title: "Smart Automation",
-      desc: "CRM updates, follow-ups and notifications.",
+      title: t("feature4Title"),
+      desc: t("feature4Desc"),
       icon: <RefreshCw className="w-5 h-5 text-purple-500" />,
       bgColor: "bg-purple-500/10",
       accentColor: "border-purple-500 ring-2 ring-purple-500/20 text-purple-500",
@@ -122,7 +124,7 @@ export default function AboutSection() {
     return () => observer.disconnect();
   }, [hasAnimated]);
 
-  // Step advancement timer
+  // Auto step timer
   useEffect(() => {
     if (!hasAnimated) return;
 
@@ -131,9 +133,9 @@ export default function AboutSection() {
         if (prev < steps.length - 1) {
           return prev + 1;
         }
-        return prev; // Stay at step 6 once completed
+        return prev;
       });
-    }, 1800); // 1.8s per step for comfortable, readable pacing
+    }, 1800);
 
     return () => clearInterval(interval);
   }, [hasAnimated, steps.length]);
@@ -152,18 +154,17 @@ export default function AboutSection() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           
           {/* ================================================== */}
-          {/* LEFT SIDE: PRECISION ZIG-ZAG JOURNEY (~52% = col-span-6) */}
+          {/* LEFT SIDE: PRECISION ZIG-ZAG JOURNEY */}
           {/* ================================================== */}
           <div className="lg:col-span-6 relative flex flex-col justify-center py-6 min-h-[480px]">
             
-            {/* Smooth Animated SVG Zig-Zag Path (Desktop & Tablet) */}
+            {/* Smooth Animated SVG Zig-Zag Path */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none hidden sm:block -z-0"
               viewBox="0 0 500 500"
               fill="none"
               preserveAspectRatio="none"
             >
-              {/* Background Path (Dashed Muted Track) */}
               <path
                 d="M 140,50 C 360,50 360,150 360,150 C 360,150 140,150 140,250 C 140,250 360,250 360,350 C 360,350 140,350 140,450"
                 stroke="currentColor"
@@ -172,7 +173,6 @@ export default function AboutSection() {
                 className="text-slate-200 dark:text-slate-800"
               />
 
-              {/* Glowing Active Progress Gradient Path */}
               <path
                 d="M 140,50 C 360,50 360,150 360,150 C 360,150 140,150 140,250 C 140,250 360,250 360,350 C 360,350 140,350 140,450"
                 stroke="url(#gradient-zigzag)"
@@ -185,7 +185,6 @@ export default function AboutSection() {
                 }}
               />
 
-              {/* Gradient Definition */}
               <defs>
                 <linearGradient id="gradient-zigzag" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#4F6BFF" />
@@ -202,7 +201,7 @@ export default function AboutSection() {
               style={{ height: `${(activeStep / 4) * 85 + 10}%` }}
             />
 
-            {/* 6 Zig-Zag Step Cards Container */}
+            {/* 5 Zig-Zag Step Cards Container */}
             <div className="space-y-6 sm:space-y-7 relative z-10">
               {steps.map((step, idx) => {
                 const isActive = activeStep === idx;
@@ -219,100 +218,58 @@ export default function AboutSection() {
                   >
                     {/* Step Card */}
                     <div
-                      className={`w-full sm:w-[260px] md:w-[275px] p-3.5 sm:p-4 rounded-2xl border transition-all duration-500 cursor-pointer relative group ${
-                        isActive
-                          ? step.isFinal
-                            ? "bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white border-emerald-500/80 shadow-xl shadow-emerald-500/20 scale-[1.03] ring-2 ring-emerald-500/30"
-                            : "bg-white dark:bg-[#131B2E] border-[#4F6BFF] text-slate-900 dark:text-white shadow-xl shadow-[#4F6BFF]/20 scale-[1.02] ring-2 ring-[#4F6BFF]/30"
+                      className={`w-full sm:w-[260px] p-4 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                        step.isFinal && (isActive || isPassed)
+                          ? "bg-[#0F172A] dark:bg-[#0B132B] text-white border-emerald-500/60 shadow-xl shadow-emerald-500/10 ring-2 ring-emerald-500/20"
+                          : isActive
+                          ? "bg-white dark:bg-[#111827] border-[#4F6BFF] shadow-lg ring-2 ring-[#4F6BFF]/20 text-slate-900 dark:text-white translate-scale-102"
                           : isPassed
-                          ? "bg-white/90 dark:bg-[#111827]/90 border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-300"
-                          : "bg-slate-50/70 dark:bg-[#0D1322]/50 border-slate-200/50 dark:border-slate-800/50 opacity-60 hover:opacity-90"
+                          ? "bg-slate-50 dark:bg-[#111827]/80 border-emerald-500/30 text-slate-800 dark:text-slate-200"
+                          : "bg-white dark:bg-[#111827]/40 border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 opacity-80 hover:opacity-100"
                       }`}
                     >
-                      {/* Active Glowing Pulse Ring behind icon */}
-                      {isActive && (
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-[#4F6BFF]/30 to-[#7B61FF]/30 rounded-2xl blur-md opacity-75 -z-10" />
-                      )}
-
-                      <div className="flex items-center justify-between gap-3 mb-1">
-                        <div className="flex items-center gap-3">
-                          {/* Step Icon Container */}
+                      <div className="flex items-start justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
                           <div
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                              isActive
-                                ? step.isFinal
-                                  ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40 scale-110"
-                                  : "bg-[#4F6BFF] text-white shadow-md shadow-[#4F6BFF]/40 scale-110"
-                                : isPassed
-                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold"
-                                : "bg-slate-200/80 dark:bg-slate-800 text-slate-500"
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              isPassed || (isActive && step.isFinal)
+                                ? "bg-emerald-500 text-white"
+                                : isActive
+                                ? "bg-[#4F6BFF] text-white"
+                                : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                             }`}
                           >
-                            {isPassed ? (
-                              <Check className="w-4 h-4 stroke-[3]" />
-                            ) : (
-                              step.icon
-                            )}
+                            {isPassed ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : step.icon}
                           </div>
-
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                              Step {step.id}
-                            </span>
-                            <h3
-                              className={`font-bold text-sm leading-snug transition-colors ${
-                                isActive && step.isFinal
-                                  ? "text-white"
-                                  : isActive
-                                  ? "text-[#4F6BFF] dark:text-[#818CF8]"
-                                  : "text-slate-900 dark:text-white"
-                              }`}
-                            >
-                              {step.title}
-                            </h3>
-                          </div>
+                          <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">
+                            {t("step1Title").startsWith("దశ") || t("step1Title").startsWith("दशा") ? "" : "STEP "}{step.id === 1 ? t("step1Title") : step.id === 2 ? t("step2Title") : step.id === 3 ? t("step3Title") : step.id === 4 ? t("step4Title") : t("step5Title")}
+                          </span>
                         </div>
 
-                        {/* Final Step Live Pill */}
-                        {step.isFinal && isActive && (
-                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/40 animate-pulse">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span>LIVE</span>
-                          </div>
+                        {step.isFinal && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold animate-pulse">
+                            • {t("step5Status").includes("లైవ్") ? "లైవ్" : "LIVE"}
+                          </span>
                         )}
                       </div>
 
-                      {/* Supporting Subtext */}
-                      <p
-                        className={`text-xs leading-relaxed transition-colors ${
-                          isActive && step.isFinal
-                            ? "text-slate-300"
-                            : "text-slate-500 dark:text-slate-400"
-                        }`}
-                      >
+                      <h4 className="font-extrabold text-sm sm:text-base leading-snug mb-1">
+                        {step.title}
+                      </h4>
+                      <p className="text-xs opacity-80 leading-relaxed font-medium">
                         {step.subtext}
                       </p>
 
-                      {/* STEP 6 SPECIAL PAYOFF — Voice Waveform */}
                       {step.isFinal && isActive && (
-                        <div className="mt-3 pt-2.5 border-t border-emerald-500/20 flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
-                            <Volume2 className="w-3.5 h-3.5 animate-pulse" />
-                            <span>AI Conversation Active</span>
-                          </div>
-
-                          {/* Animated Voice Waveform Bars */}
-                          <div className="flex items-center gap-1 h-4">
-                            {[40, 85, 50, 100, 75, 35].map((h, i) => (
-                              <div
-                                key={i}
-                                className="w-0.5 bg-emerald-400 rounded-full animate-pulse"
-                                style={{
-                                  height: `${h}%`,
-                                  animationDelay: `${i * 120}ms`,
-                                }}
-                              />
-                            ))}
+                        <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                          <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                            <Volume2 className="w-3.5 h-3.5 animate-bounce" />
+                            {t("step5Status")}
+                          </span>
+                          <div className="flex gap-0.5 items-end h-3">
+                            <div className="w-0.5 bg-emerald-400 h-2 animate-pulse" />
+                            <div className="w-0.5 bg-emerald-400 h-3 animate-pulse delay-75" />
+                            <div className="w-0.5 bg-emerald-400 h-1.5 animate-pulse delay-150" />
                           </div>
                         </div>
                       )}
@@ -321,57 +278,51 @@ export default function AboutSection() {
                 );
               })}
             </div>
-
           </div>
 
           {/* ================================================== */}
-          {/* RIGHT SIDE: ABOUT CALLINGGEN + 2x2 FEATURE CARDS (~48% = col-span-6) */}
+          {/* RIGHT SIDE: PRODUCT VALUE PROPOSITION (~48% = col-span-6) */}
           {/* ================================================== */}
           <div className="lg:col-span-6 flex flex-col justify-center">
             
             {/* Section Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 text-[#4F6BFF] dark:text-[#818CF8] text-xs sm:text-sm font-semibold tracking-wide mb-4 w-fit">
-              <Cpu className="w-3.5 h-3.5" />
-              <span>ABOUT CALLINGGEN</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{t("aboutTag")}</span>
             </div>
 
-            {/* Right Side Heading */}
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-5 leading-[1.15]">
-              What is{" "}
-              <span className="bg-gradient-to-r from-[#4F6BFF] to-[#7B61FF] bg-clip-text text-transparent">
-                CallingGen?
-              </span>
+            {/* Main Headline */}
+            <h2 className="text-3xl sm:text-4xl md:text-4xl lg:text-[42px] font-extrabold text-slate-900 dark:text-white tracking-tight mb-5 leading-[1.15]">
+              {t("aboutTitle")}
             </h2>
 
-            {/* Exact Required Copy Text */}
+            {/* Supporting Description */}
             <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed mb-8 max-w-xl">
-              Businesses lose valuable leads when calls go unanswered or follow-ups are delayed. CallingGen solves this by using AI voice agents that answer instantly, engage customers naturally, and automate the entire calling process from start to finish.
+              {t("aboutSubtitle")}
             </p>
 
-            {/* 2 × 2 Feature Cards Grid */}
+            {/* 2x2 Feature Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {features.map((feat, fIdx) => {
-                const highlighted = steps[activeStep]?.highlightFeatureIndex === fIdx;
+              {features.map((feature, idx) => {
+                const isCurrentActive = steps[activeStep]?.highlightFeatureIndex === idx;
 
                 return (
                   <div
-                    key={feat.id}
-                    className={`p-4 sm:p-5 rounded-2xl border transition-all duration-500 ${
-                      highlighted
-                        ? `${feat.accentColor} bg-white dark:bg-[#131B2E] shadow-xl shadow-indigo-500/10 scale-[1.02]`
-                        : "bg-slate-50 dark:bg-[#111827] border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:-translate-y-1"
+                    key={feature.id}
+                    className={`p-5 rounded-2xl border transition-all duration-300 ${
+                      isCurrentActive
+                        ? `bg-white dark:bg-[#111827] shadow-lg ${feature.accentColor}`
+                        : "bg-slate-50/80 dark:bg-[#111827]/40 border-slate-200/80 dark:border-slate-800/80 hover:bg-white dark:hover:bg-[#111827]"
                     }`}
                   >
-                    <div className={`p-2.5 rounded-xl w-fit mb-3 ${feat.bgColor}`}>
-                      {feat.icon}
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${feature.bgColor}`}>
+                      {feature.icon}
                     </div>
-
-                    <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1">
-                      {feat.title}
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base mb-1">
+                      {feature.title}
                     </h3>
-
-                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      {feat.desc}
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                      {feature.desc}
                     </p>
                   </div>
                 );

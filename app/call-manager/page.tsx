@@ -1,6 +1,7 @@
 "use client";
 
-import { api } from "@/lib/api";
+import { api, ApiContact } from "@/lib/api";
+
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -331,20 +332,23 @@ export default function CallManagerPage() {
     }
 
     // Build contacts list from whichever source was used
-    let contactList: { name: string; phone: string; metadata_fields?: Record<string, string> }[] = [];
+    let contactList: ApiContact[] = [];
+
 
     if (formData.uploadSource === "single") {
       contactList = [{
         name: formData.singleContactName!.trim(),
         phone: formData.singleContactPhone!.trim(),
-        metadata_fields: {}
+        metadata_fields: {},
+        original_row: 1
       }];
     } else {
       // Excel / CSV / Google Sheet — contacts already parsed into state
-      contactList = contacts.map(c => ({
+      contactList = contacts.map((c, i) => ({
         name: c.name,
         phone: c.phone,
-        metadata_fields: c.metadata_fields
+        metadata_fields: c.metadata_fields,
+        original_row: i + 2 // Assumes Row 1 was header
       }));
     }
 
@@ -383,6 +387,7 @@ export default function CallManagerPage() {
         script: formData.script.trim(),
         schedule_date: isoUtcStr,
         schedule_time: "UTC",
+        outbound_phone_number: formData.outboundPhoneNumber,
         selection_type: formData.selectionType,
         start_row: formData.startRow,
         end_row: formData.endRow,
@@ -395,10 +400,19 @@ export default function CallManagerPage() {
           : fileName || "File Upload",
       });
 
+
       // 2. Launch it (creates the job + starts the worker loop)
       const { total_contacts } = await api.launchCampaign(campaign_id);
 
-      alert(`Campaign launched! Dialling ${total_contacts} contact${total_contacts !== 1 ? "s" : ""}.`);
+      let successMsg = `Campaign launched! Dialling ${total_contacts} contact${total_contacts !== 1 ? "s" : ""}.`;
+      if (formData.uploadSource !== "single" && formData.selectionType === "range") {
+          const remaining = contactList.length - total_contacts;
+          if (remaining > 0) {
+              successMsg = `Campaign created successfully.\n\n${total_contacts} contacts have been added to the campaign.\n\n${remaining} remaining contacts have been saved under "${formData.campaignTitle.trim()} - Remaining" and can be used later.`;
+          }
+      }
+      
+      alert(successMsg);
 
       // Update live stats optimistically
       setLiveStats({

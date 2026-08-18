@@ -1,28 +1,32 @@
+"use client";
+
 import { Star } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 
 export default function TestimonialsSection() {
+  const { t } = useLanguage();
   const testimonials = [
     {
-      name: "Rahul Sharma",
-      role: "Founder",
-      company: "Sharma Realty",
-      content: "We reduced our missed calls and increased property visits using CallingGen.",
+      name: t("t1Name"),
+      role: t("t1Role"),
+      company: t("t1Company"),
+      content: t("t1Content"),
       initials: "RS",
       color: "bg-blue-100 text-blue-600"
     },
     {
-      name: "Priya Reddy",
-      role: "Director",
-      company: "Bright Tax Consultants",
-      content: "Our follow-ups are now completely automated and clients receive instant responses.",
+      name: t("t2Name"),
+      role: t("t2Role"),
+      company: t("t2Company"),
+      content: t("t2Content"),
       initials: "PR",
       color: "bg-purple-100 text-purple-600"
     },
     {
-      name: "Amit Patel",
-      role: "CEO",
-      company: "Digital Reach Agency",
-      content: "CallingGen helped us qualify leads faster and improve our team's productivity.",
+      name: t("t3Name"),
+      role: t("t3Role"),
+      company: t("t3Company"),
+      content: t("t3Content"),
       initials: "AP",
       color: "bg-emerald-100 text-emerald-600"
     }
@@ -32,11 +36,11 @@ export default function TestimonialsSection() {
     <section className="py-24 bg-white dark:bg-black transition-colors" id="testimonials">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1200px]">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#111827] mb-6">
-            What Our Customers Say
+          <h2 className="text-3xl md:text-4xl font-bold text-[#111827] dark:text-white mb-6">
+            {t("testiTitle")}
           </h2>
-          <p className="text-lg text-[#6B7280]">
-            Join thousands of businesses that trust CallingGen to handle their customer conversations.
+          <p className="text-lg text-[#6B7280] dark:text-slate-400">
+            {t("testiSubtitle")}
           </p>
         </div>
 
