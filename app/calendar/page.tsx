@@ -26,6 +26,7 @@ interface CalEvent {
   agent?: string;
   notes: string;
   date?: string;
+  campaignId?: string | number;
 }
 
 // Helper to format Date to YYYY-MM-DD
@@ -117,6 +118,7 @@ export default function CalendarPage() {
               agent: c.agent,
               notes: notes,
               date: dateKey,
+              campaignId: c.id,
             });
           }
         });
@@ -135,6 +137,7 @@ export default function CalendarPage() {
               agent: "AI Agent",
               notes: call.notes || "Booked appointment follow-up.",
               date: dateKey,
+              campaignId: call.campaign_id,
             });
           }
         });
@@ -453,22 +456,30 @@ export default function CalendarPage() {
               >
                 Close
               </button>
-              {/* BUG-005/006: Wire action button */}
               <button 
                 onClick={() => {
-                  if (selectedEvent.type === "campaign") {
-                    // BUG-006: View Campaign navigates to campaigns list
-                    router.push("/campaign");
+                  let campaignId = "";
+                  if (selectedEvent.campaignId) {
+                    campaignId = String(selectedEvent.campaignId);
+                  } else if (selectedEvent.id.startsWith("campaign-")) {
+                    campaignId = selectedEvent.id.replace("campaign-", "");
                   } else {
-                    // BUG-005: Edit Event opens edit modal
-                    setEditEvent({ ...selectedEvent });
-                    setShowEditModal(true);
-                    setSelectedEvent(null);
+                    const match = selectedEvent.id.match(/\d+/);
+                    if (match) {
+                      campaignId = match[0];
+                    }
                   }
+
+                  if (campaignId) {
+                    router.push(`/campaign/${campaignId}`);
+                  } else {
+                    router.push("/campaign");
+                  }
+                  setSelectedEvent(null);
                 }}
                 className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
               >
-                {selectedEvent.type === "campaign" ? "View Campaign" : "Edit Event"}
+                View Campaign
               </button>
             </div>
           </div>

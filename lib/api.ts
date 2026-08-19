@@ -105,6 +105,7 @@ export interface ResponseLog {
   response: string;
   datetime: string;
   campaign: string;
+  campaign_id?: number;
   duration: string;
   duration_seconds?: number;
   transcript: { speaker: string; text: string }[];
