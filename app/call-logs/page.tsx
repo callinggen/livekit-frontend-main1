@@ -210,8 +210,11 @@ export default function CallLogsPage() {
     if (v === "CALLBACK" || v === "WARM" || v === "RUNNING") {
       return "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200";
     }
-    if (v === "COLD" || v === "NO ANSWER") {
-      return "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200";
+    if (v === "VOICEMAIL" || v === "INCOMPLETE") {
+      return "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 border-purple-200";
+    }
+    if (v === "COLD" || v === "NO ANSWER" || v === "MISSED CALL") {
+      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300";
     }
     return "bg-gray-50 text-gray-600 border-gray-200";
   };
@@ -601,6 +604,30 @@ export default function CallLogsPage() {
                           })()}
                         </li>
                       </ul>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp Automation Activity */}
+                  <div className="flex flex-col">
+                    <h4 className="font-semibold text-sm mb-3 text-muted-foreground flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-emerald-500" /> WhatsApp Actions
+                    </h4>
+                    <div className="bg-background border border-border/50 rounded-xl p-4 shadow-sm space-y-2">
+                      {selectedCall.response === "NO ANSWER" || selectedCall.status === "FAILED" ? (
+                        <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Missed call follow-up sent
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{selectedCall.datetime}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Digital asset & summary ready
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{selectedCall.datetime}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

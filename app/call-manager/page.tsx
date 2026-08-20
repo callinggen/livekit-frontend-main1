@@ -331,7 +331,7 @@ export default function CallManagerPage() {
     }
 
     // Build contacts list from whichever source was used
-    let contactList: { name: string; phone: string; metadata_fields?: Record<string, string> }[] = [];
+    let contactList: { name: string; phone: string; metadata_fields?: Record<string, string>; original_row?: number }[] = [];
 
     if (formData.uploadSource === "single") {
       contactList = [{

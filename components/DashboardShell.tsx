@@ -23,6 +23,7 @@ import {
   CreditCard,
   ArrowUpCircle,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -35,6 +36,7 @@ const navItems = [
   { label: "Call Manager", icon: PhoneCall, href: "/call-manager" },
   { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
+  { label: "WhatsApp", icon: MessageSquare, href: "/whatsapp" },
   { label: "Report", icon: FileText, href: "/report" },
 ];
 

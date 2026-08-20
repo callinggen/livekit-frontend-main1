@@ -164,7 +164,7 @@ export default function CampaignDetailPage() {
           pending: "warning",
           calling: "info"
         };
-        const displayStatus = c.status === "pending" ? "scheduled" : c.status;
+        const displayStatus = c.status === "pending" ? "scheduled" : c.status === "no_answer" ? "no answer" : c.status;
         return <Badge variant={statusMap[c.status] || "neutral"}>{displayStatus}</Badge>;
       }
     }
