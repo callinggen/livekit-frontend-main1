@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import DashboardShell from "@/components/DashboardShell";
 import {
   Search,
@@ -38,6 +39,7 @@ import {
   Sliders,
   Volume2,
   MessageSquare,
+  Layers,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
@@ -473,8 +475,35 @@ export default function WhatsAppPage() {
         </div>
       )}
 
+      {/* ── Sub Navigation Header Tabs ── */}
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1.5 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
+          <Link
+            href="/whatsapp"
+            className="flex items-center gap-2 rounded-lg bg-white dark:bg-zinc-800 px-3.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-white shadow-sm transition"
+          >
+            <MessageSquare className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+            Chat Inbox
+          </Link>
+          <Link
+            href="/whatsapp/send"
+            className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
+          >
+            <Send className="h-3.5 w-3.5" />
+            Send Message
+          </Link>
+          <Link
+            href="/whatsapp/materials"
+            className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            Material Base
+          </Link>
+        </div>
+      </div>
+
       {/* Main Container matching Reference Light Mode UI */}
-      <div className="h-[calc(100vh-6rem)] flex flex-col rounded-2xl border border-slate-200/80 bg-white shadow-xl overflow-hidden font-sans text-slate-800">
+      <div className="h-[calc(100vh-9.5rem)] flex flex-col rounded-2xl border border-slate-200/80 bg-white shadow-xl overflow-hidden font-sans text-slate-800">
         
         {/* Top App Header Bar */}
         <div className="h-16 border-b border-slate-100 px-6 flex items-center justify-between bg-white shrink-0">
