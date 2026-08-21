@@ -13,59 +13,85 @@ export default function PricingPage() {
   const plans = [
     {
       name: "Starter",
-      tagline: "Essential AI Calling for Small Businesses",
-      price: "₹XXXX",
-      credits: "500 Credits Included",
+      tagline: "Testing AI Calling for Small Teams",
+      price: "₹2,999",
+      subPrice: "per month",
+      credits: "2,000 Credits",
+      minutes: "≈ 133 minutes",
       popular: false,
       buttonText: "Get Started",
       buttonVariant: "outline" as const,
       features: [
+        "2,000 Calling Credits / Month",
         "1 Active AI Voice Agent",
-        "500 Calling Credits / Month",
         "Inbound & Outbound Calling",
-        "Standard English & Hindi Accents",
+        "English, Hindi & Telugu Support",
         "Basic Call Transcripts & Reports",
         "Email Support",
       ],
     },
     {
-      name: "Professional",
-      tagline: "High-Volume Automation & CRM Integration",
-      price: "₹XXXX",
-      credits: "2,000 Credits Included",
+      name: "Growth",
+      tagline: "Scaling AI Calling for Growing Sales Teams",
+      price: "₹6,999",
+      subPrice: "per month",
+      credits: "5,000 Credits",
+      minutes: "≈ 333 minutes",
       popular: true,
-      buttonText: "Start Professional",
+      buttonText: "Start Growth",
       buttonVariant: "default" as const,
       features: [
-        "5 Active AI Voice Agents",
-        "2,000 Calling Credits / Month",
+        "5,000 Calling Credits / Month",
+        "3 Active AI Voice Agents",
         "Inbound & Outbound Calling",
-        "Multi-language (12+ Languages)",
-        "WhatsApp Business & CRM Sync",
-        "Real-time Appointment Booking",
-        "Advanced Sentiment Reports",
+        "Multi-language Support",
+        "Real-time Campaign Monitoring",
+        "Advanced Call Transcripts",
         "Priority Support",
       ],
     },
     {
-      name: "Enterprise",
-      tagline: "Custom Concurrency & White-Label Capabilities",
-      price: "Custom",
-      credits: "Unlimited Credits & Concurrency",
+      name: "Pro",
+      tagline: "High-Volume Campaigns for Power Users",
+      price: "₹12,999",
+      subPrice: "per month",
+      credits: "10,000 Credits",
+      minutes: "≈ 667 minutes",
+      popular: false,
+      buttonText: "Start Pro",
+      buttonVariant: "outline" as const,
+      features: [
+        "10,000 Calling Credits / Month",
+        "10 Active AI Voice Agents",
+        "Multiple Outbound Numbers",
+        "Custom AI Script & Persona Builder",
+        "Live Campaign Performance Dashboard",
+        "CRM Integration & Webhooks",
+        "Dedicated Account Manager",
+      ],
+    },
+    {
+      name: "Business",
+      tagline: "Multiple Campaigns & Teams at Scale",
+      price: "₹29,999",
+      subPrice: "per month",
+      credits: "25,000 Credits",
+      minutes: "≈ 1,667 minutes",
       popular: false,
       buttonText: "Contact Sales",
       buttonVariant: "outline" as const,
       features: [
+        "25,000 Calling Credits / Month",
         "Unlimited AI Voice Agents",
         "Custom Concurrency & SIP Trunks",
-        "Dedicated Server & White-Label UI",
-        "Custom API & Webhooks Integration",
-        "Custom Prompt & Persona Engineering",
-        "Dedicated Account Manager",
+        "Dedicated Server Infrastructure",
+        "White-Label UI Capabilities",
+        "Custom API & Webhooks",
         "99.9% Uptime SLA",
       ],
     },
   ];
+
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] transition-colors duration-300">
@@ -116,7 +142,7 @@ export default function PricingPage() {
           </div>
 
           {/* Pricing Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl mx-auto items-stretch">
             {plans.map((plan, idx) => (
               <div
                 key={idx}
@@ -151,11 +177,18 @@ export default function PricingPage() {
                         </span>
                       )}
                     </div>
-                    <span className={`text-xs font-semibold mt-2 inline-block px-2.5 py-0.5 rounded-full ${
-                      plan.popular ? "bg-indigo-500/20 text-indigo-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                    }`}>
-                      {plan.credits}
-                    </span>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <span className={`text-xs font-semibold inline-block px-2.5 py-0.5 rounded-full ${
+                        plan.popular ? "bg-indigo-500/20 text-indigo-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                      }`}>
+                        {plan.credits}
+                      </span>
+                      {plan.minutes && (
+                        <span className={`text-xs ${plan.popular ? "text-slate-400" : "text-slate-400 dark:text-slate-500"}`}>
+                          {plan.minutes}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <ul className="space-y-3.5 mb-8">
