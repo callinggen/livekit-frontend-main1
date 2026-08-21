@@ -119,6 +119,53 @@ export interface ResponseLog {
   creditsDeducted?: number;
 }
 
+// ── Email Campaign Types ───────────────────────────────────────────────────
+
+export interface EmailContactItem {
+  name: string;
+  email: string;
+}
+
+export interface EmailCampaignCreatePayload {
+  name: string;
+  subject: string;
+  html_body: string;
+  from_name?: string;
+  reply_to?: string;
+  schedule_date?: string;
+  schedule_time?: string;
+  contacts: EmailContactItem[];
+}
+
+export interface EmailCampaignRow {
+  id: number;
+  name: string;
+  subject: string;
+  from_name: string;
+  status: string;
+  schedule_date: string;
+  schedule_time: string;
+  created_at: string;
+  total: number;
+  sent: number;
+  failed: number;
+  pending: number;
+}
+
+export interface EmailCampaignDetail extends EmailCampaignRow {
+  html_body: string;
+  reply_to: string;
+  stats: { total: number; sent: number; failed: number; pending: number };
+  contacts: {
+    id: number;
+    name: string;
+    email: string;
+    status: string;
+    sent_at: string | null;
+    error_message: string;
+  }[];
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -271,6 +318,41 @@ export const api = {
   /** Get user assigned provider phone numbers and region metadata. */
   getUserPhoneNumbers: () =>
     request<UserPhoneNumber[]>("/api/user/phone-numbers"),
+
+  // ── Email Campaign endpoints ──────────────────────────────────────────────
+
+  /** Create a new email campaign with contacts. Returns { campaign_id }. */
+  createEmailCampaign: (payload: EmailCampaignCreatePayload) =>
+    request<{ campaign_id: number; message: string }>("/api/email-campaigns", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** List all email campaigns for the current user. */
+  getEmailCampaigns: () => request<EmailCampaignRow[]>("/api/email-campaigns"),
+
+  /** Get full detail of a single email campaign. */
+  getEmailCampaign: (id: number) =>
+    request<EmailCampaignDetail>(`/api/email-campaigns/${id}`),
+
+  /** Launch an email campaign (begins bulk sending). */
+  launchEmailCampaign: (id: number) =>
+    request<{ campaign_id: number; status: string; message: string }>(
+      `/api/email-campaigns/${id}/launch`,
+      { method: "POST" }
+    ),
+
+  /** Lightweight status poll for live updates on the detail page. */
+  getEmailCampaignStatus: (id: number) =>
+    request<{ status: string; total: number; sent: number; failed: number; pending: number }>(
+      `/api/email-campaigns/${id}/status`
+    ),
+
+  /** Delete an email campaign. */
+  deleteEmailCampaign: (id: number) =>
+    request<{ message: string }>(`/api/email-campaigns/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 
