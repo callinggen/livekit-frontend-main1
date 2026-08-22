@@ -158,35 +158,38 @@ export default function PricingPage() {
   const plans = [
     {
       name: "Starter",
-      tagline: "Essential calling capabilities",
+      tagline: "Testing AI Calling for Small Teams",
       price: "₹2,999",
-      credits: "2,000 Credits Included",
+      subPrice: "per month",
+      credits: "2,000 Credits",
+      minutes: "≈ 133 minutes",
       popular: false,
       buttonText: "Get Starter Pack",
       buttonVariant: "outline" as const,
       features: [
+        "2,000 Calling Credits / Month",
         "1 Active AI Voice Agent",
-        "2,000 Calling Credits",
         "Inbound & Outbound Calling",
-        "Standard English & Hindi Accents",
+        "English, Hindi & Telugu Support",
         "Basic Call Transcripts & Reports",
         "Email Support",
       ],
     },
     {
       name: "Growth",
-      tagline: "Perfect for active lead generation",
+      tagline: "Scaling AI Calling for Growing Sales Teams",
       price: "₹6,999",
-      credits: "5,000 Credits Included",
-      popular: false,
-      buttonText: "Get Growth Pack",
-      buttonVariant: "outline" as const,
+      subPrice: "per month",
+      credits: "5,000 Credits",
+      minutes: "≈ 333 minutes",
+      popular: true,
+      buttonText: "Start Growth",
+      buttonVariant: "default" as const,
       features: [
         "3 Active AI Voice Agents",
         "5,000 Calling Credits",
         "Inbound & Outbound Calling",
-        "Multi-language (12+ Languages)",
-        "WhatsApp Business & CRM Sync",
+        "Multi-language Support",
         "Standard Support",
       ],
     },
@@ -202,29 +205,55 @@ export default function PricingPage() {
         "10 Active AI Voice Agents",
         "10,000 Calling Credits",
         "Inbound & Outbound Calling",
-        "Real-time Appointment Booking",
-        "Advanced Sentiment Reports",
+        "Real-time Campaign Monitoring",
+        "Advanced Call Transcripts",
         "Priority Support",
       ],
     },
     {
+      name: "Pro",
+      tagline: "High-Volume Campaigns for Power Users",
+      price: "₹12,999",
+      subPrice: "per month",
+      credits: "10,000 Credits",
+      minutes: "≈ 667 minutes",
+      popular: false,
+      buttonText: "Start Pro",
+      buttonVariant: "outline" as const,
+      features: [
+        "10,000 Calling Credits / Month",
+        "10 Active AI Voice Agents",
+        "Multiple Outbound Numbers",
+        "Custom AI Script & Persona Builder",
+        "Live Campaign Performance Dashboard",
+        "CRM Integration & Webhooks",
+        "Dedicated Account Manager",
+      ],
+    },
+    {
       name: "Business",
-      tagline: "Maximum performance for enterprises",
+      tagline: "Multiple Campaigns & Teams at Scale",
       price: "₹29,999",
-      credits: "25,000 Credits Included",
+      subPrice: "per month",
+      credits: "25,000 Credits",
+      minutes: "≈ 1,667 minutes",
       popular: false,
       buttonText: "Get Business Pack",
       buttonVariant: "outline" as const,
       features: [
+        "25,000 Calling Credits / Month",
         "Unlimited AI Voice Agents",
         "25,000 Calling Credits",
         "Custom Concurrency & SIP Trunks",
-        "Dedicated Account Manager",
+        "Dedicated Server Infrastructure",
+        "White-Label UI Capabilities",
+        "Custom API & Webhooks",
         "99.9% Uptime SLA",
         "24/7 Phone Support",
       ],
     },
   ];
+
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] transition-colors duration-300">
@@ -299,11 +328,18 @@ export default function PricingPage() {
                         One-Time
                       </span>
                     </div>
-                    <span className={`text-xs font-semibold mt-3 inline-block px-3 py-1 rounded-full ${
-                      plan.popular ? "bg-indigo-500/35 text-indigo-200 border border-indigo-400/20" : "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30"
-                    }`}>
-                      {plan.credits}
-                    </span>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <span className={`text-xs font-semibold inline-block px-2.5 py-0.5 rounded-full ${
+                        plan.popular ? "bg-indigo-500/20 text-indigo-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                      }`}>
+                        {plan.credits}
+                      </span>
+                      {plan.minutes && (
+                        <span className={`text-xs ${plan.popular ? "text-slate-400" : "text-slate-400 dark:text-slate-500"}`}>
+                          {plan.minutes}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <ul className="space-y-3.5 mb-8">
