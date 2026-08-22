@@ -353,6 +353,24 @@ export const api = {
     request<{ message: string }>(`/api/email-campaigns/${id}`, {
       method: "DELETE",
     }),
+
+  /** Create a Razorpay payment order. */
+  createPaymentOrder: (planName: string) =>
+    request<{ razorpay_order_id: string; amount: number; currency: string; key_id: string; plan_name: string }>(
+      "/api/payments/create-order",
+      {
+        method: "POST",
+        body: JSON.stringify({ plan_name: planName }),
+      }
+    ),
+
+  /** Verify Razorpay payment signature. */
+  verifyPayment: (payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+    request<{ status: string; message: string; credits: number }>("/api/payments/verify", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
+
 
 
