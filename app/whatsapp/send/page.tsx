@@ -30,11 +30,14 @@ import {
   ArrowRight,
   ShieldCheck,
   Check,
+  History,
+  Clock,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
+import AddMaterialModal from "@/components/whatsapp/AddMaterialModal";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -99,17 +102,25 @@ function normalizePhone(raw: string): { formatted: string; isValid: boolean } {
 export default function SendMessagePage() {
   const searchParams = useSearchParams();
   const preselectedMaterialId = searchParams.get("useMaterial");
+  const preselectedCampaignId = searchParams.get("campaign_id");
 
   const { isLoggedIn, user } = useAuth();
   const token = user?.token || (typeof window !== "undefined" ? localStorage.getItem("token") || "" : "");
   const { credits, refreshCredits } = useCredits();
 
   // Mode: Campaign vs Upload
-  const [sourceMode, setSourceMode] = useState<"campaign" | "upload">("campaign");
+  const [sourceMode, setSourceMode] = useState<"campaign" | "upload">(
+    preselectedCampaignId ? "campaign" : "campaign"
+  );
+  const [uploadSubMode, setUploadSubMode] = useState<"file" | "sheet">("file");
+
+  // Google Sheets state
+  const [googleSheetUrl, setGoogleSheetUrl] = useState("");
+  const [loadingGoogleSheet, setLoadingGoogleSheet] = useState(false);
 
   // Campaigns state
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>(preselectedCampaignId || "");
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
 
@@ -136,6 +147,7 @@ export default function SendMessagePage() {
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<MessageItemToSend[]>([]);
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
+  const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
   const [pickerTab, setPickerTab] = useState<"all" | "text" | "image" | "document">("all");
 
   // Custom Message Composer
@@ -176,9 +188,13 @@ export default function SendMessagePage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setCampaigns(Array.isArray(data) ? data : []);
-          if (Array.isArray(data) && data.length > 0 && !selectedCampaignId) {
-            setSelectedCampaignId(data[0].id);
+          const list = Array.isArray(data) ? data : [];
+          setCampaigns(list);
+          if (preselectedCampaignId && list.some((c: any) => String(c.id) === String(preselectedCampaignId))) {
+            setSelectedCampaignId(preselectedCampaignId);
+            setSourceMode("campaign");
+          } else if (list.length > 0 && !selectedCampaignId) {
+            setSelectedCampaignId(list[0].id);
           }
         }
       } catch (err) {
@@ -189,7 +205,7 @@ export default function SendMessagePage() {
     };
 
     fetchCampaigns();
-  }, [authToken]);
+  }, [authToken, preselectedCampaignId]);
 
   // 2. Fetch materials
   useEffect(() => {
@@ -297,6 +313,47 @@ export default function SendMessagePage() {
         processParsedData(json, fileName);
       };
       reader.readAsArrayBuffer(file);
+    }
+  };
+
+  const handleLoadGoogleSheet = async () => {
+    if (!googleSheetUrl.trim()) {
+      showToast("Please enter a valid Google Sheets URL", "error");
+      return;
+    }
+    try {
+      setLoadingGoogleSheet(true);
+      let exportUrl = googleSheetUrl.trim();
+      const match = exportUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+        const sheetId = match[1];
+        exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+      }
+
+      const res = await fetch(exportUrl);
+      if (!res.ok) {
+        throw new Error("Unable to fetch sheet. Make sure the Google Sheet sharing permission is set to 'Anyone with the link can view'.");
+      }
+      const csvText = await res.text();
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.data && results.data.length > 0) {
+            processParsedData(results.data as any[], "Google Sheet Import");
+          } else {
+            showToast("No contact rows found in Google Sheet", "error");
+          }
+        },
+        error: (err: any) => {
+          showToast(`Error parsing Google Sheet: ${err?.message || err}`, "error");
+        },
+      });
+    } catch (err: any) {
+      console.error("Google Sheets import error:", err);
+      showToast(err.message || "Failed to load Google Sheet. Ensure public link sharing is enabled.", "error");
+    } finally {
+      setLoadingGoogleSheet(false);
     }
   };
 
@@ -450,6 +507,24 @@ export default function SendMessagePage() {
     showToast("Added custom message");
   };
 
+  const handleMaterialCreated = (newMaterial: MaterialItem) => {
+    setMaterials((prev) => [newMaterial, ...prev]);
+    setSelectedItems((prev) => [
+      ...prev,
+      {
+        id: `mat_${newMaterial.id}`,
+        type: newMaterial.type,
+        title: newMaterial.title,
+        text: newMaterial.content,
+        media_url: newMaterial.file_url,
+        file_name: newMaterial.file_url ? newMaterial.file_url.split("/").pop() : undefined,
+        mime_type: newMaterial.mime_type,
+      },
+    ]);
+    setShowAddMaterialModal(false);
+    showToast("Material created and added to queue", "success");
+  };
+
   const handleRemoveItem = (id: string) => {
     setSelectedItems((prev) => prev.filter((item) => item.id !== id));
   };
@@ -493,6 +568,11 @@ export default function SendMessagePage() {
       });
 
       const payload = {
+        source_type: sourceMode === "campaign" ? "campaign_manual" : "excel_csv",
+        source_name: sourceMode === "campaign"
+          ? (campaigns.find((c) => String(c.id) === String(selectedCampaignId))?.name || "Campaign Send")
+          : (uploadedFileStats?.fileName || "Uploaded Contacts File"),
+        campaign_id: sourceMode === "campaign" && selectedCampaignId ? Number(selectedCampaignId) : undefined,
         recipients: selectedContactsList.map((c) => ({
           name: c.name,
           phone: c.formatted_phone,
@@ -592,6 +672,13 @@ export default function SendMessagePage() {
             <Layers className="h-3.5 w-3.5" />
             Material Base
           </Link>
+          <Link
+            href="/whatsapp/history"
+            className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            History
+          </Link>
         </div>
 
         {/* Available Credits Badge */}
@@ -640,7 +727,7 @@ export default function SendMessagePage() {
                       : "text-zinc-600 dark:text-zinc-400"
                   }`}
                 >
-                  <Upload className="h-3.5 w-3.5" /> Upload Excel/CSV
+                  <Upload className="h-3.5 w-3.5" /> Upload Excel / CSV / Google Sheet
                 </button>
               </div>
             </div>
@@ -674,32 +761,93 @@ export default function SendMessagePage() {
                 )}
               </div>
             ) : (
-              /* File Upload Option */
-              <div className="mt-4">
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50/70 p-6 text-center hover:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/40 transition"
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <Upload className="h-7 w-7 text-violet-500" />
-                  <p className="mt-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                    Upload Contacts (.xlsx, .xls, .csv)
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-zinc-400">
-                    Drag and drop or click to browse. Phone numbers will automatically be normalized (+91 format).
-                  </p>
+              /* Upload / Google Sheet Option */
+              <div className="mt-4 space-y-3">
+                {/* Submode toggle */}
+                <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setUploadSubMode("file")}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                      uploadSubMode === "file"
+                        ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                    }`}
+                  >
+                    Upload File (.xlsx, .xls, .csv)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUploadSubMode("sheet")}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                      uploadSubMode === "sheet"
+                        ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                    }`}
+                  >
+                    Google Sheets Link
+                  </button>
                 </div>
+
+                {uploadSubMode === "file" ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50/70 p-6 text-center hover:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/40 transition"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Upload className="h-7 w-7 text-violet-500" />
+                    <p className="mt-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                      Upload Contacts (.xlsx, .xls, .csv)
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-zinc-400">
+                      Drag and drop or click to browse. Phone numbers will automatically be normalized (+91 format).
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-800/40 space-y-3">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Google Sheets Link
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit..."
+                        value={googleSheetUrl}
+                        onChange={(e) => setGoogleSheetUrl(e.target.value)}
+                        className="flex-1 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                      />
+                      <button
+                        type="button"
+                        disabled={loadingGoogleSheet || !googleSheetUrl.trim()}
+                        onClick={handleLoadGoogleSheet}
+                        className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-violet-700 disabled:opacity-50 transition"
+                      >
+                        {loadingGoogleSheet ? (
+                          <>
+                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            Fetching...
+                          </>
+                        ) : (
+                          "Import Sheet"
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">
+                      Ensure your Google Sheet link is shared as <strong>&ldquo;Anyone with the link can view&rdquo;</strong> so the contact list can be fetched and imported.
+                    </p>
+                  </div>
+                )}
 
                 {uploadedFileStats && (
                   <div className="mt-3 grid grid-cols-4 gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
                     <div>
-                      <span className="text-[10px] text-zinc-400">File:</span>
+                      <span className="text-[10px] text-zinc-400">Source:</span>
                       <p className="truncate text-xs font-bold text-zinc-900 dark:text-zinc-100">
                         {uploadedFileStats.fileName}
                       </p>
@@ -975,7 +1123,7 @@ export default function SendMessagePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowCustomComposer(true)}
+                  onClick={() => setShowAddMaterialModal(true)}
                   className="flex items-center gap-1 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 transition"
                 >
                   <Plus className="h-3 w-3" />
@@ -1399,6 +1547,14 @@ export default function SendMessagePage() {
           </div>
         </div>
       )}
+
+      {/* Shared Add Material Modal */}
+      <AddMaterialModal
+        isOpen={showAddMaterialModal}
+        onClose={() => setShowAddMaterialModal(false)}
+        onSuccess={handleMaterialCreated}
+        initialType="text"
+      />
     </DashboardShell>
   );
 }

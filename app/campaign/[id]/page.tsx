@@ -8,7 +8,7 @@ import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import { 
   ArrowLeft, Calendar, User, FileText, CheckCircle2, 
-  XCircle, HelpCircle, PhoneCall, Zap, Award
+  XCircle, HelpCircle, PhoneCall, Zap, Award, MessageSquare, Send
 } from "lucide-react";
 import { api, CampaignDetail } from "@/lib/api";
 
@@ -175,24 +175,38 @@ export default function CampaignDetailPage() {
       <div className="flex flex-col h-[calc(100vh-80px)] p-1 sm:p-4 overflow-y-auto gap-6">
         
         {/* Header Section */}
-        <div className="flex flex-col gap-2 shrink-0">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => router.push("/campaign")}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 transition shadow-sm"
-              title="Back to campaigns"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-              {campaign.name}
-              {getStatusBadge(campaign.status)}
-            </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => router.push("/campaign")}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 transition shadow-sm"
+                title="Back to campaigns"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
+                {campaign.name}
+                {getStatusBadge(campaign.status)}
+              </h2>
+            </div>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 pl-12">
+              <Calendar className="h-4 w-4 text-zinc-400" />
+              Scheduled for: {formatDateTime(campaign.schedule_date || campaign.schedule)}
+            </p>
           </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 pl-12">
-            <Calendar className="h-4 w-4 text-zinc-400" />
-            Scheduled for: {formatDateTime(campaign.schedule_date || campaign.schedule)}
-          </p>
+
+          {/* Top Right Action: Send Message via WhatsApp */}
+          <div className="flex items-center gap-2 pl-12 sm:pl-0">
+            <button
+              onClick={() => router.push(`/whatsapp/send?campaign_id=${campaign.id}`)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition"
+              title="Send WhatsApp follow-up to contacts of this campaign"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Send Message
+            </button>
+          </div>
         </div>
 
         {/* Top Info Cards */}

@@ -24,6 +24,7 @@ export interface CampaignCreatePayload {
   selection_type?: "all" | "range";
   start_row?: number;
   end_row?: number;
+  whatsapp_automation?: any;
   contacts: ApiContact[];
 }
 

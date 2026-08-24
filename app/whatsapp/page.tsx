@@ -70,12 +70,12 @@ interface ConversationItem {
   phone: string;
   campaign_name: string;
   status: string;
-  category: string;
-  lead_score: number;
+  category?: string;
+  lead_score?: number;
   last_message: string;
   datetime: string;
-  summary: string;
-  notes: string;
+  summary?: string;
+  notes?: string;
   messages: MessageItem[];
   avatar_color?: string;
   avatar_image?: string;
@@ -109,6 +109,7 @@ export default function WhatsAppPage() {
   // Automation toggles
   const [autoSummary, setAutoSummary] = useState(true);
   const [autoCalendar, setAutoCalendar] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
     setToastMessage({ text, type });
@@ -171,15 +172,15 @@ export default function WhatsAppPage() {
               call_id: 1000 + i,
               contact_id: 2000 + i,
               name: name,
-              phone: `+${cleanPhone}`,
+              phone: cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`,
               campaign_name: "WhatsApp Direct",
               status: "Connected",
-              category: i % 3 === 0 ? "INTERESTED" : (i % 3 === 1 ? "LEAD" : "FOLLOW UP"),
-              lead_score: Math.max(50, 95 - (i * 2)),
+              category: undefined,
+              lead_score: undefined,
               last_message: lastMsg,
               datetime: "Today",
-              summary: "Live WhatsApp Chat with customer",
-              notes: "Direct contact via WhatsApp",
+              summary: undefined,
+              notes: undefined,
               unread: c.unreadCount || 0,
               avatar_image: c.profilePicUrl || undefined,
               avatar_color: colors[i % colors.length],
@@ -499,6 +500,13 @@ export default function WhatsAppPage() {
             <Layers className="h-3.5 w-3.5" />
             Material Base
           </Link>
+          <Link
+            href="/whatsapp/history"
+            className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            History
+          </Link>
         </div>
       </div>
 
@@ -512,7 +520,7 @@ export default function WhatsAppPage() {
               WhatsApp Inbox
             </h1>
             <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-[#EEF2FF] text-[#4F46E5] tracking-wide">
-              {credits ?? 2450} CREDITS
+              {credits ?? 2000} CREDITS
             </span>
           </div>
 
@@ -553,11 +561,11 @@ export default function WhatsAppPage() {
           </div>
         </div>
 
-        {/* 3-Column Layout Matching the Screenshot */}
+        {/* 2-Column Responsive Layout without AI Assistant Panel */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden bg-slate-50/50">
           
-          {/* ── COLUMN 1: Contact List (3.5 Cols) ────────────────────── */}
-          <div className="md:col-span-3 lg:col-span-3 border-r border-slate-200/80 bg-white flex flex-col h-full overflow-hidden">
+          {/* ── COLUMN 1: Contact List (4 Cols) ────────────────────── */}
+          <div className="md:col-span-4 lg:col-span-4 border-r border-slate-200/80 bg-white flex flex-col h-full overflow-hidden">
             
             {/* Search + Action Top Bar */}
             <div className="p-4 border-b border-slate-100 space-y-3 shrink-0">
@@ -599,8 +607,8 @@ export default function WhatsAppPage() {
                       onClick={() => handleSelectChat(chat)}
                       className={`p-4 cursor-pointer transition-all flex items-start gap-3.5 relative ${
                         isSelected
-                          ? "bg-[#F8FAFC] border-l-4 border-indigo-600"
-                          : "hover:bg-slate-50"
+                          ? "bg-[#EEF2FF] border-l-4 border-[#4F46E5]"
+                          : "hover:bg-slate-50/80 bg-white"
                       }`}
                     >
                       {/* Avatar */}
@@ -634,20 +642,26 @@ export default function WhatsAppPage() {
 
                         <p className="text-[11px] text-slate-500 truncate mb-1.5">{chat.last_message}</p>
 
-                        {/* Pill Badges matching reference */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${getPillColor(
-                              chat.category
-                            )}`}
-                          >
-                            {chat.category}
-                          </span>
+                        {/* Badges: only show if valid category or lead score exists */}
+                        {(chat.category || typeof chat.lead_score === "number") && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {chat.category && (
+                              <span
+                                className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${getPillColor(
+                                  chat.category
+                                )}`}
+                              >
+                                {chat.category}
+                              </span>
+                            )}
 
-                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]">
-                            SCORE: {chat.lead_score}
-                          </span>
-                        </div>
+                            {typeof chat.lead_score === "number" && (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]">
+                                SCORE: {chat.lead_score}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Unread Count Badge */}
@@ -663,8 +677,8 @@ export default function WhatsAppPage() {
             </div>
           </div>
 
-          {/* ── COLUMN 2: Active Chat Conversation (6.5 Cols) ─────────── */}
-          <div className="md:col-span-6 lg:col-span-6 flex flex-col bg-[#FAFBFD] h-full border-r border-slate-200/80 overflow-hidden">
+          {/* ── COLUMN 2: Active Chat Conversation (8 Cols) ─────────── */}
+          <div className="md:col-span-8 lg:col-span-8 flex flex-col bg-[#FAFBFD] h-full overflow-hidden">
             {activeChat ? (
               <>
                 {/* Active Chat Top Header */}
@@ -699,104 +713,165 @@ export default function WhatsAppPage() {
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
                         <span className="text-[#10B981] font-semibold">Active now</span>
                         <span>•</span>
-                        <span className="text-[#4F46E5] font-semibold">Lead Score {activeChat.lead_score}</span>
+                        <span>{activeChat.phone}</span>
+                        <span>•</span>
+                        <span>{activeChat.campaign_name}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Header Right Actions */}
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setShowSummaryModal(true)}
-                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/80 flex items-center gap-1.5 transition-all shadow-sm"
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5"
                     >
-                      <FileText className="w-3.5 h-3.5 text-[#4F46E5]" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#4F46E5]" />
                       Call Summary
                     </button>
 
-                    <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
-                      <MoreVertical className="w-4 h-4" />
+                    <button
+                      onClick={() => router.push(`/call-logs`)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                    >
+                      <PhoneCall className="w-3.5 h-3.5 text-indigo-600" />
+                      View Call Log
                     </button>
                   </div>
                 </div>
 
-                {/* Conversation Feed Timeline */}
-                <div className="flex-1 p-6 overflow-y-auto space-y-5 bg-[#FAFBFD]">
+                {/* Messages Scroll Area */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
                   
-                  {activeChat.messages.map((msg, idx) => {
-                    const isAgent = msg.sender === "agent";
+                  {/* Lead Call Context Banner: Only shown if real AI summary exists */}
+                  {activeChat.summary ? (
+                    <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-indigo-100/80 text-indigo-600 shrink-0">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="text-xs space-y-1">
+                        <p className="font-bold text-indigo-950">AI Call Summary Context</p>
+                        <p className="text-indigo-900/80 leading-relaxed font-medium">
+                          "{activeChat.summary}"
+                        </p>
+                        {activeChat.notes ? (
+                          <p className="text-[11px] text-indigo-700/70 font-semibold pt-0.5">
+                            Note: {activeChat.notes}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
 
-                    return (
-                      <div
-                        key={idx}
-                        className={`flex flex-col ${isAgent ? "items-end" : "items-start"} space-y-1.5`}
-                      >
-                        {/* Media Card (Image) */}
-                        {msg.media_url && (
-                          <div className="max-w-[85%] rounded-2xl overflow-hidden border border-slate-200/80 shadow-md bg-white">
-                            <img
-                              src={msg.media_url}
-                              alt="Showcase Preview"
-                              className="w-full h-56 object-cover"
-                            />
-                          </div>
-                        )}
+                  {/* Individual Messages */}
+                  {activeChat.messages && activeChat.messages.length > 0 ? (
+                    activeChat.messages.map((msg, index) => {
+                      const isAgent = msg.sender === "agent";
 
-                        {/* Location Card */}
-                        {msg.location_title && (
-                          <div className="max-w-[85%] rounded-2xl p-3.5 border border-[#BBF7D0] bg-[#DCFCE7]/40 shadow-sm space-y-2">
-                            <div className="bg-white rounded-xl p-3 border border-slate-100 flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-lg bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center shrink-0">
-                                <MapPin className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <p className="font-bold text-xs text-slate-900">{msg.location_title}</p>
-                                <p className="text-[10px] text-slate-400">{msg.location_address}</p>
-                              </div>
-                            </div>
-                            <div className="flex justify-end text-[9px] text-slate-400 font-medium">
-                              <span>{msg.time}</span>
-                              <CheckCheck className="w-3 h-3 text-[#10B981] ml-1" />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Standard Text Bubble */}
-                        {msg.text && (
+                      return (
+                        <div
+                          key={msg.id || index}
+                          className={`flex flex-col ${isAgent ? "items-end" : "items-start"}`}
+                        >
                           <div
-                            className={`max-w-[80%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                            className={`max-w-[80%] md:max-w-[70%] rounded-2xl p-4 space-y-2 shadow-xs ${
                               isAgent
-                                ? "bg-[#DCFCE7]/70 border border-[#86EFAC]/60 text-slate-800 rounded-tr-none shadow-sm"
-                                : "bg-white border border-slate-200/80 text-slate-800 rounded-tl-none shadow-sm"
+                                ? "bg-[#4F46E5] text-white rounded-br-none"
+                                : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-none"
                             }`}
                           >
-                            <p className="whitespace-pre-line">{msg.text}</p>
+                            {/* AI Action Badge if present */}
+                            {msg.action_badge ? (
+                              <div
+                                className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                  isAgent
+                                    ? "bg-white/20 text-white"
+                                    : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                }`}
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                {msg.action_badge}
+                              </div>
+                            ) : null}
 
-                            <div className="flex items-center justify-end gap-1 mt-1 text-[9px] text-slate-400 font-medium">
+                            {/* Message Text */}
+                            <p className="text-xs md:text-[13px] leading-relaxed whitespace-pre-wrap font-medium">
+                              {msg.text}
+                            </p>
+
+                            {/* Media Attachment if present */}
+                            {msg.media_url ? (
+                              <div
+                                className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+                                  isAgent
+                                    ? "bg-white/10 border-white/20 text-white"
+                                    : "bg-slate-50 border-slate-200 text-slate-800"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <FileText className="w-4 h-4 shrink-0" />
+                                  <span className="truncate font-semibold text-[11px]">
+                                    {msg.media_title || "Attached Document"}
+                                  </span>
+                                </div>
+                                <a
+                                  href={msg.media_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`p-1.5 rounded-lg text-[10px] font-bold shrink-0 transition-colors ${
+                                    isAgent
+                                      ? "bg-white text-[#4F46E5] hover:bg-slate-100"
+                                      : "bg-indigo-600 text-white hover:bg-indigo-500"
+                                  }`}
+                                >
+                                  View
+                                </a>
+                              </div>
+                            ) : null}
+
+                            {/* Footer time & status */}
+                            <div
+                              className={`flex items-center justify-end gap-1 text-[10px] pt-1 ${
+                                isAgent ? "text-indigo-200" : "text-slate-400"
+                              }`}
+                            >
                               <span>{msg.time}</span>
-                              {isAgent && <CheckCheck className="w-3.5 h-3.5 text-[#10B981]" />}
+                              {isAgent ? (
+                                <CheckCheck className="w-3.5 h-3.5 text-indigo-200" />
+                              ) : null}
                             </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="py-12 text-center text-xs text-slate-400">
+                      No messages in this chat yet. Type a message below to reach out.
+                    </div>
+                  )}
 
+                  <div ref={messagesEndRef} />
                 </div>
 
-                {/* Chat Input Bar */}
-                <div className="p-4 border-t border-slate-200/80 bg-white shrink-0">
-                  <div className="flex items-center gap-3 bg-white border border-slate-200/80 rounded-2xl px-4 py-2.5 shadow-sm focus-within:ring-1 focus-within:ring-indigo-500">
+                {/* Bottom Input Field */}
+                <div className="p-4 bg-white border-t border-slate-200/80 shrink-0">
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+                    
                     <button
                       onClick={() => triggerAction("SEND_BROCHURE")}
-                      className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                      title="Attach File / Brochure"
+                      disabled={isSending}
+                      title="Send Brochure PDF"
+                      className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all"
                     >
                       <Paperclip className="w-4 h-4" />
                     </button>
 
-                    <button className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
-                      <Smile className="w-4 h-4" />
+                    <button
+                      onClick={() => triggerAction("SEND_PRICING")}
+                      disabled={isSending}
+                      title="Send Pricing PDF"
+                      className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all"
+                    >
+                      <Sparkles className="w-4 h-4" />
                     </button>
 
                     <input
@@ -812,9 +887,10 @@ export default function WhatsAppPage() {
 
                     <button
                       onClick={handleSendMessage}
-                      className="w-8 h-8 rounded-full bg-[#4F46E5] hover:bg-indigo-700 text-white flex items-center justify-center transition-all shadow-md shrink-0"
+                      disabled={isSending || !inputMessage.trim()}
+                      className="w-9 h-9 rounded-xl bg-[#4F46E5] hover:bg-indigo-700 disabled:opacity-50 text-white flex items-center justify-center transition-all shadow-sm shrink-0"
                     >
-                      <Mic className="w-4 h-4" />
+                      <Send className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -828,171 +904,6 @@ export default function WhatsAppPage() {
                 </p>
               </div>
             )}
-          </div>
-
-          {/* ── COLUMN 3: AI Assistant & Context (2.5 Cols) ───────────── */}
-          <div className="md:col-span-3 lg:col-span-3 p-4 flex flex-col space-y-4 bg-white h-full overflow-y-auto">
-            
-            {/* Panel Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <Bot className="w-4 h-4 text-[#4F46E5]" />
-                AI Assistant
-              </h3>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-                LIVE CONTEXT
-              </span>
-            </div>
-
-            {activeChat ? (
-              <>
-                {/* Context Analysis Card */}
-                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-[#4F46E5]" />
-                    Context Analysis
-                  </h4>
-
-                  <div>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
-                      Last Call Outcome
-                    </p>
-                    <p className="text-xs font-semibold text-slate-800 leading-snug">
-                      "{activeChat.summary}"
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div className="p-2.5 rounded-xl bg-white border border-slate-200/60 shadow-xs">
-                      <p className="text-[9px] uppercase font-bold text-slate-400">Intent</p>
-                      <p className="text-xs font-bold text-[#10B981]">High Purchase</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-white border border-slate-200/60 shadow-xs">
-                      <p className="text-[9px] uppercase font-bold text-slate-400">Budget</p>
-                      <p className="text-xs font-bold text-slate-900">₹3.5 - 4.8Cr</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    Quick Actions
-                  </h4>
-
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => triggerAction("SEND_BROCHURE")}
-                      disabled={isSending}
-                      className="w-full py-2.5 px-3.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center justify-between text-slate-800 transition-all"
-                    >
-                      <span className="flex items-center gap-2">
-                        <BookOpen className="w-3.5 h-3.5 text-[#4F46E5]" />
-                        Send Brochure (PDF)
-                      </span>
-                      <ExternalLink className="w-3 h-3 text-slate-400" />
-                    </button>
-
-                    <button
-                      onClick={() => triggerAction("SEND_PRICING")}
-                      disabled={isSending}
-                      className="w-full py-2.5 px-3.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center justify-between text-slate-800 transition-all"
-                    >
-                      <span className="flex items-center gap-2">
-                        <DollarSign className="w-3.5 h-3.5 text-[#10B981]" />
-                        Share Pricing (PDF)
-                      </span>
-                      <ExternalLink className="w-3 h-3 text-slate-400" />
-                    </button>
-
-                    <button
-                      onClick={() => triggerAction("SEND_CALLBACK_CONFIRMATION")}
-                      disabled={isSending}
-                      className="w-full py-2.5 px-3.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center justify-between text-slate-800 transition-all"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                        Schedule Visit
-                      </span>
-                      <ExternalLink className="w-3 h-3 text-slate-400" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Smart Templates */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-[#4F46E5]" />
-                    Smart Templates
-                  </h4>
-
-                  <select
-                    value={activeTabTemplate}
-                    onChange={(e) => setActiveTabTemplate(e.target.value)}
-                    className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none text-slate-800 font-semibold"
-                  >
-                    <option value="Follow-up after call">Follow-up after call</option>
-                    <option value="Missed call follow-up">Missed call follow-up</option>
-                    <option value="Pricing sheet share">Pricing sheet share</option>
-                  </select>
-
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-relaxed font-medium">
-                    "Hi {activeChat.name}, as discussed during our call, I'm sharing the updated inventory and PDF overview. Let me know if you'd like to visit this weekend."
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      onClick={() => showToast("Scheduled message for tomorrow", "success")}
-                      className="py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all"
-                    >
-                      Schedule
-                    </button>
-                    <button
-                      onClick={() => triggerAction("SEND_BROCHURE")}
-                      className="py-2 rounded-xl text-xs font-bold bg-[#4F46E5] hover:bg-indigo-700 text-white transition-all shadow-sm"
-                    >
-                      Send Now
-                    </button>
-                  </div>
-                </div>
-
-                {/* Automation Rules */}
-                <div className="space-y-2 pt-3 border-t border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-                    Automation Rules
-                  </h4>
-
-                  <div className="space-y-2">
-                    <label className="flex items-start gap-2.5 cursor-pointer text-xs">
-                      <input
-                        type="checkbox"
-                        checked={autoSummary}
-                        onChange={(e) => setAutoSummary(e.target.checked)}
-                        className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-[11px] text-slate-600 leading-snug">
-                        <strong className="text-slate-800">After outbound call:</strong> Send summary message automatically
-                      </span>
-                    </label>
-
-                    <label className="flex items-start gap-2.5 cursor-pointer text-xs">
-                      <input
-                        type="checkbox"
-                        checked={autoCalendar}
-                        onChange={(e) => setAutoCalendar(e.target.checked)}
-                        className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-[11px] text-slate-600 leading-snug">
-                        <strong className="text-slate-800">On meeting scheduled:</strong> Sync with Google Calendar & WhatsApp
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </>
-            ) : null}
-
           </div>
 
         </div>

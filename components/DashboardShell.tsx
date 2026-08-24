@@ -26,6 +26,7 @@ import {
   MessageSquare,
   Send,
   Layers,
+  History,
 } from "lucide-react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -163,48 +164,6 @@ export default function DashboardShell({
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1">{item.label}</span>
                   </Link>
-
-                  {/* Sub-menu for WhatsApp when on WhatsApp section */}
-                  {isWhatsApp && pathname.startsWith("/whatsapp") && (
-                    <div className="ml-5 pl-2.5 border-l-2 border-violet-200 dark:border-violet-900/60 space-y-0.5 pt-0.5">
-                      <Link
-                        href="/whatsapp"
-                        onClick={() => setSidebarOpen(false)}
-                        className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                          pathname === "/whatsapp"
-                            ? "bg-violet-100/70 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 font-semibold"
-                            : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                        }`}
-                      >
-                        <MessageSquare className="h-3 w-3" />
-                        Chat Inbox
-                      </Link>
-                      <Link
-                        href="/whatsapp/send"
-                        onClick={() => setSidebarOpen(false)}
-                        className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                          pathname === "/whatsapp/send"
-                            ? "bg-violet-100/70 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 font-semibold"
-                            : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                        }`}
-                      >
-                        <Send className="h-3 w-3" />
-                        Send Message
-                      </Link>
-                      <Link
-                        href="/whatsapp/materials"
-                        onClick={() => setSidebarOpen(false)}
-                        className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                          pathname === "/whatsapp/materials"
-                            ? "bg-violet-100/70 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 font-semibold"
-                            : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                        }`}
-                      >
-                        <Layers className="h-3 w-3" />
-                        Material Base
-                      </Link>
-                    </div>
-                  )}
                 </div>
               );
             })}

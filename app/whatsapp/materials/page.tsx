@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
+import AddMaterialModal from "@/components/whatsapp/AddMaterialModal";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -355,6 +356,13 @@ export default function MaterialBasePage() {
             <Layers className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
             Material Base
           </Link>
+          <Link
+            href="/whatsapp/history"
+            className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            History
+          </Link>
         </div>
 
         {/* Action button */}
@@ -644,241 +652,19 @@ export default function MaterialBasePage() {
       {/* ══════════════════════════════════════
           ADD / EDIT MATERIAL MODAL
       ══════════════════════════════════════ */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-800">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-600 text-white">
-                  {modalType === "text" ? (
-                    <FileText className="h-4 w-4" />
-                  ) : modalType === "image" ? (
-                    <ImageIcon className="h-4 w-4" />
-                  ) : (
-                    <FileSpreadsheet className="h-4 w-4" />
-                  )}
-                </div>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
-                  {editingMaterial
-                    ? "Edit Text Material"
-                    : `Add New ${modalType.charAt(0).toUpperCase() + modalType.slice(1)} Material`}
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Type selector tabs (if creating new) */}
-            {!editingMaterial && (
-              <div className="mt-4 flex rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalType("text");
-                    resetForm();
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition ${
-                    modalType === "text"
-                      ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white shadow-sm"
-                      : "text-zinc-600 dark:text-zinc-400"
-                  }`}
-                >
-                  <FileText className="h-3.5 w-3.5" /> Text
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalType("image");
-                    resetForm();
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition ${
-                    modalType === "image"
-                      ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white shadow-sm"
-                      : "text-zinc-600 dark:text-zinc-400"
-                  }`}
-                >
-                  <ImageIcon className="h-3.5 w-3.5" /> Image
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalType("document");
-                    resetForm();
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition ${
-                    modalType === "document"
-                      ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white shadow-sm"
-                      : "text-zinc-600 dark:text-zinc-400"
-                  }`}
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5" /> Document
-                </button>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-              {/* Title */}
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                  Title / Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder={
-                    modalType === "text"
-                      ? "e.g. Interested Lead Follow-up"
-                      : modalType === "image"
-                      ? "e.g. Real Estate Project Brochure Banner"
-                      : "e.g. 2026 Company Services Pricing.pdf"
-                  }
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                  required
-                />
-              </div>
-
-              {/* Text Content */}
-              {modalType === "text" && (
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                      Message Content <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-zinc-400">Placeholders:</span>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder("{{name}}")}
-                        className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-300 hover:bg-violet-200 transition"
-                      >
-                        + {"{{name}}"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder("{{customer_name}}")}
-                        className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-300 hover:bg-violet-200 transition"
-                      >
-                        + {"{{customer_name}}"}
-                      </button>
-                    </div>
-                  </div>
-                  <textarea
-                    rows={5}
-                    placeholder="Hi {{name}}, thank you for speaking with us today regarding our services..."
-                    value={formContent}
-                    onChange={(e) => setFormContent(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                    required
-                  />
-                  <p className="mt-1 text-[10px] text-zinc-400">
-                    Placeholders like {"{{name}}"} will automatically be replaced with each contact's name when sending.
-                  </p>
-                </div>
-              )}
-
-              {/* File Upload for Image / Document */}
-              {modalType !== "text" && !editingMaterial && (
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Select {modalType === "image" ? "Image File" : "Document File"}{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-1 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 text-center hover:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/50 transition"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={
-                        modalType === "image"
-                          ? "image/png,image/jpeg,image/webp,image/gif"
-                          : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                      }
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    {filePreview ? (
-                      <div className="relative aspect-video w-48 overflow-hidden rounded-lg">
-                        <img src={filePreview} alt="Preview" className="h-full w-full object-cover" />
-                      </div>
-                    ) : formFile ? (
-                      <div className="flex items-center gap-2 text-xs font-semibold text-zinc-900 dark:text-white">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        {formFile.name} ({formatFileSize(formFile.size)})
-                      </div>
-                    ) : (
-                      <>
-                        <Upload className="h-8 w-8 text-zinc-400" />
-                        <p className="mt-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                          Click to browse or drag & drop file
-                        </p>
-                        <p className="mt-1 text-[10px] text-zinc-400">
-                          {modalType === "image"
-                            ? "PNG, JPG, JPEG, WEBP up to 25MB"
-                            : "PDF, DOCX, XLSX, PPTX up to 25MB"}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Tags */}
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                  Tags / Category <span className="text-zinc-400 text-[10px] font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Real Estate, Follow-up, Pricing"
-                  value={formTags}
-                  onChange={(e) => setFormTags(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="mt-6 flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    resetForm();
-                  }}
-                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/20 hover:shadow-lg transition disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Saving...
-                    </>
-                  ) : editingMaterial ? (
-                    "Save Changes"
-                  ) : (
-                    "Create Material"
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AddMaterialModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingMaterial(null);
+        }}
+        onSuccess={(savedMaterial) => {
+          showToast(editingMaterial ? "Material updated successfully" : "Material added to Material Base", "success");
+          fetchMaterials();
+        }}
+        initialType={modalType}
+        editingMaterial={editingMaterial}
+      />
 
       {/* ══════════════════════════════════════
           DELETE CONFIRMATION MODAL

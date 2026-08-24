@@ -388,6 +388,7 @@ export default function CallManagerPage() {
         selection_type: formData.selectionType,
         start_row: formData.startRow,
         end_row: formData.endRow,
+        whatsapp_automation: formData.whatsappAutomation,
         contacts: contactList,
       });
 
