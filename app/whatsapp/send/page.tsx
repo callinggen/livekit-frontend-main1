@@ -529,10 +529,17 @@ export default function SendMessagePage() {
     setSelectedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Credit calculation
+  // Centralized frontend credit estimation matching backend rules:
+  // Text = 1 credit, Image = 2 credits, Document = 3 credits per recipient
   const selectedCount = selectedContactIds.size;
   const itemsCount = selectedItems.length;
-  const totalRequiredCredits = selectedCount * itemsCount;
+  const creditsPerRecipient = selectedItems.reduce((acc, item) => {
+    if (item.type === "text") return acc + 1;
+    if (item.type === "image") return acc + 2;
+    if (item.type === "document") return acc + 3;
+    return acc + 1;
+  }, 0);
+  const totalRequiredCredits = selectedCount * creditsPerRecipient;
   const userCredits = credits ?? 0;
   const hasSufficientCredits = userCredits >= totalRequiredCredits;
 
@@ -1525,7 +1532,7 @@ export default function SendMessagePage() {
             </div>
 
             <p className="mt-3 text-[10px] text-zinc-400 text-center">
-              1 credit will be deducted per successfully sent message item.
+              Credit pricing: Text (1 credit), Image (2 credits), Document (3 credits) per recipient.
             </p>
 
             <div className="mt-5 flex items-center justify-end gap-2">
