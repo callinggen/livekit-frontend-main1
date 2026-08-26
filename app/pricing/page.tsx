@@ -198,23 +198,6 @@ export default function PricingPage() {
     },
     {
       name: "Pro",
-      tagline: "High-volume business automation",
-      price: "₹12,999",
-      credits: "10,000 Credits Included",
-      popular: true,
-      buttonText: "Get Pro Pack",
-      buttonVariant: "default" as const,
-      features: [
-        "10 Active AI Voice Agents",
-        "10,000 Calling Credits",
-        "Inbound & Outbound Calling",
-        "Real-time Campaign Monitoring",
-        "Advanced Call Transcripts",
-        "Priority Support",
-      ],
-    },
-    {
-      name: "Pro",
       tagline: "High-Volume Campaigns for Power Users",
       price: "₹12,999",
       subPrice: "per month",
