@@ -10,11 +10,12 @@ import { useCredits } from "@/components/CreditsContext";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
+import DashboardShell from "@/components/DashboardShell";
+
 export default function PricingPage() {
   const router = useRouter();
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, user, refreshUser } = useAuth();
   const { credits, refreshCredits } = useCredits();
-
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [mockOrder, setMockOrder] = useState<any | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
@@ -92,8 +93,9 @@ export default function PricingPage() {
               razorpay_signature: response.razorpay_signature,
             });
 
-            // Refresh Context Balance
+            // Refresh Context Balance and User Data
             refreshCredits();
+            await refreshUser();
             showToast("success", `Success! Credited ${verifyRes.credits} credits to your account.`);
           } catch (err: any) {
             console.error("Verification failed:", err);
@@ -146,6 +148,7 @@ export default function PricingPage() {
       });
 
       refreshCredits();
+      await refreshUser();
       showToast("success", `Sandbox Checkout Success! Credited ${planName} pack. New Balance: ${verifyRes.credits} credits.`);
     } catch (err: any) {
       console.error("Mock verification failed:", err);
@@ -253,12 +256,8 @@ export default function PricingPage() {
       ],
     },
   ];
-
-
-  return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] transition-colors duration-300">
-      <Navbar />
-
+  const pageContent = (
+    <>
       <main className="flex-grow pt-32 pb-24 relative overflow-hidden">
         
         {/* Dynamic Background Blurs */}
@@ -296,15 +295,25 @@ export default function PricingPage() {
 
           {/* Pricing Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto items-stretch relative">
-            {plans.map((plan, idx) => (
+            {plans.map((plan, idx) => {
+              const isActivePlan = isLoggedIn && (user?.subscription_plan || "Starter") === plan.name;
+              
+              return (
               <div
                 key={idx}
                 className={`rounded-3xl p-8 border flex flex-col justify-between transition-all duration-300 relative ${
-                  plan.popular
+                  isActivePlan && !plan.popular
+                    ? "bg-white dark:bg-[#111827] border-emerald-500 shadow-lg shadow-emerald-500/10 scale-[1.01]"
+                    : plan.popular
                     ? "bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white border-[#4F6BFF] shadow-xl shadow-indigo-500/20 scale-[1.03] z-10"
                     : "bg-white dark:bg-[#111827] border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-lg hover:scale-[1.01]"
                 }`}
               >
+                {isActivePlan && (
+                  <div className="absolute -top-3 right-4 bg-emerald-500 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-md uppercase tracking-wider flex items-center gap-1 z-20">
+                    <CheckCircle2 className="w-3 h-3" /> Current Plan
+                  </div>
+                )}
                 {plan.popular && (
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#4F6BFF] text-white px-4 py-1 rounded-full text-[10px] font-bold shadow-md uppercase tracking-wider">
                     Most Popular Choice
@@ -357,9 +366,11 @@ export default function PricingPage() {
                 <Button
                   onClick={() => handlePayment(plan.name)}
                   disabled={loadingPlan !== null}
-                  variant={plan.buttonVariant}
+                  variant={isActivePlan ? "default" : plan.buttonVariant}
                   className={`w-full rounded-full py-6 text-sm font-bold transition-all relative overflow-hidden group ${
-                    plan.popular
+                    isActivePlan
+                      ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 disabled:bg-emerald-500/60 border-none"
+                      : plan.popular
                       ? "bg-[#4F6BFF] hover:bg-[#435BE0] text-white shadow-lg shadow-[#4F6BFF]/30 disabled:bg-[#4F6BFF]/60"
                       : "border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60"
                   }`}
@@ -369,12 +380,18 @@ export default function PricingPage() {
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Initiating...</span>
                     </span>
+                  ) : isActivePlan ? (
+                    <span className="flex items-center justify-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Current Active Plan</span>
+                    </span>
                   ) : (
                     <span>{plan.buttonText}</span>
                   )}
                 </Button>
               </div>
-            ))}
+            );
+          })}
           </div>
 
           {/* Footer Security Badges */}
@@ -392,8 +409,6 @@ export default function PricingPage() {
 
         </div>
       </main>
-
-      <Footer />
 
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* 1. MOCK DEVELOPER SANDBOX MODAL */}
@@ -496,7 +511,22 @@ export default function PricingPage() {
           </div>
         </div>
       )}
+    </>
+  );
 
+  if (isLoggedIn) {
+    return (
+      <DashboardShell title="Pricing & Credits">
+        {pageContent}
+      </DashboardShell>
+    );
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] transition-colors duration-300">
+      <Navbar />
+      {pageContent}
+      <Footer />
     </div>
   );
 }

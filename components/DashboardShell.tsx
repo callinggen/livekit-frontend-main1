@@ -248,11 +248,10 @@ export default function DashboardShell({
             {/* Credits Display */}
             {credits !== null && (
               <div 
-                onClick={() => router.push("/pricing")}
-                title="Click to buy more credits"
-                className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex cursor-pointer transition hover:bg-zinc-100 dark:hover:bg-zinc-800 ${credits < 100
-                  ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40 hover:border-red-300 dark:hover:border-red-700/50"
-                  : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-600"
+                title="Current Credits"
+                className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex transition ${credits < 100
+                  ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
+                  : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
                   }`}
               >
                 <CreditCard className={`h-3.5 w-3.5 ${credits < 100

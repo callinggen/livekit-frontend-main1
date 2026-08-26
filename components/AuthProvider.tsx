@@ -35,6 +35,7 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<{ success: boolean; isFirstLogin?: boolean; isAdmin?: boolean }>;
   logout: () => void;
   updateToken: (newToken: string, isFirstLogin: boolean, isAdmin: boolean) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -43,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ success: false }),
   logout: () => {},
   updateToken: () => {},
+  refreshUser: async () => {},
 });
 
 export function useAuth() {
@@ -69,6 +71,45 @@ export default function AuthProvider({
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
+  const refreshUser = useCallback(async () => {
+    const stored = getInitialUser();
+    if (stored && stored.token) {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${stored.token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const updatedUser: UserData = {
+            ...stored,
+            isFirstLogin: data.is_first_login,
+            isAdmin: data.is_admin,
+            subscription_plan: data.subscription_plan,
+            company_name: data.company_name,
+            industry: data.industry,
+            phone_number: data.phone_number,
+            credits: data.credits,
+            agent_name: data.agent_name,
+            agent_language: data.agent_language,
+            agent_voice: data.agent_voice,
+            agent_script: data.agent_script,
+          };
+          setUser(updatedUser);
+          setIsLoggedIn(true);
+          sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
+          localStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
+        } else {
+          sessionStorage.removeItem("callinggen-auth");
+          localStorage.removeItem("callinggen-auth");
+          setUser(null);
+          setIsLoggedIn(false);
+        }
+      } catch (e) {
+        console.warn("Auth sync warning:", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const initAuth = async () => {
       const stored = getInitialUser();
@@ -76,40 +117,7 @@ export default function AuthProvider({
       if (stored && stored.token) {
         setUser(stored);
         setIsLoggedIn(true);
-
-        try {
-          const res = await fetch(`${API_BASE}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${stored.token}` }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const updatedUser: UserData = {
-              ...stored,
-              isFirstLogin: data.is_first_login,
-              isAdmin: data.is_admin,
-              subscription_plan: data.subscription_plan,
-              company_name: data.company_name,
-              industry: data.industry,
-              phone_number: data.phone_number,
-              credits: data.credits,
-              agent_name: data.agent_name,
-              agent_language: data.agent_language,
-              agent_voice: data.agent_voice,
-              agent_script: data.agent_script,
-            };
-            setUser(updatedUser);
-            setIsLoggedIn(true);
-            sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
-            localStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
-          } else {
-            sessionStorage.removeItem("callinggen-auth");
-            localStorage.removeItem("callinggen-auth");
-            setUser(null);
-            setIsLoggedIn(false);
-          }
-        } catch (e) {
-          console.warn("Auth sync warning:", e);
-        }
+        await refreshUser();
       } else {
         setUser(null);
         setIsLoggedIn(false);
@@ -117,7 +125,7 @@ export default function AuthProvider({
       setMounted(true);
     };
     initAuth();
-  }, []);
+  }, [refreshUser]);
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -212,7 +220,7 @@ export default function AuthProvider({
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn: !!user, user, login, logout, updateToken }}>
+    <AuthContext.Provider value={{ isLoggedIn: !!user, user, login, logout, updateToken, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
