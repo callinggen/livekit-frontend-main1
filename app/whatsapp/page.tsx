@@ -285,8 +285,8 @@ export default function WhatsAppPage() {
       const qrRes = await fetch(`${BASE_URL}/whatsapp/qr?instance_name=${INSTANCE_NAME}`);
       if (qrRes.ok) {
         const qrData = await qrRes.json();
-        const base64 = qrData?.data?.base64 || qrData?.data?.qrcode?.base64 || null;
-        const code = qrData?.data?.code || qrData?.data?.pairingCode || null;
+        const base64 = qrData?.data?.base64 || qrData?.data?.qrcode?.base64 || qrData?.base64 || null;
+        const code = qrData?.data?.code || qrData?.data?.pairingCode || qrData?.code || null;
 
         if (base64) {
           setQrCodeBase64(base64);
