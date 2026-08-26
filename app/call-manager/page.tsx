@@ -376,8 +376,17 @@ export default function CallManagerPage() {
     try {
       setLaunching(true);
 
-      const localDate = new Date(`${formData.scheduleDate}T${formData.scheduleTime}:00`);
-      const isoUtcStr = localDate.toISOString(); // e.g., 2026-07-22T08:30:00.000Z
+      let isoUtcStr = new Date().toISOString();
+      if (formData.scheduleDate && formData.scheduleTime) {
+        try {
+          const localDate = new Date(`${formData.scheduleDate}T${formData.scheduleTime}:00`);
+          if (!isNaN(localDate.getTime())) {
+            isoUtcStr = localDate.toISOString();
+          }
+        } catch {
+          isoUtcStr = new Date().toISOString();
+        }
+      }
 
       // 1. Create the campaign + contacts
       const { campaign_id } = await api.createCampaign({
