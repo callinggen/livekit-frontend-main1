@@ -47,6 +47,7 @@ export interface CampaignRow {
   date: string;
   schedule: string;
   schedule_date?: string;
+  created_at?: string;
   sheetName: string;
 
   totalCalls: number;
