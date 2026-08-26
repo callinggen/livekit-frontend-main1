@@ -341,36 +341,35 @@ export default function CampaignDetailPage() {
   }
 
   // Determine Duration runtime logs based on Campaign Schedule time and Contact call log durations
-  let startedText = "—";
-  let endedText = "—";
-
-  const schedTime = campaign.schedule_date || campaign.schedule || campaign.date;
-  if (schedTime) {
+  const cStatus = (campaign.status || "").toLowerCase();
+  const startTimeVal = campaign.created_at || campaign.schedule_date || campaign.date;
+  if (startTimeVal) {
     try {
-      const cleanStr = schedTime.replace(" UTC", "");
+      const cleanStr = String(startTimeVal).replace(" UTC", "");
       const startDate = new Date(cleanStr);
       if (!isNaN(startDate.getTime())) {
-        startedText = startDate.toLocaleTimeString(undefined, {
+        const formattedTime = startDate.toLocaleTimeString(undefined, {
           hour: 'numeric',
           minute: '2-digit',
           hour12: true
         });
 
-        // Sum up the duration of all calls in the campaign from contacts (in seconds)
-        const totalDurationSeconds = enrichedContacts.reduce((acc: number, c: any) => acc + Number(c.duration || 0), 0) || 0;
-
-        if (campaign.status === "Running") {
-          endedText = "In Progress";
-        } else if (campaign.status === "Scheduled" || campaign.status === "pending") {
+        if (cStatus === "scheduled" || cStatus === "pending") {
+          startedText = `Scheduled for ${formattedTime}`;
           endedText = "Scheduled";
         } else {
-          // Campaign is Completed / Failed
-          const endDate = new Date(startDate.getTime() + totalDurationSeconds * 1000);
-          endedText = endDate.toLocaleTimeString(undefined, {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          });
+          startedText = formattedTime;
+          const totalDurationSeconds = enrichedContacts.reduce((acc: number, c: any) => acc + Number(c.duration || 0), 0) || 0;
+          if (cStatus === "running") {
+            endedText = "In Progress";
+          } else {
+            const endDate = new Date(startDate.getTime() + totalDurationSeconds * 1000);
+            endedText = endDate.toLocaleTimeString(undefined, {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+          }
         }
       }
     } catch (err) {
