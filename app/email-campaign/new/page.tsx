@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import "react-quill-new/dist/quill.snow.css";
+
+const ReactQuill = dynamic(() => import("react-quill-new"), {
+  ssr: false,
+  loading: () => <div className="h-64 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 border rounded-xl animate-pulse text-zinc-400">Loading Editor...</div>
+});
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
 import {
@@ -283,14 +290,15 @@ export default function NewEmailCampaignPage() {
               </button>
             </div>
             <div className="p-6">
-              <textarea
-                id="email-body"
-                value={htmlBody}
-                onChange={(e) => setHtmlBody(e.target.value)}
-                rows={16}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-mono text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500 resize-y"
-                placeholder="Paste your HTML email here…"
-              />
+              <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                <ReactQuill
+                  theme="snow"
+                  value={htmlBody}
+                  onChange={setHtmlBody}
+                  className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                  placeholder="Paste or write your email here..."
+                />
+              </div>
             </div>
           </section>
 
@@ -503,52 +511,4 @@ export default function NewEmailCampaignPage() {
 }
 
 // ── Default HTML template ───────────────────────────────────────────────────
-const DEFAULT_TEMPLATE = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Email</title>
-</head>
-<body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:32px 40px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">CallingGen</h1>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:40px;">
-              <p style="margin:0 0 16px;font-size:16px;color:#374151;">Hi {{name}},</p>
-              <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
-                Write your email content here. Use {{name}} to personalize greetings.
-              </p>
-              <div style="text-align:center;margin:32px 0;">
-                <a href="#" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;display:inline-block;">
-                  Get Started
-                </a>
-              </div>
-              <p style="margin:0;font-size:13px;color:#9ca3af;text-align:center;">
-                Best regards,<br/>The CallingGen Team
-              </p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;">
-                © 2025 CallingGen. All rights reserved.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+const DEFAULT_TEMPLATE = `<h2><strong>Welcome to CallingGen</strong></h2><p><br></p><p>Hi {{name}},</p><p><br></p><p>Write your email content here. Use {{name}} to personalize your greetings and make your emails more engaging.</p><p><br></p><p><a href="https://callinggen.com" rel="noopener noreferrer" target="_blank">Click here to get started</a></p><p><br></p><p>Best regards,</p><p><strong>The CallingGen Team</strong></p>`;
