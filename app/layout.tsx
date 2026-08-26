@@ -5,6 +5,7 @@ import "./globals.css";
 
 import AuthProvider from "@/components/AuthProvider";
 import { CreditsProvider } from "@/components/CreditsContext";
+import { LanguageProvider } from "@/components/LanguageContext";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -40,10 +41,13 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <AuthProvider>
-          <CreditsProvider>{children}</CreditsProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <CreditsProvider>{children}</CreditsProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
 }
+

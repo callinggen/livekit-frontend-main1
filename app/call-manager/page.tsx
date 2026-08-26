@@ -1,6 +1,7 @@
 "use client";
 
-import { api } from "@/lib/api";
+import { api, ApiContact } from "@/lib/api";
+
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -331,7 +332,7 @@ export default function CallManagerPage() {
     }
 
     // Build contacts list from whichever source was used
-    let contactList: { name: string; phone: string; metadata_fields?: Record<string, string>; original_row?: number }[] = [];
+    let contactList: ApiContact[] = [];
 
     if (formData.uploadSource === "single") {
       contactList = [{
@@ -385,12 +386,20 @@ export default function CallManagerPage() {
         script: formData.script.trim(),
         schedule_date: isoUtcStr,
         schedule_time: "UTC",
+        outbound_phone_number: formData.outboundPhoneNumber,
         selection_type: formData.selectionType,
         start_row: formData.startRow,
         end_row: formData.endRow,
         whatsapp_automation: formData.whatsappAutomation,
         contacts: contactList,
+        upload_source: formData.uploadSource,
+        sheet_name: formData.uploadSource === "single"
+          ? "Single Call Input"
+          : formData.uploadSource === "google_sheet"
+          ? "Google Sheet"
+          : fileName || "File Upload",
       });
+
 
       // 2. Launch it (creates the job + starts the worker loop)
       const { total_contacts } = await api.launchCampaign(campaign_id);

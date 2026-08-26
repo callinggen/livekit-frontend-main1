@@ -11,6 +11,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  Mail,
   Megaphone,
   Menu,
   Moon,
@@ -40,8 +41,11 @@ const navItems = [
   { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
   { label: "WhatsApp", icon: MessageSquare, href: "/whatsapp" },
+  { label: "Email Marketing", icon: Mail, href: "/email-campaign" },
   { label: "Report", icon: FileText, href: "/report" },
+  { label: "Buy Credits", icon: CreditCard, href: "/pricing" },
 ];
+
 
 export default function DashboardShell({
   title,
@@ -252,10 +256,13 @@ export default function DashboardShell({
 
             {/* Credits Display */}
             {credits !== null && (
-              <div className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex ${credits < 100
-                ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
-                : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
-                }`}>
+              <div 
+                title="Current Credits"
+                className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex transition ${credits < 100
+                  ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
+                  : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
+                  }`}
+              >
                 <CreditCard className={`h-3.5 w-3.5 ${credits < 100
                   ? "text-red-500 dark:text-red-400"
                   : "text-zinc-600 dark:text-zinc-400"
@@ -269,16 +276,15 @@ export default function DashboardShell({
               </div>
             )}
 
-            {/* Upgrade Plan Button */}
-            {/* 
+            {/* Top-Up Credits Button */}
             <button
               onClick={() => router.push("/pricing")}
-              className="hidden items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-violet-500/20 transition hover:shadow-lg hover:shadow-violet-500/30 sm:flex"
+              className="hidden items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-violet-500/20 transition hover:shadow-lg hover:shadow-violet-500/30 hover:scale-[1.02] active:scale-[0.98] sm:flex"
             >
               <ArrowUpCircle className="h-3.5 w-3.5" />
-              Upgrade Plan
+              Top-Up Credits
             </button>
-            */}
+
 
             {/* Dark / Light toggle */}
             <button

@@ -21,12 +21,25 @@ export interface CampaignCreatePayload {
   script: string;
   schedule_date: string;
   schedule_time: string;
+  outbound_phone_number?: string;
   selection_type?: "all" | "range";
   start_row?: number;
   end_row?: number;
   whatsapp_automation?: any;
   contacts: ApiContact[];
+  upload_source?: string;
+  sheet_name?: string;
 }
+
+export interface UserPhoneNumber {
+  id: number;
+  phone_number: string;
+  provider_name: string;
+  region: string;
+  sip_trunk_id?: string;
+  is_default: boolean;
+}
+
 
 export interface CampaignRow {
   id: string;
@@ -51,9 +64,23 @@ export interface CampaignRow {
   parentCampaignId?: number;
   parentCampaignName?: string;
   contactCount?: number;
+  upload_source?: string;
+  sheet_name?: string;
 }
 
 export interface CampaignDetail extends CampaignRow {
+  upload_source?: string;
+  sheet_name?: string;
+  schedule_date?: string;
+  schedule_time?: string;
+  job?: {
+    total_contacts: number;
+    completed_contacts: number;
+    failed_contacts: number;
+    status: string;
+    started_at?: string | null;
+    finished_at?: string | null;
+  };
   contacts: {
     id: number;
     name: string;
@@ -62,8 +89,11 @@ export interface CampaignDetail extends CampaignRow {
     response: string;
     duration: number;
     datetime: string;
-    appointment_date?: string;
-    appointment_time?: string;
+    appointment_date?: string | null;
+    appointment_time?: string | null;
+    customer_name?: string | null;
+    transcript?: string;
+    credits?: number;
   }[];
 }
 
@@ -76,6 +106,7 @@ export interface ResponseLog {
   response: string;
   datetime: string;
   campaign: string;
+  campaign_id?: number;
   duration: string;
   duration_seconds?: number;
   transcript: { speaker: string; text: string }[];
@@ -87,6 +118,53 @@ export interface ResponseLog {
   recording_url?: string;
   human_response?: string;
   creditsDeducted?: number;
+}
+
+// ── Email Campaign Types ───────────────────────────────────────────────────
+
+export interface EmailContactItem {
+  name: string;
+  email: string;
+}
+
+export interface EmailCampaignCreatePayload {
+  name: string;
+  subject: string;
+  html_body: string;
+  from_name?: string;
+  reply_to?: string;
+  schedule_date?: string;
+  schedule_time?: string;
+  contacts: EmailContactItem[];
+}
+
+export interface EmailCampaignRow {
+  id: number;
+  name: string;
+  subject: string;
+  from_name: string;
+  status: string;
+  schedule_date: string;
+  schedule_time: string;
+  created_at: string;
+  total: number;
+  sent: number;
+  failed: number;
+  pending: number;
+}
+
+export interface EmailCampaignDetail extends EmailCampaignRow {
+  html_body: string;
+  reply_to: string;
+  stats: { total: number; sent: number; failed: number; pending: number };
+  contacts: {
+    id: number;
+    name: string;
+    email: string;
+    status: string;
+    sent_at: string | null;
+    error_message: string;
+  }[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -237,5 +315,63 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /** Get user assigned provider phone numbers and region metadata. */
+  getUserPhoneNumbers: () =>
+    request<UserPhoneNumber[]>("/api/user/phone-numbers"),
+
+  // ── Email Campaign endpoints ──────────────────────────────────────────────
+
+  /** Create a new email campaign with contacts. Returns { campaign_id }. */
+  createEmailCampaign: (payload: EmailCampaignCreatePayload) =>
+    request<{ campaign_id: number; message: string }>("/api/email-campaigns", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** List all email campaigns for the current user. */
+  getEmailCampaigns: () => request<EmailCampaignRow[]>("/api/email-campaigns"),
+
+  /** Get full detail of a single email campaign. */
+  getEmailCampaign: (id: number) =>
+    request<EmailCampaignDetail>(`/api/email-campaigns/${id}`),
+
+  /** Launch an email campaign (begins bulk sending). */
+  launchEmailCampaign: (id: number) =>
+    request<{ campaign_id: number; status: string; message: string }>(
+      `/api/email-campaigns/${id}/launch`,
+      { method: "POST" }
+    ),
+
+  /** Lightweight status poll for live updates on the detail page. */
+  getEmailCampaignStatus: (id: number) =>
+    request<{ status: string; total: number; sent: number; failed: number; pending: number }>(
+      `/api/email-campaigns/${id}/status`
+    ),
+
+  /** Delete an email campaign. */
+  deleteEmailCampaign: (id: number) =>
+    request<{ message: string }>(`/api/email-campaigns/${id}`, {
+      method: "DELETE",
+    }),
+
+  /** Create a Razorpay payment order. */
+  createPaymentOrder: (planName: string) =>
+    request<{ razorpay_order_id: string; amount: number; currency: string; key_id: string; plan_name: string }>(
+      "/api/payments/create-order",
+      {
+        method: "POST",
+        body: JSON.stringify({ plan_name: planName }),
+      }
+    ),
+
+  /** Verify Razorpay payment signature. */
+  verifyPayment: (payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+    request<{ status: string; message: string; credits: number }>("/api/payments/verify", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
+
+
 

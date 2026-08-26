@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { PhoneCall, Globe, MessageSquare, Share2, Mail } from "lucide-react";
 
+import { useLanguage } from "@/components/LanguageContext";
+
 export default function Footer() {
+  const { t } = useLanguage();
   return (
     <footer className="bg-slate-900 dark:bg-[#070A12] text-white pt-16 pb-8 border-t border-slate-800 transition-colors">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1280px]">
@@ -18,7 +21,7 @@ export default function Footer() {
               <span className="text-xl font-extrabold text-white tracking-tight">CallingGen</span>
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-              CallingGen is an enterprise-grade AI Voice Calling SaaS platform. Automate inbound support, outbound lead qualification, and calendar bookings with human-like conversational AI.
+              {t("footerDesc")}
             </p>
             <div className="flex items-center gap-3 pt-2">
               <a href="#" className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-[#4F6BFF] hover:bg-slate-700 transition-colors">

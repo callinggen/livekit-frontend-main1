@@ -110,8 +110,7 @@ export default function CampaignsPage() {
   const completed = campaigns.filter(c => c.status === "Completed").length;
   const draft = campaigns.filter(c => c.status === "Draft" || c.status === "Paused").length;
 
-  const activeCampaignsData = campaigns.filter(c => c.status === "Running" || c.status === "Draft" || c.status === "Paused" || c.status === "pending");
-  const scheduledCampaignsData = campaigns.filter(c => c.status === "Scheduled");
+  const activeCampaignsData = campaigns.filter(c => c.status === "Running" || c.status === "Scheduled" || c.status === "Draft" || c.status === "Paused" || c.status === "pending");
   const completedCampaignsData = campaigns.filter(c => c.status === "Completed");
 
   if (loading) {

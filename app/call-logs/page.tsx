@@ -67,7 +67,7 @@ export default function CallLogsPage() {
         id: r.id ? Number(r.id) : i,
         name: r.name || r.customer_name || "Unknown",
         phone: r.phone || "N/A",
-        type: "OUTBOUND",
+        type: r.direction ? r.direction.toUpperCase() : "OUTBOUND",
         duration: r.duration || "00:00",
         datetime: r.datetime,
         credits: r.creditsDeducted ?? 0,
@@ -75,11 +75,13 @@ export default function CallLogsPage() {
         status: (r.status || "COMPLETED").toUpperCase(),
         humanResponse: r.human_response || "",
         aiClass: r.summary || "Pending",
-        agent: r.campaign || "System Agent",
+        agent: r.agent_name || r.campaign || "System Agent",
         category: (r.category || "UNCATEGORIZED").toUpperCase(),
         sentiment: r.sentiment || "Neutral",
         transcript: r.transcript || [],
         recording_url: r.recording_url || "",
+        caller_number: r.caller_number || "",
+        called_number: r.called_number || "",
       }));
       setData(mappedData);
     }).catch(err => {
@@ -263,7 +265,7 @@ export default function CallLogsPage() {
           {/* Filter Dropdowns */}
           <div className="flex gap-2 shrink-0">
             {[
-              { val: filterType, set: setFilterType, options: uniqueTypes, label: "Type" },
+              { val: filterType, set: setFilterType, options: uniqueTypes, label: "Direction" },
               { val: filterStatus, set: setFilterStatus, options: uniqueStatuses, label: "Status" },
               { val: filterResponse, set: setFilterResponse, options: uniqueResponses, label: "Response" },
               { val: filterCategory, set: setFilterCategory, options: uniqueCategories, label: "Category" },
@@ -306,7 +308,7 @@ export default function CallLogsPage() {
                   {[
                     { key: "name", label: "Name" },
                     { key: "phone", label: "Phone" },
-                    { key: "type", label: "Type" },
+                    { key: "type", label: "Direction" },
                     { key: "duration", label: "Duration" },
                     { key: "aiClass", label: "AI Classification" }, // Swapped from Date & Time
                     { key: "response", label: "Response" },
@@ -471,7 +473,7 @@ export default function CallLogsPage() {
                       </span>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Type</p>
+                      <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Direction</p>
                       <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(selectedCall.type, "type")}`}>
                         {selectedCall.type}
                       </span>
@@ -584,6 +586,18 @@ export default function CallLogsPage() {
                             {selectedCall.response}
                           </span>
                         </li>
+                        {selectedCall.caller_number && (
+                          <li className="flex justify-between items-center border-b border-border/50 pb-3">
+                            <span className="text-muted-foreground">Caller Number</span>
+                            <span className="font-mono text-foreground font-medium">{selectedCall.caller_number}</span>
+                          </li>
+                        )}
+                        {selectedCall.called_number && (
+                          <li className="flex justify-between items-center border-b border-border/50 pb-3">
+                            <span className="text-muted-foreground">Called Number</span>
+                            <span className="font-mono text-foreground font-medium">{selectedCall.called_number}</span>
+                          </li>
+                        )}
                         <li className="flex justify-between items-center pb-1">
                           <span className="text-muted-foreground">Sentiment</span>
                           {(() => {
