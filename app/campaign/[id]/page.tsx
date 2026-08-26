@@ -340,7 +340,8 @@ export default function CampaignDetailPage() {
     }
   }
 
-  // Determine Duration runtime logs based on Campaign Schedule time and Contact call log durations
+  let startedText = "—";
+  let endedText = "—";
   const cStatus = (campaign.status || "").toLowerCase();
   const startTimeVal = campaign.created_at || campaign.schedule_date || campaign.date;
   if (startTimeVal) {
