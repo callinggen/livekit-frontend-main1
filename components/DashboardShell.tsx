@@ -41,6 +41,7 @@ const navItems = [
   { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
   { label: "Email Marketing", icon: Mail, href: "/email-campaign" },
+  { label: "WhatsApp", icon: MessageSquare, href: "/whatsapp" },
   { label: "Report", icon: FileText, href: "/report" },
   { label: "Buy Credits", icon: CreditCard, href: "/pricing" },
 ];
