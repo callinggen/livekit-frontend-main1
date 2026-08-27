@@ -343,38 +343,32 @@ export default function CampaignDetailPage() {
   let startedText = "—";
   let endedText = "—";
   const cStatus = (campaign.status || "").toLowerCase();
-  const startTimeVal = campaign.created_at || campaign.schedule_date || campaign.date;
-  if (startTimeVal) {
-    try {
-      const cleanStr = String(startTimeVal).replace(" UTC", "");
-      const startDate = new Date(cleanStr);
-      if (!isNaN(startDate.getTime())) {
-        const formattedTime = startDate.toLocaleTimeString(undefined, {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        });
 
-        if (cStatus === "scheduled" || cStatus === "pending") {
-          startedText = `Scheduled for ${formattedTime}`;
-          endedText = "Scheduled";
-        } else {
-          startedText = formattedTime;
-          const totalDurationSeconds = enrichedContacts.reduce((acc: number, c: any) => acc + Number(c.duration || 0), 0) || 0;
-          if (cStatus === "running") {
-            endedText = "In Progress";
-          } else {
-            const endDate = new Date(startDate.getTime() + totalDurationSeconds * 1000);
-            endedText = endDate.toLocaleTimeString(undefined, {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
-            });
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Failed to calculate campaign duration:", err);
+  const fmtTime = (val: string | null | undefined) => {
+    if (!val) return null;
+    try {
+      const d = new Date(String(val).replace(" UTC", ""));
+      if (isNaN(d.getTime())) return null;
+      return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+    } catch { return null; }
+  };
+
+  if (cStatus === "scheduled" || cStatus === "pending") {
+    const schedVal = campaign.schedule_date && campaign.schedule_time
+      ? `${campaign.schedule_date} ${campaign.schedule_time}`
+      : campaign.schedule_date || campaign.date;
+    const schedFmt = fmtTime(schedVal);
+    startedText = schedFmt ? `Scheduled for ${schedFmt}` : "Scheduled";
+    endedText = "Scheduled";
+  } else {
+    // Use actual job started_at / finished_at for accurate campaign times
+    const jobStarted = fmtTime(campaign.job?.started_at ?? campaign.started_at);
+    const jobFinished = fmtTime(campaign.job?.finished_at ?? campaign.finished_at);
+    startedText = jobStarted || fmtTime(campaign.created_at) || "—";
+    if (cStatus === "running" || cStatus === "processing") {
+      endedText = "In Progress";
+    } else {
+      endedText = jobFinished || "—";
     }
   }
 

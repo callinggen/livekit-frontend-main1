@@ -74,6 +74,8 @@ export interface CampaignDetail extends CampaignRow {
   sheet_name?: string;
   schedule_date?: string;
   schedule_time?: string;
+  started_at?: string | null;
+  finished_at?: string | null;
   job?: {
     total_contacts: number;
     completed_contacts: number;
