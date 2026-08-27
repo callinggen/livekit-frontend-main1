@@ -208,10 +208,14 @@ export default function WhatsAppPage() {
           setSelectedCallId((prev) => prev !== null ? prev : mappedChats[0].call_id);
           // Automatically load full message history for the first chat
           handleSelectChat(mappedChats[0]);
+          showToast(`✓ Synced ${mappedChats.length} WhatsApp chats!`, "success");
+        } else {
+          showToast("No active chats found in WhatsApp.", "success");
         }
       }
     } catch (err) {
       console.log("Could not fetch real chats:", err);
+      showToast("Sync failed. Check connection.", "error");
     }
   };
 
