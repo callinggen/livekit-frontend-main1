@@ -347,7 +347,14 @@ export default function CampaignDetailPage() {
   const fmtTime = (val: string | null | undefined) => {
     if (!val) return null;
     try {
-      const d = new Date(String(val).replace(" UTC", ""));
+      let str = String(val).trim();
+      if (!str || str === "—") return null;
+      if (!str.endsWith("Z") && !str.includes("+") && !str.includes("T") && str.includes("-")) {
+        str = str.replace(" ", "T") + "Z";
+      } else if (!str.endsWith("Z") && !str.includes("+") && str.includes("T")) {
+        str = str + "Z";
+      }
+      const d = new Date(str.replace(" UTC", ""));
       if (isNaN(d.getTime())) return null;
       return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
     } catch { return null; }
