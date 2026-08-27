@@ -354,10 +354,11 @@ export default function CampaignDetailPage() {
   };
 
   if (cStatus === "scheduled" || cStatus === "pending") {
-    const schedVal = campaign.schedule_date && campaign.schedule_time
-      ? `${campaign.schedule_date} ${campaign.schedule_time}`
-      : campaign.schedule_date || campaign.date;
-    const schedFmt = fmtTime(schedVal);
+    // Use scheduled_at (UTC ISO string) so browser converts to correct local time
+    const schedFmt = fmtTime(campaign.scheduled_at) ||
+      fmtTime(campaign.schedule_date && campaign.schedule_time
+        ? `${campaign.schedule_date}T${campaign.schedule_time}Z`
+        : campaign.schedule_date);
     startedText = schedFmt ? `Scheduled for ${schedFmt}` : "Scheduled";
     endedText = "Scheduled";
   } else {
@@ -443,7 +444,7 @@ export default function CampaignDetailPage() {
             </div>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 pl-12">
               <Calendar className="h-4 w-4 text-zinc-400" />
-              Scheduled for: {formatDateTime(campaign.schedule_date || campaign.schedule)}
+              Scheduled for: {formatDateTime(campaign.scheduled_at || campaign.schedule_date || campaign.schedule)}
             </p>
           </div>
 
