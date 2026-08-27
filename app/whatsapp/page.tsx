@@ -119,7 +119,7 @@ export default function WhatsAppPage() {
   // Check Connection Status on Mount
   const checkConnectionStatus = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/whatsapp/status?instance_name=${INSTANCE_NAME}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${INSTANCE_NAME}`);
       if (!res.ok) return;
       const data = await res.json();
       const state = data?.data?.instance?.state || data?.data?.state || "disconnected";
@@ -144,7 +144,7 @@ export default function WhatsAppPage() {
   // Fetch real Evolution API Chats from connected WhatsApp
   const fetchRealEvolutionChats = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/whatsapp/chats?instance_name=${INSTANCE_NAME}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/chats?instance_name=${INSTANCE_NAME}`);
       if (!res.ok) return;
       const json = await res.json();
       const rawChats = json?.data || [];
@@ -214,7 +214,7 @@ export default function WhatsAppPage() {
 
     if (chat.remoteJid && connectionState === "connected") {
       try {
-        const res = await fetch(`${BASE_URL}/whatsapp/messages?instance_name=${INSTANCE_NAME}&remote_jid=${encodeURIComponent(chat.remoteJid)}`);
+        const res = await fetch(`${BASE_URL}/api/whatsapp/messages?instance_name=${INSTANCE_NAME}&remote_jid=${encodeURIComponent(chat.remoteJid)}`);
         if (!res.ok) return;
         const json = await res.json();
         const data = json?.data || json;
@@ -275,14 +275,14 @@ export default function WhatsAppPage() {
 
     try {
       try {
-        await fetch(`${BASE_URL}/whatsapp/instance`, {
+        await fetch(`${BASE_URL}/api/whatsapp/instance`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ instance_name: INSTANCE_NAME }),
         });
       } catch (e) {}
 
-      const qrRes = await fetch(`${BASE_URL}/whatsapp/qr?instance_name=${INSTANCE_NAME}`);
+      const qrRes = await fetch(`${BASE_URL}/api/whatsapp/qr?instance_name=${INSTANCE_NAME}`);
       if (qrRes.ok) {
         const qrData = await qrRes.json();
         const base64 = qrData?.data?.base64 || qrData?.data?.qrcode?.base64 || qrData?.base64 || null;
@@ -297,7 +297,7 @@ export default function WhatsAppPage() {
 
       if (pollingRef.current) clearInterval(pollingRef.current);
       pollingRef.current = setInterval(async () => {
-        const statusRes = await fetch(`${BASE_URL}/whatsapp/status?instance_name=${INSTANCE_NAME}`);
+        const statusRes = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${INSTANCE_NAME}`);
         if (statusRes.ok) {
           const sData = await statusRes.json();
           const state = sData?.data?.instance?.state || sData?.data?.state;
@@ -322,7 +322,7 @@ export default function WhatsAppPage() {
   // Disconnect
   const handleDisconnect = async () => {
     try {
-      await fetch(`${BASE_URL}/whatsapp/logout?instance_name=${INSTANCE_NAME}`, { method: "DELETE" });
+      await fetch(`${BASE_URL}/api/whatsapp/logout?instance_name=${INSTANCE_NAME}`, { method: "DELETE" });
       setConnectionState("disconnected");
       setConnectedPhone(null);
       setConversations([]);
@@ -402,7 +402,7 @@ export default function WhatsAppPage() {
     // Send to Evolution API if connected
     if (activeChat.phone) {
       try {
-        await fetch(`${BASE_URL}/whatsapp/send-text`, {
+        await fetch(`${BASE_URL}/api/whatsapp/send-text`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
