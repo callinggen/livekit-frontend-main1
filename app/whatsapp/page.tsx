@@ -223,6 +223,21 @@ export default function WhatsAppPage() {
   const handleSelectChat = async (chat: ConversationItem) => {
     setSelectedCallId(chat.call_id);
 
+    // Fetch live WhatsApp Profile Picture (DP) on demand if not yet cached
+    if (!chat.avatar_image && chat.phone && connectionState === "connected") {
+      fetch(`${BASE_URL}/api/whatsapp/profile-picture?instance_name=${INSTANCE_NAME}&number=${encodeURIComponent(chat.phone)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const pic = data?.data?.profilePictureUrl || data?.profilePictureUrl;
+          if (pic) {
+            setConversations((prev) =>
+              prev.map((c) => (c.call_id === chat.call_id ? { ...c, avatar_image: pic } : c))
+            );
+          }
+        })
+        .catch(() => {});
+    }
+
     if (chat.remoteJid && connectionState === "connected") {
       try {
         const res = await fetch(`${BASE_URL}/api/whatsapp/messages?instance_name=${INSTANCE_NAME}&remote_jid=${encodeURIComponent(chat.remoteJid)}`);
