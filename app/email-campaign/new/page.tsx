@@ -221,6 +221,10 @@ function NewEmailCampaignContent() {
     return `${cleanPrefix}@${selectedSenderDomain}`;
   };
 
+  // Active template metadata for AI context
+  const [activeTemplateName, setActiveTemplateName] = useState<string>("");
+  const [activeTemplateCategory, setActiveTemplateCategory] = useState<string>("");
+
   // Load template if template_id in query string
   useEffect(() => {
     if (!templateIdParam) return;
@@ -234,6 +238,8 @@ function NewEmailCampaignContent() {
         setName(`${tpl.name} Campaign - ${today}`);
         setSubject(tpl.subject);
         setHtmlBody(tpl.html_body);
+        setActiveTemplateName(tpl.name);
+        setActiveTemplateCategory(tpl.category);
         if (user?.company_name) {
           setFromName(user.company_name);
         }
@@ -249,6 +255,8 @@ function NewEmailCampaignContent() {
     setName(`${tpl.name} Campaign - ${today}`);
     setSubject(tpl.subject);
     setHtmlBody(tpl.html_body);
+    setActiveTemplateName(tpl.name);
+    setActiveTemplateCategory(tpl.category);
     setShowTemplatePicker(false);
   };
 
@@ -990,6 +998,8 @@ function NewEmailCampaignContent() {
           isOpen={showAIModal}
           onClose={() => setShowAIModal(false)}
           onApplyGenerated={handleApplyAIGenerated}
+          templateName={activeTemplateName}
+          templateCategory={activeTemplateCategory}
           currentSubject={subject}
           currentBody={htmlBody}
         />

@@ -223,6 +223,7 @@ export interface VerifiedSenderOption {
 
 export interface EmailAIGeneratePayload {
   prompt: string;
+  template_name?: string;
   tone?: string;
   category?: string;
   action?: string;
