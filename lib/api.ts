@@ -3,8 +3,7 @@
  * Base URL comes from NEXT_PUBLIC_API_URL (.env.local).
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -189,10 +188,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (err: any) {
+    console.warn(`[API] Network error fetching ${path}:`, err);
+    throw new Error(`Failed to connect to backend server at ${BASE}. Please verify backend is running.`);
+  }
+
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
       window.dispatchEvent(new Event("unauthorized-access"));

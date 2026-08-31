@@ -26,9 +26,11 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     if (!isLoggedIn || !user?.token) return;
     try {
       const data = await api.getCredits(user.token);
-      setCredits(data.credits);
+      if (data && typeof data.credits === "number") {
+        setCredits(data.credits);
+      }
     } catch (err) {
-      console.error("Failed to fetch credits:", err);
+      console.warn("Could not sync credits from backend server:", err);
     }
   }, [isLoggedIn, user?.token]);
 

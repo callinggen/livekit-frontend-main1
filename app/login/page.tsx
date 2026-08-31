@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertCircle, ArrowRight, Lock, Mail, Phone, Sparkles, Loader2, User as UserIcon } from "lucide-react";
+import { AlertCircle, ArrowRight, Lock, Mail, Phone, Sparkles, Loader2, Sun, Moon, PhoneCall } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import ForgotPasswordModal from "@/components/ForgotPasswordModal";
+import Navbar from "@/components/landing/Navbar";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,70 +52,72 @@ export default function LoginPage() {
     }
   };
 
-
-
   return (
-    <div className="min-h-screen bg-white text-zinc-900">
-      <nav className="border-b border-zinc-200/80 bg-white/80 backdrop-blur-xl dark:border-zinc-800 dark:bg-black/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20">
-              <Phone className="h-5 w-5" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">CallingGen</span>
-          </Link>
-          <div className="flex items-center gap-6 text-sm font-medium">
-            <Link href="/" className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
-              Home
-            </Link>
-            <Link href="/contact" className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
-              Support
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#090D16] text-slate-900 dark:text-white transition-colors duration-300 flex flex-col justify-between relative overflow-hidden">
+      
+      {/* Background Ambient Glows */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-[#4F6BFF]/20 to-purple-500/20 rounded-full blur-[140px] pointer-events-none" />
 
-      <div className="flex min-h-[calc(100vh-73px)] items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md rounded-[1.75rem] border border-zinc-200/80 bg-white/90 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/90 dark:shadow-[0_20px_80px_rgba(0,0,0,0.45)] sm:p-8">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20">
-              <Sparkles className="h-5 w-5" />
+      {/* Shared Navbar with Light/Dark Mode & Language Toggle */}
+      <Navbar />
+
+      {/* Login Container */}
+      <div className="flex-1 flex items-center justify-center px-4 pt-32 pb-16 sm:px-6 lg:px-8 z-10">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#111827]/90 p-8 shadow-2xl backdrop-blur-xl transition-all duration-300">
+          
+          {/* Header Icon & Titles */}
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4F6BFF] to-indigo-600 text-white shadow-lg shadow-[#4F6BFF]/30">
+              <Sparkles className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl font-semibold">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               Welcome back
             </h2>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Sign in to continue to your workspace.
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Sign in to access your CallingGen workspace
             </p>
           </div>
 
-          <form className="space-y-4" onSubmit={handleLoginSubmit}>
+          <form className="space-y-5" onSubmit={handleLoginSubmit}>
 
+            {/* Email Field */}
             <div>
-              <label htmlFor="auth-email" className="mb-2 block text-sm font-medium">
+              <label htmlFor="auth-email" className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Email or Phone Number
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   id="auth-email"
                   type="text"
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@company.com"
+                  placeholder="admin@callinggen.ai"
                   disabled={isLoading}
-                  className="w-full rounded-2xl border border-zinc-300 bg-white py-3 pl-11 pr-4 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 dark:border-zinc-700 dark:bg-black dark:text-white dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F19] py-3.5 pl-11 pr-4 text-sm text-slate-900 dark:text-white outline-none transition focus:border-[#4F6BFF] focus:ring-2 focus:ring-[#4F6BFF]/20 disabled:opacity-50 placeholder:text-slate-400 dark:placeholder:text-slate-600"
                 />
               </div>
             </div>
 
+            {/* Password Field */}
             <div>
-              <label htmlFor="login-password" className="mb-2 block text-sm font-medium">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="login-password" className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(true)}
+                  disabled={isLoading}
+                  className="text-xs font-semibold text-[#4F6BFF] hover:underline dark:text-[#818CF8]"
+                >
+                  Forgot password?
+                </button>
+              </div>
+
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   id="login-password"
                   type="password"
@@ -123,50 +126,49 @@ export default function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
                   disabled={isLoading}
-                  className="w-full rounded-2xl border border-zinc-300 bg-white py-3 pl-11 pr-4 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 dark:border-zinc-700 dark:bg-black dark:text-white dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F19] py-3.5 pl-11 pr-4 text-sm text-slate-900 dark:text-white outline-none transition focus:border-[#4F6BFF] focus:ring-2 focus:ring-[#4F6BFF]/20 disabled:opacity-50 placeholder:text-slate-400 dark:placeholder:text-slate-600"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setShowForgotModal(true)}
-                disabled={isLoading}
-                className="text-sm font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 disabled:opacity-50"
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {successMessage ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            {/* Success Alert */}
+            {successMessage && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-xs text-emerald-700 dark:text-emerald-300">
                 <Sparkles className="h-4 w-4 shrink-0" />
-                <span className="text-xs leading-relaxed">{successMessage}</span>
+                <span>{successMessage}</span>
               </div>
-            ) : null}
+            )}
 
-            {error ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+            {/* Error Alert */}
+            {error && (
+              <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3 text-xs text-rose-700 dark:text-rose-300">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                <span className="text-xs leading-relaxed">{error}</span>
+                <span>{error}</span>
               </div>
-            ) : null}
+            )}
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:shadow-xl hover:shadow-violet-500/30 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#4F6BFF] hover:bg-[#3b57e6] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#4F6BFF]/25 transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Sign In <ArrowRight className="h-4 w-4" /></>}
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
 
-
-
           </form>
+
         </div>
       </div>
 
+      {/* Forgot Password Modal */}
       <ForgotPasswordModal
         isOpen={showForgotModal}
         onClose={() => setShowForgotModal(false)}
