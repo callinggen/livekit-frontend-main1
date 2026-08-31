@@ -194,10 +194,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (err: any) {
+    console.warn(`[API] Network error fetching ${path}:`, err);
+    throw new Error(`Failed to connect to backend server at ${BASE}. Please verify backend is running.`);
+  }
+
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
       window.dispatchEvent(new Event("unauthorized-access"));

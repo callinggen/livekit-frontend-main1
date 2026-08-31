@@ -8,6 +8,11 @@ import { Sparkles, CheckCircle2, PhoneCall, ShieldCheck, Globe } from "lucide-re
 
 import { api } from "@/lib/api";
 
+interface SlotOption {
+  formatted: string;
+  iso: string;
+}
+
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [countryCode, setCountryCode] = useState("+91");
@@ -23,6 +28,11 @@ export default function ContactPage() {
   const [company, setCompany] = useState("");
   const [industry, setIndustry] = useState("");
   
+  // Calendar State
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<SlotOption | null>(null);
+  const [showDetailsForm, setShowDetailsForm] = useState(false);
+
   const fetchSlots = async () => {
     try {
       setIsLoadingSlots(true);
@@ -39,17 +49,27 @@ export default function ContactPage() {
     fetchSlots();
   }, []);
 
+  const resetForm = () => {
+    setName("");
+    setEmail("");
+    setPhone("");
+    setCompany("");
+    setIndustry("");
+    setSelectedSlot(null);
+    setSelectedDateKey(null);
+    setShowDetailsForm(false);
+    setErrorMsg("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMsg("");
 
     try {
-      const selectedIsoStr = availableSlotsData.find(s => {
-        const d = new Date(s);
-        return d.getDate() === selectedDate && 
-               d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) === selectedSlot;
-      });
+      if (!selectedSlot) {
+        throw new Error("Please select a date and time slot.");
+      }
 
       await api.bookCalendarSlot({
         name,
@@ -57,18 +77,17 @@ export default function ContactPage() {
         phone: `${countryCode}${phone}`,
         company: company || "Not Provided",
         industry: industry || "Other",
-        appointment_time: selectedIsoStr || new Date().toISOString()
+        appointment_time: selectedSlot.iso
       });
 
       setSubmitted(true);
+      resetForm();
     } catch (error: any) {
       setErrorMsg(error.message || "Failed to book slot");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-
 
   const countries = [
     { code: "+91", label: "India (+91)" },
@@ -80,35 +99,54 @@ export default function ContactPage() {
     { code: "+1", label: "Canada (+1)" },
   ];
 
-  // Calendar State
-  const [selectedDate, setSelectedDate] = useState<number | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [showDetailsForm, setShowDetailsForm] = useState(false);
+  // Derived Dates and Slots using Map to preserve strict chronological order (YYYY-MM-DD)
+  const dateGroupsMap = new Map<string, {
+    dateKey: string;
+    day: string;
+    dateNum: number;
+    monthFull: string;
+    monthShort: string;
+    slots: SlotOption[];
+  }>();
 
-  // Derived Dates and Slots
-  const groupedDates = availableSlotsData.reduce((acc: any, isoStr: string) => {
+  availableSlotsData.forEach((isoStr: string) => {
     const d = new Date(isoStr);
+    // Format YYYY-MM-DD in IST
+    const dateKey = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
     const dateNum = d.getDate();
-    if (!acc[dateNum]) {
-      acc[dateNum] = {
-        day: d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short' }),
-        date: dateNum,
-        month: d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', month: 'long', year: 'numeric' }),
+    const day = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short' });
+    const monthShort = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', month: 'short' });
+    const monthFull = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', month: 'long', year: 'numeric' });
+
+    if (!dateGroupsMap.has(dateKey)) {
+      dateGroupsMap.set(dateKey, {
+        dateKey,
+        day,
+        dateNum,
+        monthFull,
+        monthShort,
         slots: []
-      };
+      });
     }
-    acc[dateNum].slots.push(d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }));
 
-    return acc;
-  }, {});
+    dateGroupsMap.get(dateKey)!.slots.push({
+      formatted: d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }),
+      iso: isoStr
+    });
+  });
 
-  const availableDates = Object.values(groupedDates).slice(0, 5) as any[];
+  const availableDateGroups = Array.from(dateGroupsMap.values());
   
-  const currentMonthYear = availableDates.length > 0 ? availableDates[0].month : "Loading...";
+  // Set default selected date key if not set
+  const activeDateKey = selectedDateKey && dateGroupsMap.has(selectedDateKey) 
+    ? selectedDateKey 
+    : (availableDateGroups.length > 0 ? availableDateGroups[0].dateKey : null);
+
+  const selectedGroup = activeDateKey ? dateGroupsMap.get(activeDateKey) : null;
+
+  const currentMonthYear = selectedGroup ? selectedGroup.monthFull : (availableDateGroups.length > 0 ? availableDateGroups[0].monthFull : "Loading...");
   
-  const timeSlots = selectedDate && groupedDates[selectedDate] 
-    ? groupedDates[selectedDate].slots 
-    : [];
+  const timeSlots: SlotOption[] = selectedGroup ? selectedGroup.slots : [];
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] transition-colors duration-300">
@@ -173,40 +211,38 @@ export default function ContactPage() {
                   <p className="text-slate-600 dark:text-slate-300 text-sm max-w-md mx-auto">
                     A calendar invitation has been sent to your email. We look forward to showing you CallingGen in action.
                   </p>
+                  <Button onClick={() => { setSubmitted(false); resetForm(); fetchSlots(); }} className="mt-4 bg-[#4F6BFF] text-white">
+                    Book Another Slot
+                  </Button>
                 </div>
               ) : !showDetailsForm ? (
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Select a Date & Time</h3>
                     <p className="text-sm text-slate-500">Duration: 1 Hour • Video Call (Google Meet)</p>
-
                   </div>
 
                   {/* Calendar Dates */}
                   <div className="pt-2">
                     <div className="flex items-center justify-between mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
                       <span>{currentMonthYear}</span>
-                      <div className="flex gap-2">
-                        <button className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center">&lt;</button>
-                        <button className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center">&gt;</button>
-                      </div>
                     </div>
                     {isLoadingSlots ? (
                       <div className="py-8 text-center text-sm text-slate-500">Loading available slots...</div>
                     ) : (
-                      <div className="grid grid-cols-5 gap-2">
-                        {availableDates.map((d, i) => (
+                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                        {availableDateGroups.slice(0, 7).map((group, i) => (
                         <button
                           key={i}
-                          onClick={() => { setSelectedDate(d.date); setSelectedSlot(null); }}
+                          onClick={() => { setSelectedDateKey(group.dateKey); setSelectedSlot(null); }}
                           className={`flex flex-col items-center justify-center py-3 rounded-xl border transition-all ${
-                            selectedDate === d.date
+                            activeDateKey === group.dateKey
                               ? "bg-[#4F6BFF] text-white border-[#4F6BFF] shadow-md shadow-[#4F6BFF]/20"
                               : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300"
                           }`}
                         >
-                          <span className="text-[10px] uppercase font-bold tracking-wider mb-1 opacity-80">{d.day}</span>
-                          <span className="text-lg font-black">{d.date}</span>
+                          <span className="text-[10px] uppercase font-bold tracking-wider mb-1 opacity-80">{group.day}</span>
+                          <span className="text-lg font-black">{group.dateNum}</span>
                         </button>
                         ))}
                       </div>
@@ -214,28 +250,28 @@ export default function ContactPage() {
                   </div>
 
                   {/* Time Slots */}
-                  {selectedDate && (
+                  {activeDateKey && (
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Available Slots (IST)</h4>
                       <div className="grid grid-cols-2 gap-3">
-                        {timeSlots.map((time: string, i: number) => (
+                        {timeSlots.map((slotObj: SlotOption, i: number) => (
                           <button
                             key={i}
-                            onClick={() => setSelectedSlot(time)}
+                            onClick={() => setSelectedSlot(slotObj)}
                             className={`py-3 rounded-xl border text-sm font-semibold transition-all ${
-                              selectedSlot === time
+                              selectedSlot?.iso === slotObj.iso
                                 ? "bg-[#4F6BFF] text-white border-[#4F6BFF] shadow-md shadow-[#4F6BFF]/20"
                                 : "bg-white dark:bg-[#111827] border-slate-200 dark:border-slate-800 text-[#4F6BFF] hover:border-[#4F6BFF] hover:bg-[#4F6BFF]/5"
                             }`}
                           >
-                            {time}
+                            {slotObj.formatted}
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {selectedDate && selectedSlot && (
+                  {activeDateKey && selectedSlot && (
                     <div className="pt-6 mt-4">
                       <Button
                         onClick={() => setShowDetailsForm(true)}
@@ -258,7 +294,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="text-lg font-bold text-slate-900 dark:text-white">Enter Details</h3>
                       <p className="text-xs text-slate-500 font-semibold text-[#4F6BFF]">
-                        {selectedDate} Oct, {selectedSlot} (IST)
+                        {selectedGroup?.dateNum} {selectedGroup?.monthShort}, {selectedSlot?.formatted} (IST)
                       </p>
                     </div>
                   </div>
