@@ -221,6 +221,27 @@ export interface VerifiedSenderOption {
   is_verified: boolean;
 }
 
+export interface EmailAIGeneratePayload {
+  prompt: string;
+  tone?: string;
+  category?: string;
+  action?: string;
+  current_subject?: string;
+  current_heading?: string;
+  current_body?: string;
+  current_cta_text?: string;
+  current_cta_link?: string;
+}
+
+export interface EmailAIGenerateResult {
+  subject: string;
+  heading: string;
+  body: string;
+  cta_text?: string;
+  cta_link?: string;
+  tone?: string;
+}
+
 export interface EmailCampaignDetail extends EmailCampaignRow {
   html_body: string;
   reply_to: string;
@@ -456,6 +477,13 @@ export const api = {
   deleteEmailTemplate: (id: number) =>
     request<{ message: string }>(`/api/email-templates/${id}`, {
       method: "DELETE",
+    }),
+
+  /** AI Email Assistant: Generate or refine marketing email content. */
+  generateEmailWithAI: (payload: EmailAIGeneratePayload) =>
+    request<EmailAIGenerateResult>("/api/email-campaigns/ai-generate", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
 
   // ── Custom Sending Domains endpoints ───────────────────────────────────────

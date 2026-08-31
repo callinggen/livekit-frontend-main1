@@ -13,8 +13,10 @@ const ReactQuill = dynamic(() => import("react-quill-new"), {
     </div>
   ),
 });
+
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
+import AIAssistantModal from "@/components/email/AIAssistantModal";
 import {
   ArrowLeft,
   Upload,
@@ -29,20 +31,27 @@ import {
   LayoutTemplate,
   Sparkles,
   ChevronDown,
-  Check,
-  Building2,
-  Tag,
   Globe,
+  Smartphone,
+  Monitor,
+  CheckCircle2,
+  Wand2,
+  Zap,
 } from "lucide-react";
 import {
   api,
   EmailContactItem,
   EmailMarketingTemplate,
   VerifiedSenderOption,
+  EmailAIGenerateResult,
 } from "@/lib/api";
 
 // ── Personalization Resolver for Live Preview ───────────────────────────────
-function resolvePlaceholders(html: string, title?: string, subtitle: string = "AI Voice Calling & Automation Platform"): string {
+function resolvePlaceholders(
+  html: string,
+  title?: string,
+  subtitle: string = "AI Voice Calling & Automation Platform"
+): string {
   if (!html) return "";
   const resolved = html
     .replace(/\{\{name\}\}/gi, "[Client Name]")
@@ -64,18 +73,18 @@ function resolvePlaceholders(html: string, title?: string, subtitle: string = "A
     img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
     @media screen and (max-width: 620px) {
       .container { width: 100% !important; border-radius: 0 !important; }
-      .content-padding { padding: 24px 18px !important; }
+      .content-padding { padding: 20px 16px !important; }
     }
   </style>
 </head>
-<body style="margin: 0; padding: 36px 10px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #334155; -webkit-font-smoothing: antialiased; line-height: 1.6;">
+<body style="margin: 0; padding: 24px 8px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #334155; -webkit-font-smoothing: antialiased; line-height: 1.6;">
   <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc;">
     <tr>
       <td align="center">
         <table role="presentation" class="container" width="560" border="0" cellspacing="0" cellpadding="0" style="max-width: 560px; width: 100%; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06); text-align: left;">
           <tr>
-            <td style="background-color: #ffffff; padding: 28px 32px 20px 32px; text-align: center; border-bottom: 2px solid #2563eb;">
-              <div style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
+            <td style="background-color: #ffffff; padding: 24px 28px 18px 28px; text-align: center; border-bottom: 2px solid #2563eb;">
+              <div style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
                 Calling<span style="color: #2563eb;">Gen</span>
               </div>
               <div style="font-size: 11px; color: #64748b; margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 600;">
@@ -84,13 +93,13 @@ function resolvePlaceholders(html: string, title?: string, subtitle: string = "A
             </td>
           </tr>
           <tr>
-            <td class="content-padding" style="padding: 32px 32px 28px 32px; font-size: 14.5px; color: #334155; line-height: 1.65;">
+            <td class="content-padding" style="padding: 28px 28px 24px 28px; font-size: 14.5px; color: #334155; line-height: 1.65;">
               ${title ? `<h1 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 18px 0; line-height: 1.35; letter-spacing: -0.3px;">${title}</h1>` : ""}
               ${resolved}
             </td>
           </tr>
           <tr>
-            <td style="background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #f1f5f9; text-align: center;">
+            <td style="background-color: #f8fafc; padding: 18px 28px; border-top: 1px solid #f1f5f9; text-align: center;">
               <p style="margin: 0 0 4px 0; font-size: 12px; color: #64748b;">
                 &copy; 2026 CallingGen Inc. All rights reserved.
               </p>
@@ -105,67 +114,6 @@ function resolvePlaceholders(html: string, title?: string, subtitle: string = "A
   </table>
 </body>
 </html>`;
-}
-
-// ── Clean Desktop HTML email preview modal ──────────────────────────────────
-function PreviewModal({
-  html,
-  subject,
-  onClose,
-}: {
-  html: string;
-  subject: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-          <div className="flex items-center gap-2.5">
-            <Eye className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-            <span className="text-base font-bold text-zinc-900 dark:text-white">
-              Campaign Live Preview
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-white transition"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Subject preview bar */}
-        <div className="px-6 py-3 border-b border-zinc-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 flex items-center gap-2 text-xs">
-          <span className="font-semibold text-zinc-500 shrink-0">Subject:</span>
-          <span className="font-mono text-zinc-700 dark:text-zinc-300 truncate">
-            {resolvePlaceholders(subject) || "(No subject provided)"}
-          </span>
-        </div>
-
-        {/* Content iframe */}
-        <div className="flex-1 overflow-y-auto p-5 bg-zinc-100/80 dark:bg-zinc-900 flex justify-center">
-          <div className="w-full max-w-3xl rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white shadow-sm overflow-hidden">
-            <iframe
-              srcDoc={resolvePlaceholders(html)}
-              className="w-full min-h-[500px] border-0 bg-white"
-              title="Email Preview"
-              sandbox="allow-same-origin"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end px-6 py-3.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 text-xs font-semibold rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition shadow-sm"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── CSV parser ───────────────────────────────────────────────────────────────
@@ -200,7 +148,14 @@ function NewEmailCampaignContent() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
 
-  // Form state
+  // AI Assistant Modal State
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiSuccessBadge, setAiSuccessBadge] = useState(false);
+
+  // Live Preview Device Mode
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+
+  // Form state (Driven by single state for instant real-time sync)
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [fromName, setFromName] = useState("");
@@ -224,7 +179,6 @@ function NewEmailCampaignContent() {
   const [csvError, setCsvError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -284,6 +238,21 @@ function NewEmailCampaignContent() {
     setSubject(tpl.subject);
     setHtmlBody(tpl.html_body);
     setShowTemplatePicker(false);
+  };
+
+  // Handle AI Generated Content Application
+  const handleApplyAIGenerated = (result: EmailAIGenerateResult) => {
+    setSubject(result.subject);
+    setHtmlBody(result.body);
+    if (!name.trim()) {
+      const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      setName(`AI Campaign - ${today}`);
+    }
+    if (!fromName.trim() && user?.company_name) {
+      setFromName(user.company_name);
+    }
+    setAiSuccessBadge(true);
+    setTimeout(() => setAiSuccessBadge(false), 5000);
   };
 
   // ── CSV Upload ──────────────────────────────────────────────────────────────
@@ -384,478 +353,628 @@ function NewEmailCampaignContent() {
   };
 
   return (
-    <DashboardShell title="New Email Campaign">
-      <div className="flex flex-col gap-6 p-1 sm:p-4 max-w-4xl mx-auto">
+    <DashboardShell title="Email Campaign Studio">
+      <div className="flex flex-col gap-5 p-1 sm:p-3 max-w-[1600px] mx-auto">
 
-        {/* ── Back row & Quick Template Switcher ── */}
-        <div className="flex items-center justify-between gap-4">
+        {/* ── Top Action Bar ── */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#0B0F19] p-3.5 sm:px-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition"
+            className="flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Email Campaigns
           </button>
 
-          <div className="relative">
+          <div className="flex items-center gap-3">
+            {/* ✨ AI Assistant Main Button */}
             <button
               type="button"
-              onClick={() => setShowTemplatePicker(!showTemplatePicker)}
-              className="flex items-center gap-2 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 px-3.5 py-2 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition"
+              id="ai-assistant-trigger-btn"
+              onClick={() => setShowAIModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/25 hover:shadow-lg hover:shadow-violet-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
-              <LayoutTemplate className="h-3.5 w-3.5" />
-              Choose from Template Library
-              <ChevronDown className="h-3 w-3 ml-1" />
+              <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />
+              <span>Generate with AI</span>
             </button>
 
-            {/* Template Dropdown Drawer */}
-            {showTemplatePicker && (
-              <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-2xl z-40 p-3 max-h-96 overflow-y-auto">
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800 mb-2">
-                  <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
-                    Select a Template
-                  </span>
-                  <button
-                    onClick={() => setShowTemplatePicker(false)}
-                    className="text-zinc-400 hover:text-zinc-600"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+            {/* Template Library Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+                className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition"
+              >
+                <LayoutTemplate className="h-3.5 w-3.5 text-violet-500" />
+                Template Library
+                <ChevronDown className="h-3 w-3 ml-0.5 text-zinc-400" />
+              </button>
 
-                <div className="space-y-1.5">
-                  {templateLibrary.map((t) => (
+              {/* Template Dropdown Drawer */}
+              {showTemplatePicker && (
+                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-2xl z-40 p-3 max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800 mb-2">
+                    <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                      Choose Template
+                    </span>
                     <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => handleSelectTemplate(t)}
-                      className="w-full text-left p-2.5 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-950/40 transition group flex flex-col gap-0.5"
+                      onClick={() => setShowTemplatePicker(false)}
+                      className="text-zinc-400 hover:text-zinc-600"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-zinc-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400">
-                          {t.name}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-                          {t.category}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-                        {t.subject}
-                      </span>
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  ))}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {templateLibrary.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleSelectTemplate(t)}
+                        className="w-full text-left p-2.5 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-950/40 transition group flex flex-col gap-0.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-zinc-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400">
+                            {t.name}
+                          </span>
+                          <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                            {t.category}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                          {t.subject}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
+        {/* AI Success Toast Notification */}
+        {aiSuccessBadge && (
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span>
+                <strong>AI Generation Applied!</strong> Subject, heading, and body have been populated. You can now edit any text freely on the left and see real-time preview on the right.
+              </span>
+            </div>
+            <button
+              onClick={() => setAiSuccessBadge(false)}
+              className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 p-1"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
         {loadingTemplate && (
-          <div className="p-3 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-xl text-xs text-violet-700 dark:text-violet-300 flex items-center gap-2 animate-pulse">
+          <div className="p-3 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-2xl text-xs text-violet-700 dark:text-violet-300 flex items-center gap-2 animate-pulse">
             <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
             Loading template content into composer…
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+        {/* ══════════════════════════════════════════════════════════════════════
+            TWO-PANEL MAIN WORKSPACE (Side-by-Side Split View)
+        ══════════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-          {/* ── Campaign Details Card ── */}
-          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
-                <Mail className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              </div>
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Campaign Details</h2>
-            </div>
-            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Campaign Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="campaign-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Product Launch Q3"
-                  className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
-                />
-              </div>
+          {/* ──────────────────────────────────────────────────────────────────
+              LEFT PANEL: EMAIL CONTENT EDITOR & CAMPAIGN CONFIGURATION
+          ────────────────────────────────────────────────────────────────── */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Email Subject <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="email-subject"
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. Special Announcement for {{name}} 🎉"
-                  className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
-                />
-              </div>
+              {/* 1. Campaign Details Card */}
+              <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                      <Mail className="h-3.5 w-3.5" />
+                    </div>
+                    <h2 className="text-sm font-bold text-zinc-900 dark:text-white">Campaign &amp; Subject Details</h2>
+                  </div>
+                  <span className="text-[11px] text-zinc-400">Step 1 of 3</span>
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Sender / From Name
-                </label>
-                <input
-                  id="from-name"
-                  type="text"
-                  value={fromName}
-                  onChange={(e) => setFromName(e.target.value)}
-                  placeholder="CallingGen Team"
-                  className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
-                />
-              </div>
+                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Campaign Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="campaign-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Q3 Promotional Blast"
+                      className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
+                    />
+                  </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Reply-To Email
-                </label>
-                <input
-                  id="reply-to"
-                  type="email"
-                  value={replyTo}
-                  onChange={(e) => setReplyTo(e.target.value)}
-                  placeholder="support@callinggen.in"
-                  className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
-                />
-              </div>
+                  <div className="flex flex-col gap-1 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        Email Subject Line <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[11px] text-violet-600 dark:text-violet-400 font-mono">
+                        Tokens supported: {"{{name}}"}, {"{{company}}"}
+                      </span>
+                    </div>
+                    <input
+                      id="email-subject"
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="e.g. Special 20% Discount for {{name}} 🎉"
+                      className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500 font-medium"
+                    />
+                  </div>
 
-              {/* Sending Domain & From Address */}
-              <div className="sm:col-span-2 pt-2 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                    <Globe className="h-3.5 w-3.5 text-violet-600" />
-                    Sending Domain &amp; From Address
-                  </label>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Sender Name
+                    </label>
+                    <input
+                      id="from-name"
+                      type="text"
+                      value={fromName}
+                      onChange={(e) => setFromName(e.target.value)}
+                      placeholder="CallingGen Team"
+                      className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Reply-To Email
+                    </label>
+                    <input
+                      id="reply-to"
+                      type="email"
+                      value={replyTo}
+                      onChange={(e) => setReplyTo(e.target.value)}
+                      placeholder="support@callinggen.in"
+                      className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
+                    />
+                  </div>
+
+                  {/* Sending Domain & From Address */}
+                  <div className="sm:col-span-2 pt-2 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-violet-600" />
+                        Outbound Sending Gateway
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => router.push("/email-campaign")}
+                        className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium"
+                      >
+                        Sending Domains &rarr;
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <select
+                          value={selectedSenderDomain}
+                          onChange={(e) => setSelectedSenderDomain(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white font-medium"
+                        >
+                          <option value="default">Default Platform Domain (CallingGen)</option>
+                          {verifiedSenders
+                            .filter((s) => !s.is_default)
+                            .map((s) => (
+                              <option key={s.domain} value={s.domain}>
+                                {s.domain} (Verified Custom Domain)
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {selectedSenderDomain !== "default" ? (
+                        <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-1.5">
+                          <input
+                            type="text"
+                            value={customSenderPrefix}
+                            onChange={(e) => setCustomSenderPrefix(e.target.value)}
+                            placeholder="info"
+                            className="bg-transparent text-xs text-zinc-900 dark:text-white font-mono outline-none w-24 text-right font-medium"
+                          />
+                          <span className="text-zinc-500 dark:text-zinc-400 font-mono text-xs font-semibold">
+                            @{selectedSenderDomain}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-1.5 rounded-xl border border-zinc-200/60 dark:border-zinc-800 truncate">
+                          noreply@callinggen.in (Default)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* 2. Email Content Editor Card */}
+              <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                      <FileText className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-zinc-900 dark:text-white">Email Content Editor</h2>
+                    </div>
+                  </div>
+
+                  {/* Personalization Badges & Quick AI Refinement Trigger */}
+                  <div className="flex items-center flex-wrap gap-1.5">
+                    <span className="text-[11px] text-zinc-400 mr-1 hidden sm:inline">Insert:</span>
+                    <button
+                      type="button"
+                      onClick={() => setHtmlBody((prev) => prev + " {{name}} ")}
+                      className="px-2 py-0.5 text-xs font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
+                      title="Insert contact name"
+                    >
+                      + {"{{name}}"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHtmlBody((prev) => prev + " {{company}} ")}
+                      className="px-2 py-0.5 text-xs font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
+                      title="Insert company name"
+                    >
+                      + {"{{company}}"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHtmlBody((prev) => prev + " {{email}} ")}
+                      className="px-2 py-0.5 text-xs font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
+                      title="Insert contact email"
+                    >
+                      + {"{{email}}"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* AI Assistant Quick Banner inside editor */}
+                <div className="px-5 py-2.5 bg-gradient-to-r from-violet-50/80 via-indigo-50/50 to-purple-50/30 dark:from-violet-950/30 dark:via-indigo-950/20 dark:to-transparent border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-violet-800 dark:text-violet-300 font-medium">
+                    <Wand2 className="h-3.5 w-3.5 text-violet-600" />
+                    <span>Need inspiration or copy refinement?</span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => router.push("/email-campaign")}
-                    className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium"
+                    onClick={() => setShowAIModal(true)}
+                    className="text-xs font-bold text-violet-700 dark:text-violet-400 hover:text-violet-900 dark:hover:text-white flex items-center gap-1 transition"
                   >
-                    Manage Sending Domains &rarr;
+                    <span>✨ Open AI Assistant</span>
+                    <ChevronDown className="h-3 w-3 -rotate-90" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-5">
+                  <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                    <ReactQuill
+                      theme="snow"
+                      value={htmlBody}
+                      onChange={setHtmlBody}
+                      className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-[260px]"
+                      placeholder="Write or edit your email body content here..."
+                    />
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mt-2">
+                    Every edit made here immediately reflects in the live preview on the right.
+                  </p>
+                </div>
+              </section>
+
+              {/* 3. Recipients Card */}
+              <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                      <User className="h-3.5 w-3.5" />
+                    </div>
+                    <h2 className="text-sm font-bold text-zinc-900 dark:text-white">
+                      Recipients ({contacts.length} Contacts)
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-zinc-400">Step 2 of 3</span>
+                </div>
+
+                <div className="p-5 flex flex-col gap-4">
+                  {/* CSV Upload */}
                   <div>
-                    <select
-                      value={selectedSenderDomain}
-                      onChange={(e) => setSelectedSenderDomain(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                    <input
+                      type="file"
+                      ref={fileRef}
+                      accept=".csv,text/csv"
+                      onChange={handleCSVUpload}
+                      className="hidden"
+                      id="csv-file-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className="flex items-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/70 dark:border-zinc-700 dark:bg-zinc-900/50 px-5 py-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-violet-400 hover:bg-violet-50/40 dark:hover:border-violet-700 dark:hover:bg-violet-950/20 transition w-full justify-center"
                     >
-                      <option value="default">Default Platform Domain (CallingGen)</option>
-                      {verifiedSenders
-                        .filter((s) => !s.is_default)
-                        .map((s) => (
-                          <option key={s.domain} value={s.domain}>
-                            {s.domain} (Verified Custom Domain)
-                          </option>
-                        ))}
-                    </select>
+                      <Upload className="h-4 w-4 text-violet-500" />
+                      Upload Contacts CSV (.csv)
+                    </button>
+                    {csvError && (
+                      <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{csvError}</p>
+                    )}
                   </div>
 
-                  {selectedSenderDomain !== "default" ? (
-                    <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-1.5">
-                      <input
-                        type="text"
-                        value={customSenderPrefix}
-                        onChange={(e) => setCustomSenderPrefix(e.target.value)}
-                        placeholder="info"
-                        className="bg-transparent text-sm text-zinc-900 dark:text-white font-mono outline-none w-28 text-right font-medium"
-                      />
-                      <span className="text-zinc-500 dark:text-zinc-400 font-mono text-sm font-semibold">
-                        @{selectedSenderDomain}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 rounded-xl border border-zinc-200/60 dark:border-zinc-800">
-                      Sending via default verified gateway (noreply@callinggen.in)
+                  {/* Manual Add Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={manualName}
+                      onChange={(e) => setManualName(e.target.value)}
+                      placeholder="Recipient Name"
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addManual())}
+                      className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
+                    />
+                    <input
+                      type="email"
+                      value={manualEmail}
+                      onChange={(e) => setManualEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addManual())}
+                      className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
+                    />
+                    <button
+                      type="button"
+                      id="add-contact-btn"
+                      onClick={addManual}
+                      className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-700 transition"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {/* Contact list table */}
+                  {contacts.length > 0 && (
+                    <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden max-h-48 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-zinc-50 dark:bg-zinc-900/50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">#</th>
+                            <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">Name</th>
+                            <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">Email</th>
+                            <th className="px-3 py-1.5"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {contacts.map((c, i) => (
+                            <tr key={c.email} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                              <td className="px-3 py-1.5 text-zinc-400">{i + 1}</td>
+                              <td className="px-3 py-1.5 font-medium text-zinc-800 dark:text-zinc-200">{c.name}</td>
+                              <td className="px-3 py-1.5 text-zinc-500 dark:text-zinc-400">{c.email}</td>
+                              <td className="px-3 py-1.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => removeContact(c.email)}
+                                  className="text-zinc-400 hover:text-red-500 transition"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-          </section>
+              </section>
 
-          {/* ── Email Body Card with Dynamic Variable Injectors ── */}
-          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                  <FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Email Content</h2>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Customize your message. Click any variable badge to insert into text.
-                  </p>
-                </div>
-              </div>
-
-              {/* Personalization Quick Badges & Preview Button */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setHtmlBody((prev) => prev + " {{name}} ")}
-                  className="px-2 py-1 text-xs font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
-                  title="Insert contact's name"
-                >
-                  + {"{{name}}"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHtmlBody((prev) => prev + " {{company}} ")}
-                  className="px-2 py-1 text-xs font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
-                  title="Insert company name"
-                >
-                  + {"{{company}}"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHtmlBody((prev) => prev + " {{email}} ")}
-                  className="px-2 py-1 text-xs font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
-                  title="Insert contact's email"
-                >
-                  + {"{{email}}"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition ml-2 shadow-sm"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  Preview
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700">
-                <ReactQuill
-                  theme="snow"
-                  value={htmlBody}
-                  onChange={setHtmlBody}
-                  className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white min-h-[220px]"
-                  placeholder="Paste or write your email content here..."
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* ── Contacts Card ── */}
-          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
-                  Recipients <span className="ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">({contacts.length} Contacts Added)</span>
-                </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Upload a CSV or add contacts manually. CSV header must contain <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">name</code> and <code className="bg-zinc-100 dark:bg-zinc-700 px-1 rounded">email</code>.
-                </p>
-              </div>
-            </div>
-            <div className="p-6 flex flex-col gap-5">
-              {/* CSV Upload */}
-              <div>
-                <input
-                  type="file"
-                  ref={fileRef}
-                  accept=".csv,text/csv"
-                  onChange={handleCSVUpload}
-                  className="hidden"
-                  id="csv-file-input"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  className="flex items-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/70 dark:border-zinc-700 dark:bg-zinc-900/50 px-5 py-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-violet-400 hover:bg-violet-50/40 dark:hover:border-violet-700 dark:hover:bg-violet-950/20 transition w-full justify-center"
-                >
-                  <Upload className="h-4 w-4 text-violet-500" />
-                  Upload Contacts CSV (.csv)
-                </button>
-                {csvError && (
-                  <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{csvError}</p>
-                )}
-              </div>
-
-              {/* Manual Add Input */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                  placeholder="Recipient Name"
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addManual())}
-                  className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
-                />
-                <input
-                  type="email"
-                  value={manualEmail}
-                  onChange={(e) => setManualEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addManual())}
-                  className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white dark:placeholder-zinc-500"
-                />
-                <button
-                  type="button"
-                  id="add-contact-btn"
-                  onClick={addManual}
-                  className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition"
-                >
-                  Add
-                </button>
-              </div>
-
-              {/* Contact list */}
-              {contacts.length > 0 && (
-                <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden max-h-64 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-zinc-50 dark:bg-zinc-900/50 sticky top-0">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-500">#</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-500">Name</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-500">Email</th>
-                        <th className="px-4 py-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                      {contacts.map((c, i) => (
-                        <tr key={c.email} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
-                          <td className="px-4 py-2 text-xs text-zinc-400">{i + 1}</td>
-                          <td className="px-4 py-2 font-medium text-zinc-800 dark:text-zinc-200">{c.name}</td>
-                          <td className="px-4 py-2 text-zinc-500 dark:text-zinc-400">{c.email}</td>
-                          <td className="px-4 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => removeContact(c.email)}
-                              className="text-zinc-400 hover:text-red-500 transition"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* ── Schedule Card ── */}
-          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <Send className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Delivery Schedule</h2>
-            </div>
-            <div className="p-6 flex flex-col gap-4">
-              <div className="flex gap-4">
-                {(["now", "later"] as const).map((mode) => (
-                  <label
-                    key={mode}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-5 py-3 transition ${
-                      scheduleMode === mode
-                        ? "border-violet-500 bg-violet-50 dark:bg-violet-900/20"
-                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="scheduleMode"
-                      value={mode}
-                      checked={scheduleMode === mode}
-                      onChange={() => setScheduleMode(mode)}
-                      className="accent-violet-600"
-                    />
-                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                      {mode === "now" ? "Send immediately through Resend" : "Schedule for a future date"}
-                    </span>
-                  </label>
-                ))}
-              </div>
-
-              {scheduleMode === "later" && (
-                <div className="flex flex-col sm:flex-row gap-4 mt-2">
-                  <div className="flex flex-col gap-1.5 flex-1">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Date</label>
-                    <input
-                      type="date"
-                      id="schedule-date"
-                      value={scheduleDate}
-                      onChange={(e) => setScheduleDate(e.target.value)}
-                      className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
-                    />
+              {/* 4. Delivery Schedule Card */}
+              <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-sm overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                      <Send className="h-3.5 w-3.5" />
+                    </div>
+                    <h2 className="text-sm font-bold text-zinc-900 dark:text-white">Delivery Schedule</h2>
                   </div>
-                  <div className="flex flex-col gap-1.5 flex-1">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Time</label>
-                    <input
-                      type="time"
-                      id="schedule-time"
-                      value={scheduleTime}
-                      onChange={(e) => setScheduleTime(e.target.value)}
-                      className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
-                    />
+                  <span className="text-[11px] text-zinc-400">Step 3 of 3</span>
+                </div>
+
+                <div className="p-5 flex flex-col gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(["now", "later"] as const).map((mode) => (
+                      <label
+                        key={mode}
+                        className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 transition ${
+                          scheduleMode === mode
+                            ? "border-violet-500 bg-violet-50/70 dark:bg-violet-900/20"
+                            : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="scheduleMode"
+                          value={mode}
+                          checked={scheduleMode === mode}
+                          onChange={() => setScheduleMode(mode)}
+                          className="accent-violet-600"
+                        />
+                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                          {mode === "now" ? "Send immediately via Resend" : "Schedule for future date/time"}
+                        </span>
+                      </label>
+                    ))}
                   </div>
+
+                  {scheduleMode === "later" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-semibold uppercase text-zinc-500">Date</label>
+                        <input
+                          type="date"
+                          id="schedule-date"
+                          value={scheduleDate}
+                          onChange={(e) => setScheduleDate(e.target.value)}
+                          className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900 focus:border-violet-500 outline-none dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-semibold uppercase text-zinc-500">Time</label>
+                        <input
+                          type="time"
+                          id="schedule-time"
+                          value={scheduleTime}
+                          onChange={(e) => setScheduleTime(e.target.value)}
+                          className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900 focus:border-violet-500 outline-none dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Error Alert */}
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
                 </div>
               )}
-            </div>
-          </section>
 
-          {/* ── Error & Submit ── */}
-          {error && (
-            <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          )}
+              {/* Bottom Submit Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="rounded-xl border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="create-email-campaign-btn"
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition-all disabled:opacity-60"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {scheduleMode === "now" ? "Broadcasting…" : "Scheduling…"}
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      {scheduleMode === "now" ? "Create & Send Now" : "Schedule Campaign"}
+                    </>
+                  )}
+                </button>
+              </div>
 
-          <div className="flex justify-end gap-3 pb-8">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="rounded-xl border border-zinc-200 dark:border-zinc-700 px-6 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
-            >
-              Cancel
-            </button>
-            <button
-              id="create-email-campaign-btn"
-              type="submit"
-              disabled={submitting}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition-all disabled:opacity-60"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {scheduleMode === "now" ? "Broadcasting via Resend…" : "Creating…"}
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  {scheduleMode === "now" ? "Create & Send Now" : "Schedule Campaign"}
-                </>
-              )}
-            </button>
+            </form>
           </div>
-        </form>
 
-        {/* ── Preview Modal ── */}
-        {showPreview && (
-          <PreviewModal
-            html={htmlBody}
-            subject={subject}
-            onClose={() => setShowPreview(false)}
-          />
-        )}
+          {/* ──────────────────────────────────────────────────────────────────
+              RIGHT PANEL: SIDE-BY-SIDE REAL-TIME LIVE TEMPLATE PREVIEW
+          ────────────────────────────────────────────────────────────────── */}
+          <div className="lg:col-span-5 sticky top-6 space-y-3">
+            <div className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#0B0F19] shadow-lg overflow-hidden flex flex-col">
+              
+              {/* Preview Controls Bar */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/60">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  <span className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
+                    Live Template Preview
+                  </span>
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                </div>
+
+                {/* Device Viewport Toggle (Desktop / Mobile) */}
+                <div className="flex items-center bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice("desktop")}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                      previewDevice === "desktop"
+                        ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                    title="Desktop Preview"
+                  >
+                    <Monitor className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Desktop</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice("mobile")}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                      previewDevice === "mobile"
+                        ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                    title="Mobile Preview"
+                  >
+                    <Smartphone className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Mobile</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Subject preview strip */}
+              <div className="px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 flex items-center gap-2 text-xs">
+                <span className="font-semibold text-zinc-400 shrink-0 text-[11px]">Subject:</span>
+                <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate font-mono text-[11.5px]">
+                  {resolvePlaceholders(subject) || "(No subject provided yet)"}
+                </span>
+              </div>
+
+              {/* Live Iframe Rendering Area */}
+              <div className="p-4 bg-zinc-100/70 dark:bg-zinc-950/70 flex justify-center min-h-[580px] max-h-[75vh] overflow-y-auto">
+                <div
+                  className={`w-full transition-all duration-300 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white shadow-md ${
+                    previewDevice === "mobile" ? "max-w-[360px] my-auto" : "max-w-full"
+                  }`}
+                >
+                  <iframe
+                    srcDoc={resolvePlaceholders(htmlBody)}
+                    className="w-full min-h-[540px] border-0 bg-white"
+                    title="Real-Time Email Live Preview"
+                    sandbox="allow-same-origin"
+                  />
+                </div>
+              </div>
+
+              {/* Preview Footer note */}
+              <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+                <span>Personalization tokens automatically preview as mock data</span>
+                <span className="font-medium text-violet-600 dark:text-violet-400">Instant Sync &bull; 60fps</span>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        {/* ── AI Assistant Interactive Modal ── */}
+        <AIAssistantModal
+          isOpen={showAIModal}
+          onClose={() => setShowAIModal(false)}
+          onApplyGenerated={handleApplyAIGenerated}
+          currentSubject={subject}
+          currentBody={htmlBody}
+        />
 
       </div>
     </DashboardShell>
@@ -864,11 +983,11 @@ function NewEmailCampaignContent() {
 
 export default function NewEmailCampaignPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading campaign composer…</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading campaign studio…</div>}>
       <NewEmailCampaignContent />
     </Suspense>
   );
 }
 
 // ── Default HTML fallback template ──────────────────────────────────────────
-const DEFAULT_TEMPLATE = `<h2><strong>Special Announcement</strong></h2><p><br></p><p>Hi {{name}},</p><p><br></p><p>We are excited to share our latest updates and solutions with you from {{company}}.</p><p><br></p><p><a href="#" rel="noopener noreferrer" target="_blank">Click here to learn more</a></p><p><br></p><p>Best regards,</p><p><strong>The {{company}} Team</strong></p>`;
+const DEFAULT_TEMPLATE = `<h2><strong>Special Announcement</strong></h2><p><br></p><p>Hi {{name}},</p><p><br></p><p>We are excited to share our latest updates and solutions with you from {{company}}.</p><p><br></p><p style="text-align: center;"><a href="#" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Learn More &amp; Get Started &rarr;</a></p><p><br></p><p>Best regards,</p><p><strong>The {{company}} Team</strong></p>`;
