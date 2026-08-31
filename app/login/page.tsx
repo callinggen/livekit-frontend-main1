@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertCircle, ArrowRight, Lock, Mail, Phone, Sparkles, Loader2, Sun, Moon, PhoneCall } from "lucide-react";
+import { AlertCircle, ArrowRight, Lock, Mail, Phone, Sparkles, Loader2, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import ForgotPasswordModal from "@/components/ForgotPasswordModal";
@@ -15,6 +15,7 @@ export default function LoginPage() {
   // Form State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // UI State
   const [error, setError] = useState("");
@@ -120,14 +121,22 @@ export default function LoginPage() {
                 <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   id="login-password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
                   disabled={isLoading}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F19] py-3.5 pl-11 pr-4 text-sm text-slate-900 dark:text-white outline-none transition focus:border-[#4F6BFF] focus:ring-2 focus:ring-[#4F6BFF]/20 disabled:opacity-50 placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F19] py-3.5 pl-11 pr-11 text-sm text-slate-900 dark:text-white outline-none transition focus:border-[#4F6BFF] focus:ring-2 focus:ring-[#4F6BFF]/20 disabled:opacity-50 placeholder:text-slate-400 dark:placeholder:text-slate-600"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors focus:outline-none"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 

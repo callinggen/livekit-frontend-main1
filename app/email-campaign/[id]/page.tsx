@@ -20,6 +20,33 @@ import {
 } from "lucide-react";
 import { api, EmailCampaignDetail } from "@/lib/api";
 
+function formatPreviewHtml(html: string): string {
+  if (!html) return "";
+  if (html.includes("<!DOCTYPE") || html.includes("<html")) {
+    return html;
+  }
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #334155;
+      line-height: 1.6;
+      background-color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
+</head>
+<body>
+  ${html}
+</body>
+</html>`;
+}
+
 // ── Preview modal ────────────────────────────────────────────────────────────
 function PreviewModal({ html, onClose }: { html: string; onClose: () => void }) {
   return (
@@ -36,7 +63,7 @@ function PreviewModal({ html, onClose }: { html: string; onClose: () => void }) 
         </div>
         <div className="overflow-y-auto max-h-[70vh] p-4">
           <iframe
-            srcDoc={html}
+            srcDoc={formatPreviewHtml(html)}
             className="w-full min-h-[400px] border-0 rounded-lg"
             title="Email Preview"
             sandbox="allow-same-origin"
