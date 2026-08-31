@@ -136,6 +136,7 @@ export interface EmailCampaignCreatePayload {
   subject: string;
   html_body: string;
   from_name?: string;
+  from_email?: string;
   reply_to?: string;
   schedule_date?: string;
   schedule_time?: string;
@@ -155,6 +156,75 @@ export interface EmailCampaignRow {
   sent: number;
   failed: number;
   pending: number;
+}
+
+export interface EmailMarketingTemplate {
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  subject: string;
+  html_body: string;
+  preview_text?: string | null;
+  is_system: boolean;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmailTemplateCreatePayload {
+  name: string;
+  category: string;
+  description?: string;
+  subject: string;
+  html_body: string;
+  preview_text?: string;
+}
+
+export interface DnsRecordItem {
+  record: string;
+  type: string;
+  name: string;
+  value: string;
+  ttl?: string;
+  priority?: number | null;
+  status?: string;
+  dns_verified?: boolean;
+  observed_value?: string | null;
+}
+
+export interface CustomEmailDomain {
+  id: number;
+  domain: string;
+  resend_domain_id?: string | null;
+  status: string;
+  is_verified: boolean;
+  sending_enabled: boolean;
+  region: string;
+  dns_records?: DnsRecordItem[];
+  last_checked_at?: string | null;
+  verified_at?: string | null;
+  error_message?: string | null;
+  created_at?: string;
+}
+
+export interface DnsVerificationResponse {
+  domain_id: number;
+  domain: string;
+  status: string;
+  is_verified: boolean;
+  sending_enabled: boolean;
+  all_dns_matched: boolean;
+  dns_records: DnsRecordItem[];
+  message: string;
+}
+
+export interface VerifiedSenderOption {
+  email: string;
+  display_name: string;
+  domain: string;
+  is_default: boolean;
+  is_verified: boolean;
 }
 
 export interface EmailCampaignDetail extends EmailCampaignRow {
@@ -365,6 +435,66 @@ export const api = {
     request<{ message: string }>(`/api/email-campaigns/${id}`, {
       method: "DELETE",
     }),
+
+  // ── Email Marketing Template endpoints ─────────────────────────────────────
+
+  /** List all marketing templates with optional category & search filter. */
+  getEmailTemplates: (category?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (category && category.toLowerCase() !== "all") params.set("category", category);
+    if (search && search.trim()) params.set("search", search.trim());
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return request<EmailMarketingTemplate[]>(`/api/email-templates${qs}`);
+  },
+
+  /** Get full detail of a single email marketing template. */
+  getEmailTemplate: (id: number) =>
+    request<EmailMarketingTemplate>(`/api/email-templates/${id}`),
+
+  /** Create a new custom marketing template. */
+  createEmailTemplate: (payload: EmailTemplateCreatePayload) =>
+    request<EmailMarketingTemplate>("/api/email-templates", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Delete a custom marketing template. */
+  deleteEmailTemplate: (id: number) =>
+    request<{ message: string }>(`/api/email-templates/${id}`, {
+      method: "DELETE",
+    }),
+
+  // ── Custom Sending Domains endpoints ───────────────────────────────────────
+
+  /** List all custom sending domains for the user. */
+  getCustomDomains: () => request<CustomEmailDomain[]>("/api/custom-domains"),
+
+  /** Add and register a new sending domain. */
+  createCustomDomain: (payload: { domain: string; region?: string }) =>
+    request<CustomEmailDomain>("/api/custom-domains", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Get single custom domain details with latest DNS configuration. */
+  getCustomDomain: (id: number) =>
+    request<CustomEmailDomain>(`/api/custom-domains/${id}`),
+
+  /** Run server-side DNS verification check on domain. */
+  verifyCustomDomain: (id: number) =>
+    request<DnsVerificationResponse>(`/api/custom-domains/${id}/verify`, {
+      method: "POST",
+    }),
+
+  /** Delete custom sending domain. */
+  deleteCustomDomain: (id: number) =>
+    request<{ message: string }>(`/api/custom-domains/${id}`, {
+      method: "DELETE",
+    }),
+
+  /** Get verified sender options for Email Marketing campaign dropdown. */
+  getVerifiedSenders: () =>
+    request<VerifiedSenderOption[]>("/api/custom-domains/verified-senders"),
 
   /** Create a Razorpay payment order. */
   createPaymentOrder: (planName: string) =>
