@@ -8,7 +8,7 @@ import "react-quill-new/dist/quill.snow.css";
 const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,
   loading: () => (
-    <div className="h-64 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl animate-pulse text-zinc-400 text-xs">
+    <div className="h-60 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl animate-pulse text-zinc-400 text-xs">
       Loading Editor...
     </div>
   ),
@@ -56,7 +56,7 @@ function resolveTextTokens(text: string): string {
     .replace(/\{\{email\}\}/gi, "[client@email.com]");
 }
 
-// ── Full HTML Document Formatter (for the Iframe Preview only) ─────────────
+// ── Full HTML Document Formatter (Fluid 100% Scalable for Real-time Preview) ──
 function formatEmailDocumentHtml(
   bodyHtml: string,
   title?: string,
@@ -75,47 +75,54 @@ function formatEmailDocumentHtml(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    * { box-sizing: border-box; }
     body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
-    @media screen and (max-width: 620px) {
-      .container { width: 100% !important; border-radius: 0 !important; }
-      .content-padding { padding: 20px 16px !important; }
+    body {
+      margin: 0;
+      padding: 12px 10px;
+      background-color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #334155;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.55;
+      overflow-x: hidden;
     }
+    p { margin: 0 0 10px 0; }
+    ul { margin: 0 0 12px 0; padding-left: 20px; }
+    li { margin-bottom: 5px; }
+    h1, h2 { color: #0f172a; margin: 0 0 12px 0; font-weight: 700; }
+    h2 { font-size: 16.5px; line-height: 1.35; }
+    a { color: #2563eb; }
   </style>
 </head>
-<body style="margin: 0; padding: 28px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #334155; -webkit-font-smoothing: antialiased; line-height: 1.6;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc;">
+<body>
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px -3px rgba(15, 23, 42, 0.05); text-align: left;">
     <tr>
-      <td align="center">
-        <table role="presentation" class="container" width="580" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; width: 100%; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.05); text-align: left;">
-          <tr>
-            <td style="background-color: #ffffff; padding: 26px 32px 20px 32px; text-align: center; border-bottom: 2px solid #2563eb;">
-              <div style="font-size: 25px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
-                Calling<span style="color: #2563eb;">Gen</span>
-              </div>
-              <div style="font-size: 11px; color: #64748b; margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 600;">
-                ${subtitle}
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td class="content-padding" style="padding: 32px 32px 28px 32px; font-size: 15px; color: #334155; line-height: 1.68;">
-              ${title ? `<h1 style="color: #0f172a; font-size: 21px; font-weight: 700; margin: 0 0 20px 0; line-height: 1.35; letter-spacing: -0.3px;">${title}</h1>` : ""}
-              ${resolved}
-            </td>
-          </tr>
-          <tr>
-            <td style="background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #f1f5f9; text-align: center;">
-              <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b;">
-                &copy; 2026 CallingGen Inc. All rights reserved.
-              </p>
-              <p style="margin: 0; font-size: 11px; color: #94a3b8;">
-                Sent via <a href="https://callinggen.in" style="color: #2563eb; text-decoration: none; font-weight: 600;">CallingGen</a> &bull; <a href="#" style="color: #94a3b8; text-decoration: underline;">Unsubscribe</a>
-              </p>
-            </td>
-          </tr>
-        </table>
+      <td style="background-color: #ffffff; padding: 18px 20px 14px 20px; text-align: center; border-bottom: 2px solid #2563eb;">
+        <div style="font-size: 21px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
+          Calling<span style="color: #2563eb;">Gen</span>
+        </div>
+        <div style="font-size: 10px; color: #64748b; margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600;">
+          ${subtitle}
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 20px 20px 16px 20px; font-size: 13.5px; color: #334155; line-height: 1.55;">
+        ${title ? `<h1 style="color: #0f172a; font-size: 17px; font-weight: 700; margin: 0 0 14px 0; line-height: 1.35;">${title}</h1>` : ""}
+        ${resolved}
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color: #f8fafc; padding: 14px 20px; border-top: 1px solid #f1f5f9; text-align: center;">
+        <p style="margin: 0 0 3px 0; font-size: 11px; color: #64748b;">
+          &copy; 2026 CallingGen Inc. All rights reserved.
+        </p>
+        <p style="margin: 0; font-size: 10.5px; color: #94a3b8;">
+          Sent via <a href="https://callinggen.in" style="color: #2563eb; text-decoration: none; font-weight: 600;">CallingGen</a> &bull; <a href="#" style="color: #94a3b8; text-decoration: underline;">Unsubscribe</a>
+        </p>
       </td>
     </tr>
   </table>
@@ -371,20 +378,20 @@ function NewEmailCampaignContent() {
 
   return (
     <DashboardShell title="Email Marketing Studio">
-      <div className="flex flex-col gap-4 max-w-[1760px] mx-auto w-full px-1 sm:px-3 py-1">
+      <div className="flex flex-col gap-3.5 max-w-[1760px] mx-auto w-full px-1 sm:px-2 py-0.5">
 
         {/* ══════════════════════════════════════════════════════════════════════
             1. TOP NAVBAR / STUDIO ACTION BAR
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-white/90 dark:bg-[#0E131F]/90 backdrop-blur-md px-5 py-3 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#0E131F] px-4 py-2.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm">
           
           {/* Left: Breadcrumbs & Campaign Name */}
-          <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+          <div className="flex items-center gap-2.5 flex-1 min-w-[280px]">
             <button
               onClick={() => router.push("/email-campaign")}
-              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition px-2.5 py-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition px-2 py-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-3.5 w-3.5" />
               <span>Back</span>
             </button>
             <div className="h-4 w-[1px] bg-zinc-200 dark:bg-zinc-800" />
@@ -400,13 +407,13 @@ function NewEmailCampaignContent() {
           </div>
 
           {/* Right: Template Picker, AI Assistant & Launch Button */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {/* Template Library Dropdown */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowTemplatePicker(!showTemplatePicker)}
-                className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/60 px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition"
+                className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition"
               >
                 <LayoutTemplate className="h-3.5 w-3.5 text-violet-500" />
                 <span>{activeTemplateName ? activeTemplateName : "Templates"}</span>
@@ -414,8 +421,8 @@ function NewEmailCampaignContent() {
               </button>
 
               {showTemplatePicker && (
-                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-2xl z-50 p-2.5 max-h-96 overflow-y-auto">
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800 mb-1.5 px-2">
+                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-2xl z-50 p-2 max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800 mb-1 px-2">
                     <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
                       Select Template
                     </span>
@@ -458,7 +465,7 @@ function NewEmailCampaignContent() {
               type="button"
               id="ai-assistant-header-btn"
               onClick={() => setShowAIModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
               <span>AI Assistant</span>
@@ -469,7 +476,7 @@ function NewEmailCampaignContent() {
               type="button"
               disabled={submitting}
               onClick={() => handleSubmit()}
-              className="flex items-center gap-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900 text-white px-4 py-2 text-xs font-bold shadow-sm transition disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900 text-white px-3.5 py-1.5 text-xs font-bold shadow-sm transition disabled:opacity-60"
             >
               {submitting ? (
                 <>
@@ -488,11 +495,11 @@ function NewEmailCampaignContent() {
 
         {/* AI Success Notification Toast */}
         {aiSuccessBadge && (
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>
-                <strong>AI Generation Applied!</strong> Subject, heading, and body have been populated. You can edit any word on the left and see real-time updates in the right preview.
+                <strong>AI Copy Applied!</strong> Subject, heading, and body have been populated. You can edit any word on the left and see real-time updates in the right preview.
               </span>
             </div>
             <button
@@ -507,35 +514,35 @@ function NewEmailCampaignContent() {
         {/* ══════════════════════════════════════════════════════════════════════
             2. TWO-COLUMN SPLIT STUDIO (Editor Left | Live Preview Right)
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
           {/* ──────────────────────────────────────────────────────────────────
               LEFT COLUMN: EMAIL CONTENT COMPOSER & CAMPAIGN CONTROLS
           ────────────────────────────────────────────────────────────────── */}
-          <div className="lg:col-span-6 flex flex-col gap-4">
+          <div className="lg:col-span-6 flex flex-col gap-3.5">
 
             {/* Email Composer Card */}
-            <div className="rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-[#0E131F] shadow-sm overflow-hidden p-5 space-y-4">
+            <div className="rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-[#0E131F] shadow-sm overflow-hidden p-4 space-y-3">
               
               {/* Subject Input & Personalization Badges */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     Subject Line <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center gap-1">
-                    <span className="text-[10.5px] text-zinc-400 mr-1 hidden sm:inline">Add token:</span>
+                    <span className="text-[10px] text-zinc-400 mr-1 hidden sm:inline">Add token:</span>
                     <button
                       type="button"
                       onClick={() => setSubject((prev) => prev + " {{name}} ")}
-                      className="px-2 py-0.5 text-[10.5px] font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
+                      className="px-2 py-0.5 text-[10px] font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
                     >
                       + {"{{name}}"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setSubject((prev) => prev + " {{company}} ")}
-                      className="px-2 py-0.5 text-[10.5px] font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
+                      className="px-2 py-0.5 text-[10px] font-mono bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition"
                     >
                       + {"{{company}}"}
                     </button>
@@ -548,15 +555,15 @@ function NewEmailCampaignContent() {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g. Special Announcement for {{name}} from {{company}} 🎉"
-                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50/70 px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700/80 dark:bg-zinc-800/50 dark:text-white font-medium"
+                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition dark:border-zinc-700/80 dark:bg-zinc-800/50 dark:text-white font-medium"
                 />
               </div>
 
               {/* ✨ Integrated AI Assistant Inspiration Bar */}
-              <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-gradient-to-r from-violet-50/90 via-indigo-50/50 to-purple-50/30 dark:from-violet-950/40 dark:via-indigo-950/20 dark:to-transparent border border-violet-200/70 dark:border-violet-900/50">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm shadow-violet-500/25 shrink-0">
-                    <Sparkles className="h-4 w-4 text-amber-300" />
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-gradient-to-r from-violet-50/90 via-indigo-50/50 to-purple-50/30 dark:from-violet-950/40 dark:via-indigo-950/20 dark:to-transparent border border-violet-200/70 dark:border-violet-900/50">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm shadow-violet-500/25 shrink-0">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
                   </div>
                   <div>
                     <div className="text-xs font-bold text-violet-950 dark:text-violet-200 flex items-center gap-1.5">
@@ -567,7 +574,7 @@ function NewEmailCampaignContent() {
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-violet-700/80 dark:text-violet-400">
+                    <div className="text-[10.5px] text-violet-700/80 dark:text-violet-400">
                       Auto-generate or refine content tailored to your campaign
                     </div>
                   </div>
@@ -576,15 +583,15 @@ function NewEmailCampaignContent() {
                 <button
                   type="button"
                   onClick={() => setShowAIModal(true)}
-                  className="flex items-center gap-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3.5 py-1.5 shadow-sm transition active:scale-[0.98] shrink-0"
+                  className="flex items-center gap-1 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3 py-1 shadow-sm transition active:scale-[0.98] shrink-0"
                 >
-                  <Wand2 className="h-3.5 w-3.5" />
+                  <Wand2 className="h-3 w-3" />
                   <span>AI Prompt</span>
                 </button>
               </div>
 
               {/* Rich Text Editor */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     Email Body Content <span className="text-red-500">*</span>
@@ -593,21 +600,21 @@ function NewEmailCampaignContent() {
                     <button
                       type="button"
                       onClick={() => setHtmlBody((prev) => prev + " {{name}} ")}
-                      className="px-2 py-0.5 text-[10.5px] font-mono text-zinc-600 dark:text-zinc-400 hover:text-violet-600 transition"
+                      className="px-2 py-0.5 text-[10px] font-mono text-zinc-600 dark:text-zinc-400 hover:text-violet-600 transition"
                     >
                       + {"{{name}}"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setHtmlBody((prev) => prev + " {{company}} ")}
-                      className="px-2 py-0.5 text-[10.5px] font-mono text-zinc-600 dark:text-zinc-400 hover:text-violet-600 transition"
+                      className="px-2 py-0.5 text-[10px] font-mono text-zinc-600 dark:text-zinc-400 hover:text-violet-600 transition"
                     >
                       + {"{{company}}"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setHtmlBody((prev) => prev + " {{email}} ")}
-                      className="px-2 py-0.5 text-[10.5px] font-mono text-zinc-600 dark:text-zinc-400 hover:text-violet-600 transition"
+                      className="px-2 py-0.5 text-[10px] font-mono text-zinc-600 dark:text-zinc-400 hover:text-violet-600 transition"
                     >
                       + {"{{email}}"}
                     </button>
@@ -619,7 +626,7 @@ function NewEmailCampaignContent() {
                     theme="snow"
                     value={htmlBody}
                     onChange={setHtmlBody}
-                    className="bg-white dark:bg-[#0A0D14] text-zinc-900 dark:text-white min-h-[270px]"
+                    className="bg-white dark:bg-[#0A0D14] text-zinc-900 dark:text-white min-h-[250px]"
                     placeholder="Write or edit your email body content here..."
                   />
                 </div>
@@ -631,11 +638,11 @@ function NewEmailCampaignContent() {
             <div className="rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-[#0E131F] shadow-sm overflow-hidden">
               
               {/* Tab Navigation Header */}
-              <div className="flex items-center border-b border-zinc-100 dark:border-zinc-800 px-5 pt-3 gap-2 bg-zinc-50/50 dark:bg-zinc-900/30">
+              <div className="flex items-center border-b border-zinc-100 dark:border-zinc-800 px-4 pt-2.5 gap-2 bg-zinc-50/50 dark:bg-zinc-900/30">
                 <button
                   type="button"
                   onClick={() => setActiveConfigTab("recipients")}
-                  className={`flex items-center gap-2 pb-3 px-3 text-xs font-bold border-b-2 transition ${
+                  className={`flex items-center gap-1.5 pb-2.5 px-2.5 text-xs font-bold border-b-2 transition ${
                     activeConfigTab === "recipients"
                       ? "border-violet-600 text-violet-600 dark:text-violet-400"
                       : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
@@ -648,7 +655,7 @@ function NewEmailCampaignContent() {
                 <button
                   type="button"
                   onClick={() => setActiveConfigTab("sender")}
-                  className={`flex items-center gap-2 pb-3 px-3 text-xs font-bold border-b-2 transition ${
+                  className={`flex items-center gap-1.5 pb-2.5 px-2.5 text-xs font-bold border-b-2 transition ${
                     activeConfigTab === "sender"
                       ? "border-violet-600 text-violet-600 dark:text-violet-400"
                       : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
@@ -661,7 +668,7 @@ function NewEmailCampaignContent() {
                 <button
                   type="button"
                   onClick={() => setActiveConfigTab("schedule")}
-                  className={`flex items-center gap-2 pb-3 px-3 text-xs font-bold border-b-2 transition ${
+                  className={`flex items-center gap-1.5 pb-2.5 px-2.5 text-xs font-bold border-b-2 transition ${
                     activeConfigTab === "schedule"
                       ? "border-violet-600 text-violet-600 dark:text-violet-400"
                       : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
@@ -672,11 +679,11 @@ function NewEmailCampaignContent() {
                 </button>
               </div>
 
-              <div className="p-5">
+              <div className="p-4">
                 {/* 1. Recipients Tab */}
                 {activeConfigTab === "recipients" && (
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row items-center gap-2.5">
                       <input
                         type="file"
                         ref={fileRef}
@@ -688,10 +695,10 @@ function NewEmailCampaignContent() {
                       <button
                         type="button"
                         onClick={() => fileRef.current?.click()}
-                        className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-900/50 px-5 py-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-violet-400 hover:bg-violet-50/40 w-full sm:w-auto transition"
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-900/50 px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-violet-400 hover:bg-violet-50/40 w-full sm:w-auto transition"
                       >
                         <Upload className="h-3.5 w-3.5 text-violet-500" />
-                        <span>Upload Contacts (.csv)</span>
+                        <span>Upload CSV</span>
                       </button>
 
                       <div className="flex items-center gap-2 flex-1 w-full">
@@ -714,7 +721,7 @@ function NewEmailCampaignContent() {
                         <button
                           type="button"
                           onClick={addManual}
-                          className="rounded-xl bg-violet-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 transition shrink-0"
+                          className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 transition shrink-0"
                         >
                           Add
                         </button>
@@ -725,14 +732,14 @@ function NewEmailCampaignContent() {
 
                     {/* Contact list table */}
                     {contacts.length > 0 ? (
-                      <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden max-h-40 overflow-y-auto">
+                      <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden max-h-36 overflow-y-auto">
                         <table className="w-full text-xs">
                           <thead className="bg-zinc-50 dark:bg-zinc-900/60 sticky top-0">
                             <tr>
-                              <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">#</th>
-                              <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">Name</th>
-                              <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">Email</th>
-                              <th className="px-3 py-1.5"></th>
+                              <th className="px-3 py-1 text-left font-semibold text-zinc-500">#</th>
+                              <th className="px-3 py-1 text-left font-semibold text-zinc-500">Name</th>
+                              <th className="px-3 py-1 text-left font-semibold text-zinc-500">Email</th>
+                              <th className="px-3 py-1"></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -763,7 +770,7 @@ function NewEmailCampaignContent() {
 
                 {/* 2. Sender & Domain Tab */}
                 {activeConfigTab === "sender" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         Sender Name
@@ -773,7 +780,7 @@ function NewEmailCampaignContent() {
                         value={fromName}
                         onChange={(e) => setFromName(e.target.value)}
                         placeholder="CallingGen Team"
-                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
                       />
                     </div>
 
@@ -786,11 +793,11 @@ function NewEmailCampaignContent() {
                         value={replyTo}
                         onChange={(e) => setReplyTo(e.target.value)}
                         placeholder="support@callinggen.in"
-                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
                       />
                     </div>
 
-                    <div className="sm:col-span-2 flex flex-col gap-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="sm:col-span-2 flex flex-col gap-1 pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                           Sending Domain Gateway
@@ -798,17 +805,17 @@ function NewEmailCampaignContent() {
                         <button
                           type="button"
                           onClick={() => router.push("/email-campaign")}
-                          className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline font-medium"
+                          className="text-[10.5px] text-violet-600 dark:text-violet-400 hover:underline font-medium"
                         >
                           Domain Verification &rarr;
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <select
                           value={selectedSenderDomain}
                           onChange={(e) => setSelectedSenderDomain(e.target.value)}
-                          className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 focus:border-violet-500 outline-none dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white font-medium"
+                          className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-1.5 text-xs text-zinc-900 focus:border-violet-500 outline-none dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white font-medium"
                         >
                           <option value="default">Default Gateway (CallingGen)</option>
                           {verifiedSenders
@@ -827,14 +834,14 @@ function NewEmailCampaignContent() {
                               value={customSenderPrefix}
                               onChange={(e) => setCustomSenderPrefix(e.target.value)}
                               placeholder="info"
-                              className="bg-transparent text-xs text-zinc-900 dark:text-white font-mono outline-none w-20 text-right font-medium"
+                              className="bg-transparent text-xs text-zinc-900 dark:text-white font-mono outline-none w-16 text-right font-medium"
                             />
                             <span className="text-zinc-500 dark:text-zinc-400 font-mono text-xs font-semibold">
                               @{selectedSenderDomain}
                             </span>
                           </div>
                         ) : (
-                          <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-1.5 rounded-xl border border-zinc-200/60 dark:border-zinc-800 truncate">
+                          <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-1 rounded-xl border border-zinc-200/60 dark:border-zinc-800 truncate">
                             noreply@callinggen.in (Default)
                           </div>
                         )}
@@ -845,12 +852,12 @@ function NewEmailCampaignContent() {
 
                 {/* 3. Schedule Tab */}
                 {activeConfigTab === "schedule" && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {(["now", "later"] as const).map((mode) => (
                         <label
                           key={mode}
-                          className={`flex cursor-pointer items-center gap-2.5 rounded-2xl border p-3 transition ${
+                          className={`flex cursor-pointer items-center gap-2 rounded-xl border p-2.5 transition ${
                             scheduleMode === mode
                               ? "border-violet-500 bg-violet-50/70 dark:bg-violet-900/20"
                               : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
@@ -872,23 +879,23 @@ function NewEmailCampaignContent() {
                     </div>
 
                     {scheduleMode === "later" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                         <div className="flex flex-col gap-1">
-                          <label className="text-[11px] font-bold uppercase text-zinc-500">Date</label>
+                          <label className="text-[10.5px] font-bold uppercase text-zinc-500">Date</label>
                           <input
                             type="date"
                             value={scheduleDate}
                             onChange={(e) => setScheduleDate(e.target.value)}
-                            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs text-zinc-900 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
                           />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-[11px] font-bold uppercase text-zinc-500">Time</label>
+                          <label className="text-[10.5px] font-bold uppercase text-zinc-500">Time</label>
                           <input
                             type="time"
                             value={scheduleTime}
                             onChange={(e) => setScheduleTime(e.target.value)}
-                            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs text-zinc-900 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
                           />
                         </div>
                       </div>
@@ -901,7 +908,7 @@ function NewEmailCampaignContent() {
 
             {/* Error Alert */}
             {error && (
-              <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20 px-4 py-3 text-xs text-red-600 dark:text-red-400">
+              <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20 px-4 py-2.5 text-xs text-red-600 dark:text-red-400">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -910,68 +917,67 @@ function NewEmailCampaignContent() {
           </div>
 
           {/* ──────────────────────────────────────────────────────────────────
-              RIGHT COLUMN: CLEAN REAL-TIME LIVE EMAIL PREVIEW
+              RIGHT COLUMN: FULLY VISIBLE ZERO-SCROLL LIVE EMAIL PREVIEW
           ────────────────────────────────────────────────────────────────── */}
-          <div className="lg:col-span-6 sticky top-4 space-y-3">
-            <div className="rounded-3xl border border-zinc-200/80 bg-white dark:border-zinc-800 dark:bg-[#0E131F] shadow-xl overflow-hidden flex flex-col">
+          <div className="lg:col-span-6 sticky top-4">
+            <div className="rounded-3xl border border-zinc-200/80 bg-white dark:border-zinc-800 dark:bg-[#0E131F] shadow-lg overflow-hidden flex flex-col">
               
               {/* Clean Window Bar with macOS Dots & Status */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-900/80">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-900/80">
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 mr-2">
-                    <div className="h-3 w-3 rounded-full bg-red-400/80" />
-                    <div className="h-3 w-3 rounded-full bg-amber-400/80" />
-                    <div className="h-3 w-3 rounded-full bg-emerald-400/80" />
+                  <div className="flex items-center gap-1.5 mr-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-red-400/80" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-400/80" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
                   </div>
                   <span className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
                     Live Email Preview
                   </span>
                 </div>
 
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                  Instant Sync
+                  Live Sync
                 </span>
               </div>
 
               {/* Realistic Email Client Header (Subject, From, To) */}
-              <div className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 space-y-1 text-xs">
+              <div className="px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 space-y-0.5 text-xs">
                 <div className="flex items-start gap-2">
                   <span className="font-bold text-zinc-400 uppercase text-[10px] w-14 shrink-0 mt-0.5">Subject:</span>
-                  <span className="font-bold text-zinc-900 dark:text-white text-sm line-clamp-2">
+                  <span className="font-bold text-zinc-900 dark:text-white text-xs line-clamp-1">
                     {resolveTextTokens(subject) || "(Enter an email subject line...)"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                   <span className="font-bold text-zinc-400 uppercase text-[10px] w-14 shrink-0">From:</span>
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate text-[11px]">
                     {fromName || user?.company_name || "CallingGen Team"} &lt;{getComputedFromEmail() || "noreply@callinggen.in"}&gt;
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                   <span className="font-bold text-zinc-400 uppercase text-[10px] w-14 shrink-0">To:</span>
-                  <span className="text-zinc-600 dark:text-zinc-400 font-mono">
+                  <span className="text-zinc-600 dark:text-zinc-400 font-mono text-[10.5px]">
                     [Client Name] &lt;client@email.com&gt;
                   </span>
                 </div>
               </div>
 
-              {/* Centered Email Preview Frame */}
-              <div className="p-4 bg-zinc-100/70 dark:bg-zinc-950/70 flex justify-center min-h-[640px] max-h-[78vh] overflow-y-auto">
-                <div className="w-full max-w-[620px] rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white shadow-md my-auto">
-                  <iframe
-                    srcDoc={formatEmailDocumentHtml(htmlBody)}
-                    className="w-full min-h-[600px] border-0 bg-white"
-                    title="Live Template Preview"
-                    sandbox="allow-same-origin"
-                  />
-                </div>
+              {/* 100% Fluid Zero-Clipping Email Preview Iframe */}
+              <div className="p-2.5 bg-zinc-100/60 dark:bg-zinc-950/60 flex justify-center">
+                <iframe
+                  srcDoc={formatEmailDocumentHtml(htmlBody)}
+                  className="w-full border-0 bg-transparent rounded-xl"
+                  style={{ minHeight: "460px", height: "100%" }}
+                  title="Live Template Preview"
+                  sandbox="allow-same-origin"
+                />
               </div>
 
               {/* Preview Footer */}
-              <div className="px-5 py-2.5 bg-zinc-50 dark:bg-zinc-900/60 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
-                <span>Personalization tokens preview automatically</span>
-                <span className="font-semibold text-violet-600 dark:text-violet-400">60fps Real-Time Keystroke Sync</span>
+              <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[10.5px] text-zinc-500 dark:text-zinc-400">
+                <span>Tokens resolve automatically to demo values</span>
+                <span className="font-semibold text-violet-600 dark:text-violet-400">60fps Real-Time Sync</span>
               </div>
 
             </div>
