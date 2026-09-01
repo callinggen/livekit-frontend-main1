@@ -21,7 +21,7 @@ import {
 import { WhatsAppAutomationConfig, WhatsAppAutomationRule } from "./types";
 import AddMaterialModal, { MaterialItem } from "@/components/whatsapp/AddMaterialModal";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://localhost:8000");
 
 // Filter definitions matching the UI screenshots
 const FILTER_DEFINITIONS = {

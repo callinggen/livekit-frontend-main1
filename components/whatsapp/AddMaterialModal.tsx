@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
 export interface MaterialItem {
