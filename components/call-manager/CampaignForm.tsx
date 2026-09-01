@@ -263,7 +263,7 @@ export default function CampaignForm({
                       className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-2.5 text-xs font-medium focus:border-violet-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={disabled}
                     >
-                      {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
+                      {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((m) => (
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
