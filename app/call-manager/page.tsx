@@ -306,7 +306,14 @@ export default function CallManagerPage() {
       }
     } else if (formData.uploadSource === "single") {
       if (!formData.singleContactName?.trim()) newErrors.singleContactName = "Name is required.";
-      if (!formData.singleContactPhone?.trim()) newErrors.singleContactPhone = "Phone number is required.";
+      if (!formData.singleContactPhone?.trim()) {
+        newErrors.singleContactPhone = "Phone number is required.";
+      } else {
+        const digits = formData.singleContactPhone.replace(/\D/g, "");
+        if (digits.length < 10) {
+          newErrors.singleContactPhone = "Please enter a valid 10-digit phone number (e.g. 9876543210).";
+        }
+      }
     } else if (!fileUploaded || contacts.length === 0) {
       newErrors.upload = "Please upload a contact list.";
     }
