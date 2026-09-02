@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock, Globe, Phone } from "lucide-react";
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
+import WhatsAppAutomationConfigSection from "./WhatsAppAutomationConfigSection";
 import { CampaignFormData, UploadSourceType } from "./types";
 import { api, UserPhoneNumber } from "@/lib/api";
 
@@ -316,6 +317,12 @@ export default function CampaignForm({
               disabled={disabled}
             />
 
+          {/* WhatsApp Automation Section (Post-call automated follow-ups) */}
+          <WhatsAppAutomationConfigSection
+            value={formData.whatsappAutomation}
+            onChange={(whatsappAutomation) => onChange({ whatsappAutomation })}
+            disabled={disabled}
+          />
           </div>
         </div>
       </div>

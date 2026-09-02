@@ -24,6 +24,10 @@ import {
   CreditCard,
   ArrowUpCircle,
   Settings,
+  MessageSquare,
+  Send,
+  Layers,
+  History,
 } from "lucide-react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -37,6 +41,7 @@ const navItems = [
   { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
   { label: "Email Marketing", icon: Mail, href: "/email-campaign" },
+  { label: "WhatsApp", icon: MessageSquare, href: "/whatsapp" },
   { label: "Report", icon: FileText, href: "/report" },
   { label: "Buy Credits", icon: CreditCard, href: "/pricing" },
 ];
@@ -146,20 +151,24 @@ export default function DashboardShell({
           <nav className="space-y-0.5">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active = pathname === item.href;
+              const isWhatsApp = item.href === "/whatsapp";
+              const active = isWhatsApp ? pathname.startsWith("/whatsapp") : pathname === item.href;
+
               return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${active
-                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                <div key={item.label} className="space-y-0.5">
+                  <Link
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                      active
+                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20"
+                        : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                     }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                </Link>
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1">{item.label}</span>
+                  </Link>
+                </div>
               );
             })}
           </nav>

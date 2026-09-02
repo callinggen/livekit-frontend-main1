@@ -334,7 +334,6 @@ export default function CallManagerPage() {
     // Build contacts list from whichever source was used
     let contactList: ApiContact[] = [];
 
-
     if (formData.uploadSource === "single") {
       contactList = [{
         name: formData.singleContactName!.trim(),
@@ -391,6 +390,7 @@ export default function CallManagerPage() {
         selection_type: formData.selectionType,
         start_row: formData.startRow,
         end_row: formData.endRow,
+        whatsapp_automation: formData.whatsappAutomation,
         contacts: contactList,
         upload_source: formData.uploadSource,
         sheet_name: formData.uploadSource === "single"
