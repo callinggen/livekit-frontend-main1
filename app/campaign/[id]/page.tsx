@@ -6,17 +6,10 @@ import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
 import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
-<<<<<<< HEAD
-import { 
-  ArrowLeft, Calendar, User, FileText, CheckCircle2, 
-  XCircle, HelpCircle, PhoneCall, Zap, Award, MessageSquare, Send,
-  Clock, Database, PlayCircle, X, Phone
-=======
 import {
   ArrowLeft, Calendar, User, FileText, CheckCircle2,
   PhoneCall, Clock, Database, Zap, PlayCircle, X, Phone,
   XCircle, HelpCircle, Award, MessageSquare, Send
->>>>>>> b4767a6 (feat(frontend): update call manager layout, contact range selector, and in-app launch popup)
 } from "lucide-react";
 import { api, CampaignDetail } from "@/lib/api";
 
