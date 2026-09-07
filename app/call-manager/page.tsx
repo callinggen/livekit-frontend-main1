@@ -8,11 +8,25 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 import DashboardShell from "@/components/DashboardShell";
 import CampaignForm from "@/components/call-manager/CampaignForm";
-import LiveTracking from "@/components/call-manager/LiveTracking";
 import ContactsTable from "@/components/call-manager/ContactsTable";
-import { CampaignFormData, Contact, LiveTrackingStats, UploadSourceType } from "@/components/call-manager/types";
+import { CampaignFormData, Contact, UploadSourceType } from "@/components/call-manager/types";
+import { CheckCircle2, X, ArrowRight, Bot, Clock, Users, Sparkles, Layers } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+
+interface LaunchSuccessModalData {
+  campaignId: number;
+  campaignName: string;
+  agentName: string;
+  totalContacts: number;
+  remainingContacts?: number;
+  scheduleDate: string;
+  scheduleTime: string;
+  selectionType: "all" | "range";
+  startRow?: number;
+  endRow?: number;
+  uploadSource: string;
+}
 
 /** Returns current date/time in IST as { date: "YYYY-MM-DD", time: "HH:MM" } */
 function getISTNow() {
@@ -59,17 +73,8 @@ export default function CallManagerPage() {
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
 
-  const [liveStats, setLiveStats] = useState<LiveTrackingStats>({
-    registry: 0,
-    standby: 0,
-    dialer: 0,
-    analysis: 0,
-    completed: 0,
-    failed: 0,
-  });
+  const [launchSuccessData, setLaunchSuccessData] = useState<LaunchSuccessModalData | null>(null);
   const [launching, setLaunching] = useState(false);
-  // BUG-007: Ref to store the polling interval so we can clear it
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Agent State
   const [fetchedAgents, setFetchedAgents] = useState<{ id: number; name: string; language: string; voice: string; script: string }[]>([]);
@@ -102,60 +107,6 @@ export default function CallManagerPage() {
     }
   }, [isLoggedIn]);
 
-  // Stop polling on unmount
-  useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []);
-
-  // BUG-007: Start polling /live endpoint every 5s after campaign launch
-  const startLivePolling = (campaignId: number) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const live = await api.getCampaignLive(campaignId);
-        setLiveStats(prev => {
-          if (prev.completed !== live.completed) {
-            refreshCredits();
-          }
-          return {
-            registry: live.registry,
-            standby: live.standby,
-            dialer: live.dialer,
-            analysis: live.analysis,
-            completed: live.completed,
-            failed: live.failed,
-            campaign_status: live.campaign_status,
-            schedule_date: live.schedule_date,
-            schedule_time: live.schedule_time,
-          };
-        });
-
-        // Map the backend lightweight contacts to the frontend Contact type
-        if (live.contacts) {
-          setContacts(prevContacts => {
-            // We map over prevContacts to preserve any fields not returned by the lightweight endpoint,
-            // while updating status and response.
-            const updatedMap = new Map(live.contacts.map(c => [String(c.phone), c]));
-            return prevContacts.map(pc => {
-              const updated = updatedMap.get(String(pc.phone));
-              if (updated) {
-                return { ...pc, status: updated.status as any, response: updated.response };
-              }
-              return pc;
-            });
-          });
-        }
-
-        // Stop polling when campaign is no longer running
-        if (live.campaign_status === "Completed" || live.campaign_status === "Failed") {
-          if (pollRef.current) clearInterval(pollRef.current);
-        }
-      } catch {
-        // silently ignore polling errors
-      }
-    }, 5000);
-  };
-
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
@@ -163,7 +114,15 @@ export default function CallManagerPage() {
   if (!isLoggedIn) return null;
 
   const handleChange = (updates: Partial<CampaignFormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
+    setFormData(prev => {
+      const next = { ...prev, ...updates };
+      if (updates.uploadSource === "single") {
+        next.selectionType = "all";
+        next.startRow = undefined;
+        next.endRow = undefined;
+      }
+      return next;
+    });
     const newErrors = { ...errors };
     Object.keys(updates).forEach(key => delete newErrors[key]);
     setErrors(newErrors);
@@ -261,6 +220,11 @@ export default function CallManagerPage() {
       setFileUploaded(true);
       setFileName(file.name);
       setFileSize((file.size / 1024).toFixed(1) + " KB");
+      setFormData(prev => ({
+        ...prev,
+        startRow: 1,
+        endRow: parsed.length,
+      }));
       setErrors(prev => { const e = { ...prev }; delete e.upload; return e; });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to parse file";
@@ -273,6 +237,11 @@ export default function CallManagerPage() {
     setFileUploaded(true);
     setFileName(`Google Sheet (${sheetId.substring(0, 8)}...)`);
     setFileSize("");
+    setFormData(prev => ({
+      ...prev,
+      startRow: 1,
+      endRow: loadedContacts.length,
+    }));
     setErrors(prev => { const e = { ...prev }; delete e.googleSheetUrl; delete e.upload; return e; });
   };
 
@@ -363,9 +332,14 @@ export default function CallManagerPage() {
       return;
     }
 
-    if (formData.uploadSource !== "single" && formData.selectionType === "range") {
-      const start = formData.startRow ?? 0;
-      const end = formData.endRow ?? 0;
+    const isSingle = formData.uploadSource === "single";
+    const selectionType = isSingle ? "all" : formData.selectionType;
+    const startRow = isSingle ? undefined : formData.startRow;
+    const endRow = isSingle ? undefined : formData.endRow;
+
+    if (!isSingle && selectionType === "range") {
+      const start = startRow ?? 0;
+      const end = endRow ?? 0;
       if (start < 1) {
         alert("Start Row must be 1 or greater.");
         return;
@@ -406,48 +380,41 @@ export default function CallManagerPage() {
         schedule_date: isoUtcStr,
         schedule_time: "UTC",
         outbound_phone_number: formData.outboundPhoneNumber,
-        selection_type: formData.selectionType,
-        start_row: formData.startRow,
-        end_row: formData.endRow,
+        selection_type: selectionType,
+        start_row: startRow,
+        end_row: endRow,
         whatsapp_automation: formData.whatsappAutomation,
         contacts: contactList,
         upload_source: formData.uploadSource,
-        sheet_name: formData.uploadSource === "single"
+        sheet_name: isSingle
           ? "Single Call Input"
           : formData.uploadSource === "google_sheet"
           ? "Google Sheet"
           : fileName || "File Upload",
       });
 
-
       // 2. Launch it (creates the job + starts the worker loop)
       const { total_contacts } = await api.launchCampaign(campaign_id);
 
-      let successMsg = `Campaign launched! Dialling ${total_contacts} contact${total_contacts !== 1 ? "s" : ""}.`;
-      if (formData.uploadSource !== "single" && formData.selectionType === "range") {
-          const remaining = contactList.length - total_contacts;
-          if (remaining > 0) {
-              successMsg = `Campaign created successfully.\n\n${total_contacts} contacts have been added to the campaign.\n\n${remaining} remaining contacts have been saved under "${formData.campaignTitle.trim()} - Remaining" and can be used later.`;
-          }
-      }
-      
-      alert(successMsg);
+      // Refresh credits after launching
+      refreshCredits();
 
-      // Update live stats optimistically
-      setLiveStats({
-        registry: total_contacts,
-        standby: total_contacts,
-        dialer: 0,
-        analysis: 0,
-        completed: 0,
-        failed: 0,
+      // Show in-app launch confirmation modal
+      setLaunchSuccessData({
+        campaignId: campaign_id,
+        campaignName: formData.campaignTitle.trim(),
+        agentName: formData.agent,
+        totalContacts: total_contacts,
+        remainingContacts: formData.uploadSource !== "single" && formData.selectionType === "range"
+          ? Math.max(0, contactList.length - total_contacts)
+          : 0,
+        scheduleDate: formData.scheduleDate,
+        scheduleTime: formData.scheduleTime,
+        selectionType: formData.selectionType,
+        startRow: formData.startRow,
+        endRow: formData.endRow,
+        uploadSource: formData.uploadSource,
       });
-
-      // BUG-007: Start real polling so Live Journey updates in real time
-      startLivePolling(campaign_id);
-
-      // Navigate to campaign list
-      // router.push("/campaign");
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unable to start campaign.";
@@ -458,7 +425,7 @@ export default function CallManagerPage() {
     }
   };
 
-  const isFormDisabled = launching || ["Scheduled", "Running", "Paused"].includes(liveStats.campaign_status as string);
+  const isFormDisabled = launching;
 
   // Compute the displayed contacts based on selection
   const displayedContacts = useMemo(() => {
@@ -477,38 +444,151 @@ export default function CallManagerPage() {
 
   return (
     <DashboardShell title="Call Manager">
-      <div className="flex flex-col gap-6 p-1 sm:p-4">
-        {/* Top Section: Two Columns */}
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-          {/* Left Column: Form */}
-          <div className="h-full">
-            <CampaignForm
-              agents={fetchedAgents}
-              formData={formData}
-              onChange={handleChange}
-              onSubmit={handleSubmit}
-              errors={errors}
-              onFileUpload={handleFileUpload}
-              fileUploaded={fileUploaded}
-              fileName={fileName}
-              fileSize={fileSize}
-              totalContacts={contacts.length}
-              onGoogleSheetLoaded={handleGoogleSheetLoaded}
-              disabled={isFormDisabled}
-            />
-          </div>
-
-          {/* Right Column: Live Tracking */}
-          <div className="h-full">
-            <LiveTracking stats={liveStats} />
-          </div>
+      <div className="flex flex-col gap-6 p-1 sm:p-4 max-w-5xl mx-auto w-full">
+        {/* Top Section: Form (Spacious full width layout) */}
+        <div className="w-full">
+          <CampaignForm
+            agents={fetchedAgents}
+            formData={formData}
+            onChange={handleChange}
+            onSubmit={handleSubmit}
+            errors={errors}
+            onFileUpload={handleFileUpload}
+            fileUploaded={fileUploaded}
+            fileName={fileName}
+            fileSize={fileSize}
+            totalContacts={contacts.length}
+            onGoogleSheetLoaded={handleGoogleSheetLoaded}
+            disabled={isFormDisabled}
+          />
         </div>
 
-        {/* Bottom Section: Contacts Table */}
-        <div className="mt-2">
+        {/* Bottom Section: Contacts Preview Table */}
+        <div className="mt-2 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-4 dark:border-zinc-800">
+            <div>
+              <h3 className="text-base font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                <Users className="h-4 w-4 text-violet-600" />
+                Contacts Table Preview
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {displayedContacts.length === 0
+                  ? "Upload contacts or enter a single contact above to view the preview."
+                  : formData.selectionType === "range" && formData.startRow && formData.endRow
+                  ? `Showing rows ${formData.startRow} to ${formData.endRow} (${displayedContacts.length} contacts selected for dialing)`
+                  : `Showing all ${displayedContacts.length} contacts`}
+              </p>
+            </div>
+            {displayedContacts.length > 0 && (
+              <span className="inline-flex items-center rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-950/50 dark:text-violet-300 border border-violet-100 dark:border-violet-900/40">
+                {displayedContacts.length} Contacts to Dial
+              </span>
+            )}
+          </div>
           <ContactsTable contacts={displayedContacts} onDeleteContact={handleDeleteContact} />
         </div>
       </div>
+
+      {/* Campaign Launch Confirmation Modal (Centered In-App Popup) */}
+      {launchSuccessData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900 border border-violet-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            {/* Header with Icon */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/30">
+                  <CheckCircle2 className="h-7 w-7" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-zinc-900 dark:text-white">
+                    Campaign Launched Successfully!
+                  </h3>
+                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                    AI Dialing Job Initiated & Active
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setLaunchSuccessData(null)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Campaign Summary Card */}
+            <div className="mt-5 space-y-3 rounded-xl bg-zinc-50 p-4 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 text-sm">
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Campaign Name</span>
+                <span className="font-bold text-zinc-900 dark:text-white">{launchSuccessData.campaignName}</span>
+              </div>
+              
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">AI Agent</span>
+                <span className="font-semibold text-violet-600 dark:text-violet-400 flex items-center gap-1.5">
+                  <Bot className="h-3.5 w-3.5" />
+                  {launchSuccessData.agentName}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Contacts Dialing</span>
+                <div className="text-right">
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {launchSuccessData.totalContacts} Contacts
+                  </span>
+                  {launchSuccessData.selectionType === "range" && launchSuccessData.startRow && launchSuccessData.endRow && (
+                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                      (Rows {launchSuccessData.startRow} to {launchSuccessData.endRow})
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {launchSuccessData.remainingContacts !== undefined && launchSuccessData.remainingContacts > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700 bg-amber-50/70 dark:bg-amber-950/20 p-2.5 rounded-lg">
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Remaining Contacts</span>
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                    {launchSuccessData.remainingContacts} saved as "{launchSuccessData.campaignName} - Remaining"
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Scheduled Time</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-zinc-400" />
+                  {launchSuccessData.scheduleDate} at {launchSuccessData.scheduleTime}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-6 flex flex-col sm:flex-row gap-2.5">
+              <button
+                onClick={() => {
+                  setLaunchSuccessData(null);
+                  router.push(`/campaign/${launchSuccessData.campaignId}`);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 hover:from-violet-500 hover:to-indigo-500 active:scale-[0.98] transition-all"
+              >
+                <span>View Live Campaign</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setLaunchSuccessData(null);
+                  router.push("/campaign");
+                }}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all"
+              >
+                Campaigns List
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Credits Exhausted Modal */}
       {showExhaustedModal && (
