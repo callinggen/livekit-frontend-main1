@@ -5,6 +5,8 @@ import WhyCallingGenSection from "@/components/landing/WhyCallingGenSection";
 import FeaturesSection from "@/components/landing/FeaturesSection";
 import IndustriesSection from "@/components/landing/IndustriesSection";
 import TestimonialsSection from "@/components/landing/TestimonialsSection";
+import FinalCtaSection from "@/components/landing/FinalCtaSection";
+import GetCallModal from "@/components/landing/GetCallModal";
 import Footer from "@/components/landing/Footer";
 
 export default function Home() {
@@ -18,8 +20,10 @@ export default function Home() {
         <FeaturesSection />
         <IndustriesSection />
         <TestimonialsSection />
+        <FinalCtaSection />
       </main>
       <Footer />
+      <GetCallModal />
     </div>
   );
-}
+}

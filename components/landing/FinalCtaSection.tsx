@@ -32,9 +32,11 @@ export default function FinalCtaSection() {
           >
             {t("primaryCta")}
           </Button>
-          <Button size="lg" variant="outline" className="rounded-full px-8 py-6 text-base font-bold border-white/30 text-white hover:bg-white/10 hover:text-white transition-all hover:-translate-y-1 bg-transparent">
-            {t("contactSales")}
-            <ArrowRight className="w-4 h-4 ml-2" />
+          <Button asChild size="lg" variant="outline" className="rounded-full px-8 py-6 text-base font-bold border-white/30 text-white hover:bg-white/10 hover:text-white transition-all hover:-translate-y-1 bg-transparent">
+            <Link href="/contact">
+              {t("contactSales")}
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
           </Button>
         </div>
       </div>
