@@ -183,11 +183,6 @@ function NewEmailCampaignContent() {
   // Tab State for Settings Section: "recipients" | "sender" | "schedule"
   const [activeConfigTab, setActiveConfigTab] = useState<"recipients" | "sender" | "schedule">("recipients");
 
-  // Verified Senders & Sending Domain State
-  const [verifiedSenders, setVerifiedSenders] = useState<VerifiedSenderOption[]>([]);
-  const [selectedSenderDomain, setSelectedSenderDomain] = useState<string>("default");
-  const [customSenderPrefix, setCustomSenderPrefix] = useState<string>("info");
-
   // Contacts
   const [contacts, setContacts] = useState<EmailContactItem[]>([]);
   const [manualName, setManualName] = useState("");
@@ -202,30 +197,10 @@ function NewEmailCampaignContent() {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
 
-  // Load templates & verified senders
+  // Load templates
   useEffect(() => {
     api.getEmailTemplates().then((tpls) => setTemplateLibrary(tpls)).catch(() => {});
-    api.getVerifiedSenders()
-      .then((senders) => {
-        setVerifiedSenders(senders);
-        const custom = senders.find((s) => !s.is_default);
-        if (custom) {
-          setSelectedSenderDomain(custom.domain);
-        } else {
-          setSelectedSenderDomain("default");
-        }
-      })
-      .catch(() => {});
   }, []);
-
-  // Compute effective from_email
-  const getComputedFromEmail = () => {
-    if (selectedSenderDomain === "default" || !selectedSenderDomain) {
-      return undefined;
-    }
-    const cleanPrefix = customSenderPrefix.trim().replace(/[^a-zA-Z0-9._-]/g, "") || "info";
-    return `${cleanPrefix}@${selectedSenderDomain}`;
-  };
 
   // Load template if template_id in query string
   useEffect(() => {
@@ -355,7 +330,7 @@ function NewEmailCampaignContent() {
         name: name.trim(),
         subject: subject.trim(),
         from_name: fromName.trim() || undefined,
-        from_email: getComputedFromEmail(),
+        from_email: undefined,
         reply_to: replyTo.trim() || undefined,
         html_body: htmlBody,
         schedule_date: scheduleMode === "later" ? scheduleDate : undefined,
@@ -661,8 +636,8 @@ function NewEmailCampaignContent() {
                       : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
                   }`}
                 >
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>Sender &amp; Domain</span>
+                  <Mail className="h-3.5 w-3.5" />
+                  <span>Sender Details</span>
                 </button>
 
                 <button
@@ -768,10 +743,10 @@ function NewEmailCampaignContent() {
                   </div>
                 )}
 
-                {/* 2. Sender & Domain Tab */}
+                {/* 2. Sender Details Tab */}
                 {activeConfigTab === "sender" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         Sender Name
                       </label>
@@ -780,11 +755,12 @@ function NewEmailCampaignContent() {
                         value={fromName}
                         onChange={(e) => setFromName(e.target.value)}
                         placeholder="CallingGen Team"
-                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
                       />
+                      <p className="text-[11px] text-zinc-400">The display name recipients see in their inbox.</p>
                     </div>
 
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         Reply-To Email
                       </label>
@@ -793,59 +769,9 @@ function NewEmailCampaignContent() {
                         value={replyTo}
                         onChange={(e) => setReplyTo(e.target.value)}
                         placeholder="support@callinggen.in"
-                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
+                        className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white"
                       />
-                    </div>
-
-                    <div className="sm:col-span-2 flex flex-col gap-1 pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                          Sending Domain Gateway
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => router.push("/email-campaign")}
-                          className="text-[10.5px] text-violet-600 dark:text-violet-400 hover:underline font-medium"
-                        >
-                          Domain Verification &rarr;
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <select
-                          value={selectedSenderDomain}
-                          onChange={(e) => setSelectedSenderDomain(e.target.value)}
-                          className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-1.5 text-xs text-zinc-900 focus:border-violet-500 outline-none dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-white font-medium"
-                        >
-                          <option value="default">Default Gateway (CallingGen)</option>
-                          {verifiedSenders
-                            .filter((s) => !s.is_default)
-                            .map((s) => (
-                              <option key={s.domain} value={s.domain}>
-                                {s.domain} (Verified Domain)
-                              </option>
-                            ))}
-                        </select>
-
-                        {selectedSenderDomain !== "default" ? (
-                          <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-1">
-                            <input
-                              type="text"
-                              value={customSenderPrefix}
-                              onChange={(e) => setCustomSenderPrefix(e.target.value)}
-                              placeholder="info"
-                              className="bg-transparent text-xs text-zinc-900 dark:text-white font-mono outline-none w-16 text-right font-medium"
-                            />
-                            <span className="text-zinc-500 dark:text-zinc-400 font-mono text-xs font-semibold">
-                              @{selectedSenderDomain}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-1 rounded-xl border border-zinc-200/60 dark:border-zinc-800 truncate">
-                            noreply@callinggen.in (Default)
-                          </div>
-                        )}
-                      </div>
+                      <p className="text-[11px] text-zinc-400">Direct address where customer replies will be delivered.</p>
                     </div>
                   </div>
                 )}
@@ -952,7 +878,7 @@ function NewEmailCampaignContent() {
                 <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                   <span className="font-bold text-zinc-400 uppercase text-[10px] w-14 shrink-0">From:</span>
                   <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate text-[11px]">
-                    {fromName || user?.company_name || "CallingGen Team"} &lt;{getComputedFromEmail() || "noreply@callinggen.in"}&gt;
+                    {fromName || user?.company_name || "CallingGen Team"} &lt;{replyTo.trim() || "noreply@callinggen.in"}&gt;
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">

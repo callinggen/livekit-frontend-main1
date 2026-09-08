@@ -37,8 +37,6 @@ import {
   api,
   EmailCampaignRow,
   EmailMarketingTemplate,
-  CustomEmailDomain,
-  DnsRecordItem,
 } from "@/lib/api";
 
 const getStatusBadge = (status: string) => {
@@ -147,7 +145,7 @@ export default function EmailCampaignPage() {
   const { isLoggedIn } = useAuth();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<"campaigns" | "templates" | "domains">("campaigns");
+  const [activeTab, setActiveTab] = useState<"campaigns" | "templates">("campaigns");
 
   // Campaigns State
   const [campaigns, setCampaigns] = useState<EmailCampaignRow[]>([]);
@@ -173,24 +171,6 @@ export default function EmailCampaignPage() {
   const [newTplBody, setNewTplBody] = useState("");
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [createError, setCreateError] = useState("");
-
-  // Custom Domains State
-  const [domains, setDomains] = useState<CustomEmailDomain[]>([]);
-  const [domainsLoading, setDomainsLoading] = useState(false);
-  const [deletingDomainId, setDeletingDomainId] = useState<number | null>(null);
-
-  // Add Domain Modal
-  const [showAddDomainModal, setShowAddDomainModal] = useState(false);
-  const [newDomainInput, setNewDomainInput] = useState("");
-  const [newDomainRegion, setNewDomainRegion] = useState("us-east-1");
-  const [addingDomain, setAddingDomain] = useState(false);
-  const [addDomainError, setAddDomainError] = useState("");
-
-  // DNS Records & Verification Modal
-  const [selectedDnsDomain, setSelectedDnsDomain] = useState<CustomEmailDomain | null>(null);
-  const [verifyingDns, setVerifyingDns] = useState(false);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [dnsCheckMessage, setDnsCheckMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -221,24 +201,10 @@ export default function EmailCampaignPage() {
     }
   };
 
-  // Load Custom Domains
-  const loadDomains = async () => {
-    setDomainsLoading(true);
-    try {
-      const data = await api.getCustomDomains();
-      setDomains(data);
-    } catch (e) {
-      console.warn("Failed to load sending domains:", e);
-    } finally {
-      setDomainsLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (!isLoggedIn) return;
     loadCampaigns();
     loadTemplates();
-    loadDomains();
     const interval = setInterval(loadCampaigns, 12000);
     return () => clearInterval(interval);
   }, [isLoggedIn]);
@@ -299,101 +265,6 @@ export default function EmailCampaignPage() {
     }
   };
 
-  // ── Add Custom Domain ──
-  const handleAddDomain = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddDomainError("");
-    if (!newDomainInput.trim()) {
-      setAddDomainError("Please provide a domain name (e.g. company.com).");
-      return;
-    }
-
-    setAddingDomain(true);
-    try {
-      const created = await api.createCustomDomain({
-        domain: newDomainInput.trim(),
-        region: newDomainRegion,
-      });
-      setDomains((prev) => [created, ...prev.filter((d) => d.id !== created.id)]);
-      setShowAddDomainModal(false);
-      setNewDomainInput("");
-      // Immediately open DNS view modal so user can copy records
-      setSelectedDnsDomain(created);
-    } catch (err: any) {
-      setAddDomainError(err.message || "Failed to add domain.");
-    } finally {
-      setAddingDomain(false);
-    }
-  };
-
-  // ── Delete Custom Domain ──
-  const handleDeleteDomain = async (id: number, domainName: string) => {
-    if (!confirm(`Delete sending domain '${domainName}'? Campaigns will no longer be able to send from this domain.`)) return;
-    setDeletingDomainId(id);
-    try {
-      await api.deleteCustomDomain(id);
-      setDomains((prev) => prev.filter((d) => d.id !== id));
-      if (selectedDnsDomain?.id === id) setSelectedDnsDomain(null);
-    } catch (e: any) {
-      alert(e.message || "Failed to delete domain");
-    } finally {
-      setDeletingDomainId(null);
-    }
-  };
-
-  // ── Run Live DNS Verification ──
-  const handleVerifyDns = async (domainId: number) => {
-    setVerifyingDns(true);
-    setDnsCheckMessage(null);
-    try {
-      const result = await api.verifyCustomDomain(domainId);
-      setDnsCheckMessage(result.message);
-
-      // Update in domains list
-      setDomains((prev) =>
-        prev.map((d) =>
-          d.id === domainId
-            ? {
-                ...d,
-                status: result.status,
-                is_verified: result.is_verified,
-                sending_enabled: result.sending_enabled,
-                dns_records: result.dns_records,
-                last_checked_at: new Date().toISOString(),
-              }
-            : d
-        )
-      );
-
-      // Update in modal view if open
-      if (selectedDnsDomain && selectedDnsDomain.id === domainId) {
-        setSelectedDnsDomain((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: result.status,
-                is_verified: result.is_verified,
-                sending_enabled: result.sending_enabled,
-                dns_records: result.dns_records,
-                last_checked_at: new Date().toISOString(),
-              }
-            : null
-        );
-      }
-    } catch (err: any) {
-      setDnsCheckMessage(err.message || "Failed to run DNS verification check.");
-    } finally {
-      setVerifyingDns(false);
-    }
-  };
-
-  // ── Copy Helper ──
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
   if (!isLoggedIn) return null;
 
   // Filter templates
@@ -429,7 +300,7 @@ export default function EmailCampaignPage() {
               Email Marketing &amp; Campaigns
             </h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              Design high-converting email templates, manage verified sending domains, and launch broadcasts via Resend.
+              Design high-converting email templates and launch marketing broadcasts with AI.
             </p>
           </div>
 
@@ -441,16 +312,6 @@ export default function EmailCampaignPage() {
               >
                 <Plus className="h-4 w-4" />
                 Custom Template
-              </button>
-            )}
-
-            {activeTab === "domains" && (
-              <button
-                onClick={() => setShowAddDomainModal(true)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition-all"
-              >
-                <Plus className="h-4 w-4" />
-                Add Sending Domain
               </button>
             )}
 
@@ -496,21 +357,6 @@ export default function EmailCampaignPage() {
             Template Library
             <span className="ml-1.5 rounded-full bg-violet-100 dark:bg-violet-950/60 px-2 py-0.5 text-xs text-violet-700 dark:text-violet-300 font-mono font-semibold">
               {templates.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("domains")}
-            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all ${
-              activeTab === "domains"
-                ? "border-violet-600 text-violet-600 dark:border-violet-400 dark:text-violet-400"
-                : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-white"
-            }`}
-          >
-            <Globe className="h-4 w-4" />
-            Sending Domains
-            <span className="ml-1.5 rounded-full bg-blue-100 dark:bg-blue-950/60 px-2 py-0.5 text-xs text-blue-700 dark:text-blue-300 font-mono font-semibold">
-              {domains.length}
             </span>
           </button>
         </div>
@@ -826,166 +672,7 @@ export default function EmailCampaignPage() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════════
-            TAB 3: SENDING DOMAINS & DNS MANAGEMENT
-        ══════════════════════════════════════════════════════════════════════ */}
-        {activeTab === "domains" && (
-          <div className="flex flex-col gap-6">
 
-            {/* Info Callout */}
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4.5 dark:border-blue-900/40 dark:bg-blue-950/20 flex items-start gap-3">
-              <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-blue-900 dark:text-blue-200 leading-relaxed">
-                <strong className="font-semibold block text-sm mb-0.5">Brand Your Outbound Emails with Custom Domains</strong>
-                Connect your business domain (e.g. <span className="font-mono bg-blue-100 dark:bg-blue-900/60 px-1 py-0.5 rounded">yourcompany.com</span>) to send marketing broadcasts directly from your own company address with full DKIM &amp; SPF authentication.
-              </div>
-            </div>
-
-            {/* Domain List Cards */}
-            {domainsLoading ? (
-              <div className="flex items-center justify-center py-24 gap-3 text-zinc-500">
-                <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
-                Loading sending domains…
-              </div>
-            ) : domains.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-4 text-zinc-400 bg-white dark:bg-[#0B0F19] rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/20">
-                  <Globe className="h-8 w-8 text-blue-500" />
-                </div>
-                <div className="text-center">
-                  <h4 className="text-base font-bold text-zinc-800 dark:text-zinc-200">No Custom Domains Connected</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm">
-                    Campaigns currently send from the default CallingGen platform domain. Add your domain to start sending with your brand.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddDomainModal(true)}
-                  className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-violet-500/20 hover:opacity-95 transition"
-                >
-                  + Add Your First Domain
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {domains.map((dom) => {
-                  const verifiedRecordsCount = (dom.dns_records || []).filter((r) => r.dns_verified).length;
-                  const totalRecordsCount = (dom.dns_records || []).length;
-
-                  return (
-                    <div
-                      key={dom.id}
-                      className="flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19] transition hover:shadow-md"
-                    >
-                      <div>
-                        {/* Domain Top Row */}
-                        <div className="flex items-center justify-between gap-3 mb-2">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-violet-600 dark:text-violet-400 shrink-0" />
-                            <h3 className="text-base font-bold text-zinc-900 dark:text-white">
-                              {dom.domain}
-                            </h3>
-                          </div>
-
-                          {dom.is_verified ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Verified
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
-                              <Clock className="h-3.5 w-3.5" />
-                              DNS Pending
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Status detail */}
-                        <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
-                          <div>
-                            Sending:{" "}
-                            <span className={dom.sending_enabled ? "text-emerald-600 font-semibold" : "text-amber-600 font-medium"}>
-                              {dom.sending_enabled ? "Enabled" : "Waiting for DNS"}
-                            </span>
-                          </div>
-                          <div>&bull;</div>
-                          <div>
-                            Region: <span className="font-mono text-zinc-700 dark:text-zinc-300">{dom.region}</span>
-                          </div>
-                        </div>
-
-                        {/* DNS Record Progress */}
-                        {totalRecordsCount > 0 && (
-                          <div className="mt-4 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-100 dark:border-zinc-800">
-                            <div className="flex items-center justify-between text-xs mb-1.5">
-                              <span className="font-medium text-zinc-700 dark:text-zinc-300">DNS Configuration</span>
-                              <span className="font-mono text-xs font-semibold text-zinc-500">
-                                {verifiedRecordsCount} of {totalRecordsCount} records active
-                              </span>
-                            </div>
-                            <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full transition-all duration-500 ${
-                                  dom.is_verified ? "bg-emerald-500" : "bg-amber-500"
-                                }`}
-                                style={{ width: `${(verifiedRecordsCount / totalRecordsCount) * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {dom.error_message && (
-                          <div className="mt-3 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs border border-red-200 dark:border-red-900">
-                            {dom.error_message}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Domain Action Buttons */}
-                      <div className="mt-5 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1">
-                          <button
-                            onClick={() => {
-                              setSelectedDnsDomain(dom);
-                              setDnsCheckMessage(null);
-                            }}
-                            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
-                          >
-                            <Info className="h-3.5 w-3.5 text-blue-500" />
-                            View DNS Records
-                          </button>
-
-                          <button
-                            onClick={() => handleVerifyDns(dom.id)}
-                            disabled={verifyingDns}
-                            className="flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 px-3.5 py-2 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition"
-                            title="Perform live DNS lookup"
-                          >
-                            <RefreshCw className={`h-3.5 w-3.5 ${verifyingDns ? "animate-spin" : ""}`} />
-                            Check DNS
-                          </button>
-                        </div>
-
-                        <button
-                          onClick={() => handleDeleteDomain(dom.id, dom.domain)}
-                          disabled={deletingDomainId === dom.id}
-                          className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition"
-                          title="Remove domain"
-                        >
-                          {deletingDomainId === dom.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-          </div>
-        )}
 
         {/* ══════════════════════════════════════════════════════════════════════
             MODAL: PREVIEW TEMPLATE (CLEAN DESKTOP VIEW)
@@ -1061,247 +748,7 @@ export default function EmailCampaignPage() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════════
-            MODAL: ADD CUSTOM SENDING DOMAIN
-        ══════════════════════════════════════════════════════════════════════ */}
-        {showAddDomainModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl overflow-hidden">
-              
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-violet-600" />
-                  Add Custom Sending Domain
-                </h3>
-                <button
-                  onClick={() => setShowAddDomainModal(false)}
-                  className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
 
-              <form onSubmit={handleAddDomain} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-zinc-500 mb-1.5">
-                    Domain Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. acmecorp.com or mail.acmecorp.com"
-                    value={newDomainInput}
-                    onChange={(e) => setNewDomainInput(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-white outline-none focus:border-violet-500"
-                  />
-                  <p className="text-[11px] text-zinc-400 mt-1">
-                    Enter your root domain or subdomain without http:// or www.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-zinc-500 mb-1.5">
-                    Resend Delivery Region
-                  </label>
-                  <select
-                    value={newDomainRegion}
-                    onChange={(e) => setNewDomainRegion(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-white outline-none focus:border-violet-500"
-                  >
-                    <option value="us-east-1">US East (N. Virginia)</option>
-                    <option value="eu-west-1">Europe (Ireland)</option>
-                    <option value="sa-east-1">South America (São Paulo)</option>
-                    <option value="ap-northeast-1">Asia Pacific (Tokyo)</option>
-                  </select>
-                </div>
-
-                {addDomainError && (
-                  <div className="p-3 rounded-xl bg-red-50 text-red-600 text-xs dark:bg-red-950/30 dark:text-red-400 border border-red-200 dark:border-red-900">
-                    {addDomainError}
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddDomainModal(false)}
-                    className="px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={addingDomain}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/20 disabled:opacity-60"
-                  >
-                    {addingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Continue & View DNS Records"}
-                  </button>
-                </div>
-              </form>
-
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════════
-            MODAL: DNS RECORDS & LIVE VERIFICATION
-        ══════════════════════════════════════════════════════════════════════ */}
-        {selectedDnsDomain && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="relative w-full max-w-3xl rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-              
-              {/* Modal Top Bar */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5 text-violet-600" />
-                  <div>
-                    <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                      DNS Records: {selectedDnsDomain.domain}
-                    </h3>
-                    <p className="text-xs text-zinc-500">
-                      Add these records to your DNS provider (Cloudflare, GoDaddy, Route53, Namecheap, etc.)
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setSelectedDnsDomain(null)}
-                  className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Modal Content / Table */}
-              <div className="p-6 overflow-y-auto space-y-5">
-                
-                {/* DNS Check Feedback Notice */}
-                {dnsCheckMessage && (
-                  <div className="p-3.5 rounded-xl bg-violet-50 text-violet-800 text-xs dark:bg-violet-950/40 dark:text-violet-200 border border-violet-200 dark:border-violet-800 flex items-center gap-2">
-                    <Info className="h-4 w-4 shrink-0 text-violet-600" />
-                    <span>{dnsCheckMessage}</span>
-                  </div>
-                )}
-
-                {/* DNS Records Table */}
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead className="bg-zinc-50/80 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 uppercase tracking-wider font-semibold">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left">Type</th>
-                        <th className="px-4 py-2.5 text-left">Host / Name</th>
-                        <th className="px-4 py-2.5 text-left">Value / Target</th>
-                        <th className="px-4 py-2.5 text-left">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                      {(selectedDnsDomain.dns_records || []).map((rec, idx) => (
-                        <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
-                          <td className="px-4 py-3 font-mono font-bold text-violet-600 dark:text-violet-400">
-                            {rec.type}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-zinc-900 dark:text-white max-w-[180px]">
-                            <div className="flex items-center gap-1.5">
-                              <span className="truncate">{rec.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(rec.name, `host_${idx}`)}
-                                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white shrink-0"
-                                title="Copy Host"
-                              >
-                                {copiedKey === `host_${idx}` ? (
-                                  <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                ) : (
-                                  <Copy className="h-3.5 w-3.5" />
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 font-mono text-zinc-600 dark:text-zinc-300 max-w-[240px]">
-                            <div className="flex items-center gap-1.5">
-                              <span className="truncate">{rec.value}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(rec.value, `val_${idx}`)}
-                                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white shrink-0"
-                                title="Copy Value"
-                              >
-                                {copiedKey === `val_${idx}` ? (
-                                  <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                ) : (
-                                  <Copy className="h-3.5 w-3.5" />
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            {rec.dns_verified ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Verified
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
-                                <Clock className="h-3.5 w-3.5" />
-                                Pending
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Instructions Box */}
-                <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-300 space-y-1.5">
-                  <div className="font-semibold text-zinc-900 dark:text-white">How DNS Verification Works:</div>
-                  <ol className="list-decimal pl-4 space-y-1 text-zinc-500 dark:text-zinc-400">
-                    <li>Copy each Record Name and Value into your domain's DNS manager.</li>
-                    <li>If your DNS provider automatically appends your domain (e.g. Cloudflare), enter only the subdomain prefix.</li>
-                    <li>Click <strong>Check Verification Now</strong> to run an instant server-side lookup on public DNS.</li>
-                  </ol>
-                </div>
-
-              </div>
-
-              {/* Modal Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-                <span className="text-xs text-zinc-400">
-                  {selectedDnsDomain.is_verified ? "Domain ready for sending" : "Waiting for DNS records to propagate"}
-                </span>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setSelectedDnsDomain(null)}
-                    className="px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl"
-                  >
-                    Close
-                  </button>
-
-                  <button
-                    onClick={() => handleVerifyDns(selectedDnsDomain.id)}
-                    disabled={verifyingDns}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/20 hover:opacity-95 transition disabled:opacity-60"
-                  >
-                    {verifyingDns ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Checking Public DNS…
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        Check Verification Now
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        )}
 
         {/* ══════════════════════════════════════════════════════════════════════
             MODAL: CREATE CUSTOM TEMPLATE
