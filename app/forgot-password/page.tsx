@@ -7,7 +7,7 @@ import { AlertCircle, ArrowRight, Lock, Mail, Phone, Sparkles, Loader2, CheckCir
 import { validatePassword, PasswordValidationRules } from "@/components/PasswordValidator";
 import { useAuth } from "@/components/AuthProvider";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
 function ForgotPasswordContent() {
   const router = useRouter();

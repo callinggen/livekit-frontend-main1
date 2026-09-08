@@ -17,11 +17,15 @@ export interface WhatsAppAutomationRule {
   category?: "ai_classification" | "response" | "status";
   value?: string;
   values?: string[]; // Multiselect filter support
-  call_type_filters?: string[]; // ["All Types"] or ["Outbound", "Inbound"]
-  ai_class_filters?: string[]; // ["All Leads"] or ["Interested", "Hot Lead", ...]
-  response_filters?: string[]; // ["All Responses"] or ["Answered", "Appointment Booked", ...]
-  status_filters?: string[]; // ["All Status"] or ["Completed", "Failed", ...]
+  call_type_filters?: string[]; // [] = All Types or ["Outbound", "Inbound"]
+  ai_class_filters?: string[]; // [] = All Leads or ["Interested", "Hot Lead", ...]
+  response_filters?: string[]; // [] = All Responses or ["Answered", "Appointment Booked", ...]
+  status_filters?: string[]; // [] = All Status or ["Completed", "Failed", ...]
   require_permission?: boolean; // Post-call material permission/consent check
+  source_mode?: "material_base" | "custom"; // 2 Options: From material base or Custom for this campaign
+  save_to_material_base?: boolean; // Option to save custom rule template to material base
+  material_title?: string;
+  content_types?: ("text" | "image" | "document")[]; // Multi-selection of content types
   material_id?: number;
   message_text: string;
   attachments?: Array<{

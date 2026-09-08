@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Send,
   Users,
@@ -32,6 +32,12 @@ import {
   Check,
   History,
   Clock,
+  QrCode,
+  Calendar,
+  Smartphone,
+  CalendarClock,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -39,7 +45,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 import AddMaterialModal from "@/components/whatsapp/AddMaterialModal";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
+const INSTANCE_NAME = "callinggen_default";
 
 interface ContactRow {
   id: string | number;
@@ -56,11 +63,10 @@ interface ContactRow {
 }
 
 interface CampaignItem {
-  id: string;
+  id: number | string;
   name: string;
-  totalCalls: number;
-  contactCount: number;
-  status: string;
+  date?: string;
+  total_contacts?: number;
 }
 
 interface MaterialItem {
@@ -69,19 +75,17 @@ interface MaterialItem {
   type: "text" | "image" | "document";
   content?: string;
   file_url?: string;
-  file_size?: number;
   mime_type?: string;
-  tags?: string;
 }
 
 interface MessageItemToSend {
   id: string;
   type: "text" | "image" | "document";
-  title: string;
+  title?: string;
   text?: string;
   media_url?: string;
-  file_name?: string;
   mime_type?: string;
+  file_name?: string;
   caption?: string;
   save_to_material?: boolean;
 }
@@ -100,13 +104,32 @@ function normalizePhone(raw: string): { formatted: string; isValid: boolean } {
 }
 
 export default function SendMessagePage() {
+  return (
+    <Suspense fallback={
+      <DashboardShell title="Send WhatsApp Message">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+        </div>
+      </DashboardShell>
+    }>
+      <SendMessageContent />
+    </Suspense>
+  );
+}
+
+function SendMessageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const preselectedMaterialId = searchParams.get("useMaterial");
   const preselectedCampaignId = searchParams.get("campaign_id");
 
   const { isLoggedIn, user } = useAuth();
   const token = user?.token || (typeof window !== "undefined" ? localStorage.getItem("token") || "" : "");
   const { credits, refreshCredits } = useCredits();
+
+  // WhatsApp Connection Guard
+  const [connectionState, setConnectionState] = useState<"checking" | "connected" | "disconnected">("checking");
+  const [checkingConnection, setCheckingConnection] = useState(false);
 
   // Mode: Campaign vs Upload
   const [sourceMode, setSourceMode] = useState<"campaign" | "upload">(
@@ -149,12 +172,18 @@ export default function SendMessagePage() {
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
   const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
   const [pickerTab, setPickerTab] = useState<"all" | "text" | "image" | "document">("all");
+  const [previewMaterial, setPreviewMaterial] = useState<{ title: string; type: string; url?: string; content?: string; mime_type?: string } | null>(null);
 
   // Custom Message Composer
   const [customTitle, setCustomTitle] = useState("");
   const [customText, setCustomText] = useState("");
   const [saveToMaterial, setSaveToMaterial] = useState(false);
   const [showCustomComposer, setShowCustomComposer] = useState(false);
+
+  // Scheduling State
+  const [deliveryTiming, setDeliveryTiming] = useState<"immediate" | "scheduled">("immediate");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
 
   // Confirmation & Sending State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -176,7 +205,59 @@ export default function SendMessagePage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : "") || "";
+  const getAuthToken = useCallback(() => {
+    if (user?.token) return user.token;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.token) return parsed.token;
+        }
+      } catch {}
+      return localStorage.getItem("token") || "";
+    }
+    return "";
+  }, [user]);
+
+  const authToken = getAuthToken();
+
+  // Check WhatsApp Connection Status
+  const checkWhatsAppStatus = useCallback(async () => {
+    setCheckingConnection(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${INSTANCE_NAME}`);
+      if (res.ok) {
+        const data = await res.json();
+        const state = data?.data?.instance?.state || data?.data?.state || "disconnected";
+        if (state === "open" || state === "connected") {
+          setConnectionState("connected");
+        } else {
+          setConnectionState("disconnected");
+        }
+      } else {
+        setConnectionState("disconnected");
+      }
+    } catch {
+      setConnectionState("disconnected");
+    } finally {
+      setCheckingConnection(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkWhatsAppStatus();
+  }, [checkWhatsAppStatus]);
+
+  // Set default schedule time (1 hour from now)
+  useEffect(() => {
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    const dateStr = now.toISOString().split("T")[0];
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    setScheduledDate(dateStr);
+    setScheduledTime(timeStr);
+  }, []);
 
   // 1. Fetch campaigns
   useEffect(() => {
@@ -219,7 +300,6 @@ export default function SendMessagePage() {
           const matList: MaterialItem[] = Array.isArray(data) ? data : [];
           setMaterials(matList);
 
-          // If navigated with ?useMaterial=ID, automatically add it
           if (preselectedMaterialId) {
             const match = matList.find((m) => String(m.id) === String(preselectedMaterialId));
             if (match) {
@@ -262,7 +342,6 @@ export default function SendMessagePage() {
           const data = await res.json();
           const list: ContactRow[] = data.contacts || [];
           setContacts(list);
-          // Select all valid by default
           const validIds = new Set(list.filter((c) => c.is_valid_phone).map((c) => c.id));
           setSelectedContactIds(validIds);
         }
@@ -284,215 +363,257 @@ export default function SendMessagePage() {
     const fileName = file.name;
     const ext = fileName.split(".").pop()?.toLowerCase();
 
-    if (!["xlsx", "xls", "csv"].includes(ext || "")) {
-      showToast("Please upload a valid .xlsx, .xls, or .csv file", "error");
-      return;
-    }
-
-    const reader = new FileReader();
-
     if (ext === "csv") {
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            processParsedData(results.data as any[], fileName);
-          },
-        });
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          processRawRows(results.data as any[], fileName);
+        },
+        error: (err) => {
+          showToast(`CSV parsing error: ${err.message}`, "error");
+        },
+      });
+    } else if (ext === "xlsx" || ext === "xls") {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const wb = XLSX.read(bstr, { type: "binary" });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const data = XLSX.utils.sheet_to_json(ws);
+          processRawRows(data as any[], fileName);
+        } catch (err: any) {
+          showToast(`Excel parsing error: ${err.message}`, "error");
+        }
       };
-      reader.readAsText(file);
+      reader.readAsBinaryString(file);
     } else {
-      reader.onload = (event) => {
-        const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet);
-        processParsedData(json, fileName);
-      };
-      reader.readAsArrayBuffer(file);
+      showToast("Unsupported file format. Please upload .csv, .xlsx, or .xls", "error");
     }
   };
 
-  const handleLoadGoogleSheet = async () => {
+  // 4b. Handle Google Sheet URL import
+  const handleFetchGoogleSheet = async () => {
     if (!googleSheetUrl.trim()) {
-      showToast("Please enter a valid Google Sheets URL", "error");
+      showToast("Please enter a Google Sheet URL", "error");
       return;
     }
+
+    setLoadingGoogleSheet(true);
     try {
-      setLoadingGoogleSheet(true);
-      let exportUrl = googleSheetUrl.trim();
-      const match = exportUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-      if (match && match[1]) {
-        const sheetId = match[1];
-        exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+      // 1. Try backend server-side fetch first (handles CORS & parsing cleanly)
+      const res = await fetch(`${BASE_URL}/api/whatsapp/import-google-sheet`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({ sheet_url: googleSheetUrl.trim() }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.rows && data.rows.length > 0) {
+          processRawRows(data.rows, "Google Sheet");
+          showToast(`✓ Successfully imported ${data.rows.length} rows from Google Sheet!`, "success");
+          return;
+        }
       }
 
-      const res = await fetch(exportUrl);
-      if (!res.ok) {
-        throw new Error("Unable to fetch sheet. Make sure the Google Sheet sharing permission is set to 'Anyone with the link can view'.");
+      // 2. Client-side fallback if backend route returned non-200
+      const match = googleSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (!match) {
+        throw new Error("Invalid Google Sheet link. Make sure it looks like: https://docs.google.com/spreadsheets/d/...");
       }
-      const csvText = await res.text();
+      const sheetId = match[1];
+      const gidMatch = googleSheetUrl.match(/[#&]gid=([0-9]+)/);
+      const gid = gidMatch ? gidMatch[1] : "0";
+      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+
+      const clientRes = await fetch(exportUrl);
+      if (!clientRes.ok) {
+        throw new Error("Could not access Google Sheet. Please verify link sharing is set to 'Anyone with the link can view'.");
+      }
+      const csvText = await clientRes.text();
       Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
           if (results.data && results.data.length > 0) {
-            processParsedData(results.data as any[], "Google Sheet Import");
+            processRawRows(results.data as any[], "Google Sheet");
+            showToast(`✓ Successfully imported ${results.data.length} contacts from Google Sheet!`, "success");
           } else {
-            showToast("No contact rows found in Google Sheet", "error");
+            showToast("Google Sheet contained no rows", "error");
           }
         },
         error: (err: any) => {
-          showToast(`Error parsing Google Sheet: ${err?.message || err}`, "error");
+          showToast(`Failed to parse sheet CSV: ${err?.message || "Unknown error"}`, "error");
         },
       });
     } catch (err: any) {
-      console.error("Google Sheets import error:", err);
-      showToast(err.message || "Failed to load Google Sheet. Ensure public link sharing is enabled.", "error");
+      console.error("Google Sheet Import Error:", err);
+      showToast(err.message || "Failed to load Google Sheet contacts", "error");
     } finally {
       setLoadingGoogleSheet(false);
     }
   };
 
-  const processParsedData = (rows: any[], fileName: string) => {
-    const parsedContacts: ContactRow[] = [];
+  const processRawRows = (rows: any[], fileName: string) => {
+    if (!rows || rows.length === 0) {
+      showToast("Uploaded file is empty", "error");
+      return;
+    }
+
     let validCount = 0;
     let invalidCount = 0;
 
-    rows.forEach((row, index) => {
-      // Find name field
-      const nameKey = Object.keys(row).find((k) =>
-        ["name", "customer_name", "full_name", "client_name", "contact"].includes(k.toLowerCase().trim())
-      );
-      const rawName = nameKey ? String(row[nameKey] || "") : `Lead ${index + 1}`;
+    const parsedContacts: ContactRow[] = rows.map((row, idx) => {
+      let rawPhone =
+        row.phone ||
+        row.Phone ||
+        row.mobile ||
+        row.Mobile ||
+        row.contact ||
+        row.Contact ||
+        row.number ||
+        row.Number ||
+        row["Phone Number"] ||
+        row["phone_number"] ||
+        "";
 
-      // Find phone field
-      const phoneKey = Object.keys(row).find((k) =>
-        ["phone", "phone_number", "mobile", "contact_number", "whatsapp"].includes(k.toLowerCase().trim())
-      );
-      const rawPhone = phoneKey ? String(row[phoneKey] || "") : "";
+      let rawName =
+        row.name ||
+        row.Name ||
+        row.customer_name ||
+        row["Customer Name"] ||
+        row["Contact Name"] ||
+        row.fullName ||
+        row["Full Name"] ||
+        "Contact " + (idx + 1);
 
-      const { formatted, isValid } = normalizePhone(rawPhone);
-
+      const { formatted, isValid } = normalizePhone(String(rawPhone));
       if (isValid) {
         validCount++;
       } else {
         invalidCount++;
       }
 
-      parsedContacts.push({
-        id: `upload_${index + 1}`,
-        name: rawName.trim() || `Lead ${index + 1}`,
-        phone: rawPhone,
+      return {
+        id: `file_${idx + 1}`,
+        name: String(rawName).trim(),
+        phone: String(rawPhone).trim(),
         formatted_phone: formatted,
         is_valid_phone: isValid,
-        call_type: "Outbound",
-        ai_classification: "Other",
-        response: "New Lead",
-        status: "In Progress",
-      });
+        call_type: "Manual Upload",
+        ai_classification: "Uncategorized",
+        response: "-",
+        status: isValid ? "valid" : "invalid",
+      };
     });
 
     setContacts(parsedContacts);
+    const validIds = new Set(parsedContacts.filter((c) => c.is_valid_phone).map((c) => c.id));
+    setSelectedContactIds(validIds);
+
     setUploadedFileStats({
       fileName,
-      total: parsedContacts.length,
+      total: rows.length,
       valid: validCount,
       invalid: invalidCount,
     });
 
-    // Auto-select valid
-    const validIds = new Set(parsedContacts.filter((c) => c.is_valid_phone).map((c) => c.id));
-    setSelectedContactIds(validIds);
-
-    showToast(`Loaded ${parsedContacts.length} contacts (${validCount} valid WhatsApp numbers)`);
+    showToast(`Loaded ${rows.length} contacts (${validCount} valid WhatsApp numbers)`);
   };
 
-  // Filtered contacts based on search and dropdown filters
+  // 5. Contact Selection Helpers
+  const toggleSelectAll = () => {
+    if (selectedContactIds.size === filteredContacts.filter((c) => c.is_valid_phone).length) {
+      setSelectedContactIds(new Set());
+    } else {
+      const allValid = new Set(filteredContacts.filter((c) => c.is_valid_phone).map((c) => c.id));
+      setSelectedContactIds(allValid);
+    }
+  };
+
+  const toggleSelectContact = (id: string | number) => {
+    setSelectedContactIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // 6. Filter contacts
   const filteredContacts = useMemo(() => {
     return contacts.filter((c) => {
-      const matchSearch =
-        !searchQuery.trim() ||
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.phone.includes(searchQuery);
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = c.name.toLowerCase().includes(q);
+        const matchPhone = c.phone.includes(q);
+        if (!matchName && !matchPhone) return false;
+      }
 
-      const matchCallType = filterCallType === "all" || (c.call_type || "").toLowerCase() === filterCallType.toLowerCase();
+      if (filterCallType !== "all" && c.call_type?.toLowerCase() !== filterCallType.toLowerCase()) {
+        return false;
+      }
+      if (filterClassification !== "all" && c.ai_classification?.toLowerCase() !== filterClassification.toLowerCase()) {
+        return false;
+      }
+      if (filterResponse !== "all" && c.response?.toLowerCase() !== filterResponse.toLowerCase()) {
+        return false;
+      }
+      if (filterStatus !== "all") {
+        if (filterStatus === "valid" && !c.is_valid_phone) return false;
+        if (filterStatus === "invalid" && c.is_valid_phone) return false;
+      }
 
-      const matchClassification =
-        filterClassification === "all" ||
-        (c.ai_classification || "").toLowerCase() === filterClassification.toLowerCase();
-
-      const matchResponse =
-        filterResponse === "all" || (c.response || "").toLowerCase().includes(filterResponse.toLowerCase());
-
-      const matchStatus = filterStatus === "all" || (c.status || "").toLowerCase() === filterStatus.toLowerCase();
-
-      return matchSearch && matchCallType && matchClassification && matchResponse && matchStatus;
+      return true;
     });
   }, [contacts, searchQuery, filterCallType, filterClassification, filterResponse, filterStatus]);
 
-  // Bulk Selection Handlers
-  const handleToggleSelectAllFiltered = () => {
-    const validFiltered = filteredContacts.filter((c) => c.is_valid_phone);
-    const allSelected = validFiltered.every((c) => selectedContactIds.has(c.id));
-
-    const next = new Set(selectedContactIds);
-    if (allSelected) {
-      validFiltered.forEach((c) => next.delete(c.id));
-    } else {
-      validFiltered.forEach((c) => next.add(c.id));
-    }
-    setSelectedContactIds(next);
-  };
-
-  const handleToggleContact = (id: string | number) => {
-    const next = new Set(selectedContactIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedContactIds(next);
-  };
-
-  // Add Material from Material Base Picker
-  const handleSelectMaterial = (material: MaterialItem) => {
-    const itemId = `mat_${material.id}`;
-    if (selectedItems.some((item) => item.id === itemId)) {
-      showToast("Material already added to selection", "error");
+  // 7. Message Queue Items Management
+  const handleSelectMaterial = (mat: MaterialItem) => {
+    if (selectedItems.some((item) => item.id === `mat_${mat.id}`)) {
+      showToast("This material is already in your message queue", "error");
       return;
     }
 
     setSelectedItems((prev) => [
       ...prev,
       {
-        id: itemId,
-        type: material.type,
-        title: material.title,
-        text: material.content,
-        media_url: material.file_url,
-        file_name: material.file_url ? material.file_url.split("/").pop() : undefined,
-        mime_type: material.mime_type,
+        id: `mat_${mat.id}`,
+        type: mat.type,
+        title: mat.title,
+        text: mat.content,
+        media_url: mat.file_url,
+        file_name: mat.file_url ? mat.file_url.split("/").pop() : undefined,
+        mime_type: mat.mime_type,
       },
     ]);
+
     setShowMaterialPicker(false);
-    showToast(`Added "${material.title}" to message queue`);
+    showToast(`Added '${mat.title}' to message queue`);
   };
 
-  // Add Custom Text Message
   const handleAddCustomMessage = () => {
     if (!customText.trim()) {
       showToast("Please enter message content", "error");
       return;
     }
 
-    const title = customTitle.trim() || "Custom Text Message";
-    const itemId = `custom_${Date.now()}`;
+    const newId = `custom_${Date.now()}`;
+    const title = customTitle.trim() || `Custom Text #${selectedItems.length + 1}`;
 
     setSelectedItems((prev) => [
       ...prev,
       {
-        id: itemId,
+        id: newId,
         type: "text",
         title: title,
         text: customText.trim(),
@@ -529,8 +650,7 @@ export default function SendMessagePage() {
     setSelectedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Centralized frontend credit estimation matching backend rules:
-  // Text = 1 credit, Image = 2 credits, Document = 3 credits per recipient
+  // Centralized frontend credit estimation matching backend rules
   const selectedCount = selectedContactIds.size;
   const itemsCount = selectedItems.length;
   const creditsPerRecipient = selectedItems.reduce((acc, item) => {
@@ -548,8 +668,12 @@ export default function SendMessagePage() {
     return contacts.filter((c) => selectedContactIds.has(c.id) && c.is_valid_phone);
   }, [contacts, selectedContactIds]);
 
-  // Execute Send
+  // Execute Send or Schedule
   const handleExecuteSend = async () => {
+    if (connectionState !== "connected") {
+      showToast("Please connect your WhatsApp number first", "error");
+      return;
+    }
     if (selectedCount === 0) {
       showToast("Please select at least one valid recipient", "error");
       return;
@@ -561,6 +685,20 @@ export default function SendMessagePage() {
     if (!hasSufficientCredits) {
       showToast("Insufficient WhatsApp credits to perform send", "error");
       return;
+    }
+
+    let scheduledIso: string | undefined = undefined;
+    if (deliveryTiming === "scheduled") {
+      if (!scheduledDate || !scheduledTime) {
+        showToast("Please select both a scheduled date and time", "error");
+        return;
+      }
+      const schedDt = new Date(`${scheduledDate}T${scheduledTime}`);
+      if (isNaN(schedDt.getTime()) || schedDt.getTime() <= Date.now() + 30000) {
+        showToast("Scheduled time must be at least 1 minute in the future", "error");
+        return;
+      }
+      scheduledIso = schedDt.toISOString();
     }
 
     try {
@@ -580,6 +718,7 @@ export default function SendMessagePage() {
           ? (campaigns.find((c) => String(c.id) === String(selectedCampaignId))?.name || "Campaign Send")
           : (uploadedFileStats?.fileName || "Uploaded Contacts File"),
         campaign_id: sourceMode === "campaign" && selectedCampaignId ? Number(selectedCampaignId) : undefined,
+        scheduled_for: scheduledIso,
         recipients: selectedContactsList.map((c) => ({
           name: c.name,
           phone: c.formatted_phone,
@@ -597,21 +736,39 @@ export default function SendMessagePage() {
         })),
       };
 
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${BASE_URL}/api/whatsapp/send-bulk`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Failed to send messages");
+        let errMsg = "Failed to execute send request";
+        try {
+          const err = await res.json();
+          errMsg = err.detail || err.message || errMsg;
+        } catch {
+          errMsg = `Server error (${res.status}): ${res.statusText}`;
+        }
+        throw new Error(errMsg);
       }
 
       const result = await res.json();
+
+      if (result.status === "scheduled") {
+        showToast(result.message || "✓ Broadcast scheduled successfully!", "success");
+        setSendProgress(null);
+        router.push("/whatsapp/history?status=scheduled");
+        return;
+      }
 
       setSendProgress({
         total: selectedCount * itemsCount,
@@ -624,9 +781,29 @@ export default function SendMessagePage() {
       // Refresh credits in context
       refreshCredits();
 
-      showToast(
-        `Successfully sent ${result.total_messages_sent} WhatsApp messages (${result.total_credits_deducted} credits deducted)`
-      );
+      const sentCount = result.total_messages_sent || 0;
+      const failedCount = result.total_failed || 0;
+      const firstError =
+        result.details?.[0]?.items?.find((i: any) => i.status === "failed" && i.error)?.error ||
+        result.details?.[0]?.error_message ||
+        "";
+
+      if (sentCount > 0 && failedCount === 0) {
+        showToast(
+          `✓ Successfully sent ${sentCount} WhatsApp messages (${result.total_credits_deducted} credits deducted)`,
+          "success"
+        );
+      } else if (sentCount > 0 && failedCount > 0) {
+        showToast(
+          `Sent ${sentCount} messages, but ${failedCount} failed${firstError ? `: ${firstError}` : ""}`,
+          "error"
+        );
+      } else {
+        showToast(
+          `Delivery failed for ${failedCount} recipient(s)${firstError ? `: ${firstError}` : ""}`,
+          "error"
+        );
+      }
     } catch (err: any) {
       showToast(err.message || "An error occurred during send", "error");
       setSendProgress(null);
@@ -684,12 +861,27 @@ export default function SendMessagePage() {
             className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition"
           >
             <Clock className="h-3.5 w-3.5" />
-            History
+            History & Scheduled
           </Link>
         </div>
 
-        {/* Available Credits Badge */}
+        {/* Available Credits Badge & Status */}
         <div className="flex items-center gap-2">
+          {connectionState === "connected" ? (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              WhatsApp Connected
+            </span>
+          ) : (
+            <Link
+              href="/whatsapp"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 transition"
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+              Not Connected
+            </Link>
+          )}
+
           <div className="flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-violet-50/60 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300">
             <CreditCard className="h-3.5 w-3.5" />
             <span>Credits: {userCredits}</span>
@@ -697,603 +889,610 @@ export default function SendMessagePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* ══════════════════════════════════════════════════════
-            LEFT COLUMN (7 cols): CONTACT SELECTION & FILTERS
-        ══════════════════════════════════════════════════════ */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* STEP 1: Select Source */}
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
-                  1
-                </span>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Select Recipients Source</h3>
+      {/* ── Main Send Workspace (With Connection Guard Overlay) ── */}
+      <div className="relative">
+        {/* Connection Guard Blur Overlay */}
+        {connectionState === "disconnected" && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-white/75 backdrop-blur-md dark:bg-zinc-950/80 p-6 min-h-[500px]">
+            <div className="max-w-md w-full rounded-2xl border border-rose-200/80 bg-white p-7 text-center shadow-2xl dark:border-rose-900/60 dark:bg-zinc-900 space-y-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400">
+                <Smartphone className="h-7 w-7" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <h3 className="text-base font-extrabold text-zinc-900 dark:text-white">
+                  WhatsApp Device Not Connected
+                </h3>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  Connecting your WhatsApp number is <strong>required</strong> before sending or scheduling broadcasts. Link your device to deliver messages reliably.
+                </p>
               </div>
 
-              {/* Source Toggle */}
-              <div className="flex rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800">
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                <Link
+                  href="/whatsapp"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md transition"
+                >
+                  <QrCode className="h-4 w-4" /> Connect Number Now
+                </Link>
+                <button
+                  type="button"
+                  onClick={checkWhatsAppStatus}
+                  disabled={checkingConnection}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 transition"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${checkingConnection ? "animate-spin" : ""}`} /> Check Status
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* ══════════════════════════════════════════════════════
+              LEFT COLUMN: CONTACTS SELECTION (5 COLS)
+          ══════════════════════════════════════════════════════ */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            {/* STEP 1: Select Source Mode */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
+                    1
+                  </span>
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Choose Contacts Source</h3>
+                </div>
+              </div>
+
+              {/* Source Mode Switcher */}
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setSourceMode("campaign")}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
+                  className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition ${
                     sourceMode === "campaign"
-                      ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white shadow-sm"
-                      : "text-zinc-600 dark:text-zinc-400"
+                      ? "border-violet-600 bg-violet-50/50 dark:border-violet-500 dark:bg-violet-950/30 ring-1 ring-violet-600/30"
+                      : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
                   }`}
                 >
-                  <Users className="h-3.5 w-3.5" /> Calling Campaign
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                      sourceMode === "campaign"
+                        ? "bg-violet-600 text-white"
+                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-zinc-900 dark:text-white truncate">Campaign</h4>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
+                      From call campaign
+                    </p>
+                  </div>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setSourceMode("upload")}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
+                  className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition ${
                     sourceMode === "upload"
-                      ? "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white shadow-sm"
-                      : "text-zinc-600 dark:text-zinc-400"
+                      ? "border-violet-600 bg-violet-50/50 dark:border-violet-500 dark:bg-violet-950/30 ring-1 ring-violet-600/30"
+                      : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
                   }`}
                 >
-                  <Upload className="h-3.5 w-3.5" /> Upload Excel / CSV / Google Sheet
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                      sourceMode === "upload"
+                        ? "bg-violet-600 text-white"
+                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    }`}
+                  >
+                    <Upload className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-zinc-900 dark:text-white truncate">File / Sheets</h4>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
+                      Excel, CSV or Google
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Sub Mode Content */}
+              <div className="mt-4">
+                {sourceMode === "campaign" ? (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Select Campaign
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedCampaignId}
+                        onChange={(e) => setSelectedCampaignId(e.target.value)}
+                        disabled={loadingCampaigns}
+                        className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs text-zinc-900 font-medium focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                      >
+                        {campaigns.length === 0 ? (
+                          <option value="">No campaigns available</option>
+                        ) : (
+                          campaigns.map((c: any) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} ({c.contactCount || c.total_contacts || 0} Contacts)
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Upload Sub Mode Tabs */}
+                    <div className="flex gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setUploadSubMode("file")}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                          uploadSubMode === "file"
+                            ? "bg-white text-violet-700 dark:bg-zinc-900 dark:text-violet-300 shadow-sm"
+                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900"
+                        }`}
+                      >
+                        Upload Excel / CSV
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUploadSubMode("sheet")}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                          uploadSubMode === "sheet"
+                            ? "bg-white text-violet-700 dark:bg-zinc-900 dark:text-violet-300 shadow-sm"
+                            : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900"
+                        }`}
+                      >
+                        Google Sheet Link
+                      </button>
+                    </div>
+
+                    {uploadSubMode === "file" ? (
+                      <div>
+                        <div
+                          onClick={() => fileInputRef.current?.click()}
+                          className="cursor-pointer rounded-2xl border-2 border-dashed border-zinc-300 p-5 text-center hover:border-violet-500 dark:border-zinc-700 dark:hover:border-violet-400 transition"
+                        >
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv, .xlsx, .xls"
+                            className="hidden"
+                            onChange={handleFileUpload}
+                          />
+                          <FileSpreadsheet className="mx-auto h-7 w-7 text-zinc-400" />
+                          <p className="mt-1.5 text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                            Click to upload CSV or Excel
+                          </p>
+                          <p className="text-[10px] text-zinc-400">Supports .csv, .xlsx, .xls with Phone column</p>
+                        </div>
+
+                        {uploadedFileStats && (
+                          <div className="mt-2.5 flex items-center justify-between rounded-xl bg-violet-50 p-2.5 text-xs text-violet-900 dark:bg-violet-950/40 dark:text-violet-200 border border-violet-200/60">
+                            <span className="font-semibold truncate max-w-[150px]">{uploadedFileStats.fileName}</span>
+                            <span className="text-[10px] font-bold">
+                              {uploadedFileStats.valid} Valid • {uploadedFileStats.invalid} Invalid
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+                            Google Sheets Public / Shared Link
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              placeholder="https://docs.google.com/spreadsheets/d/..."
+                              value={googleSheetUrl}
+                              onChange={(e) => setGoogleSheetUrl(e.target.value)}
+                              className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleFetchGoogleSheet}
+                              disabled={loadingGoogleSheet}
+                              className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                            >
+                              {loadingGoogleSheet ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  Importing...
+                                </>
+                              ) : (
+                                "Import"
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-zinc-500 leading-tight">
+                            Ensure sharing is set to <strong>&quot;Anyone with the link can view&quot;</strong> and has Name & Phone columns.
+                          </p>
+                        </div>
+
+                        {uploadedFileStats && (
+                          <div className="flex items-center justify-between rounded-xl bg-emerald-50 p-2.5 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 border border-emerald-200/60">
+                            <span className="font-semibold">{uploadedFileStats.fileName}</span>
+                            <span className="text-[10px] font-bold">
+                              {uploadedFileStats.valid} Valid Contacts
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Contacts Table & Filter Bar (2 Clean Columns: Name & Phone) */}
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
+              <div className="p-3.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2 bg-zinc-50/50 dark:bg-zinc-800/30">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Contacts</h4>
+                  <span className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                    {selectedCount} / {contacts.filter((c) => c.is_valid_phone).length}
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 pr-2.5 py-1 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none w-36"
+                  />
+                </div>
+              </div>
+
+              {/* 2-Column Table: Name & WhatsApp Number */}
+              <div className="max-h-[380px] overflow-y-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 text-zinc-500 font-bold">
+                    <tr>
+                      <th className="py-2 px-3 w-8 text-center">
+                        <button type="button" onClick={toggleSelectAll}>
+                          {selectedCount > 0 && selectedCount === filteredContacts.filter((c) => c.is_valid_phone).length ? (
+                            <CheckSquare className="h-4 w-4 text-violet-600" />
+                          ) : (
+                            <Square className="h-4 w-4 text-zinc-400" />
+                          )}
+                        </button>
+                      </th>
+                      <th className="py-2 px-3">Name</th>
+                      <th className="py-2 px-3">WhatsApp Number</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                    {loadingContacts ? (
+                      <tr>
+                        <td colSpan={3} className="py-8 text-center text-zinc-400">
+                          <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-1 text-violet-600" />
+                          Loading contacts...
+                        </td>
+                      </tr>
+                    ) : filteredContacts.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-8 text-center text-zinc-400">
+                          No contacts found.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredContacts.map((contact) => {
+                        const isSelected = selectedContactIds.has(contact.id);
+                        return (
+                          <tr
+                            key={contact.id}
+                            onClick={() => contact.is_valid_phone && toggleSelectContact(contact.id)}
+                            className={`cursor-pointer transition ${
+                              isSelected ? "bg-violet-50/40 dark:bg-violet-950/20" : "hover:bg-zinc-50/50"
+                            } ${!contact.is_valid_phone ? "opacity-40 cursor-not-allowed" : ""}`}
+                          >
+                            <td className="py-2 px-3 text-center">
+                              {contact.is_valid_phone ? (
+                                isSelected ? (
+                                  <CheckSquare className="h-4 w-4 text-violet-600 inline" />
+                                ) : (
+                                  <Square className="h-4 w-4 text-zinc-400 inline" />
+                                )
+                              ) : (
+                                <X className="h-4 w-4 text-rose-400 inline" />
+                              )}
+                            </td>
+                            <td className="py-2 px-3 font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[140px]">
+                              {contact.name}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-zinc-600 dark:text-zinc-400">
+                              {contact.formatted_phone}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          {/* ══════════════════════════════════════════════════════
+              RIGHT COLUMN: MESSAGE COMPOSITION & TIMING (7 COLS)
+          ══════════════════════════════════════════════════════ */}
+          <div className="lg:col-span-7 space-y-6">
+            
+            {/* STEP 2: Choose Message Content */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
+                    2
+                  </span>
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Message & Attachments</h3>
+                </div>
+              </div>
+
+              {/* Message Items Queue */}
+              <div className="mt-4 space-y-2.5">
+                {selectedItems.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-xs text-zinc-400 dark:border-zinc-700">
+                    No message or materials added yet.
+                  </div>
+                ) : (
+                  selectedItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 dark:border-zinc-800 dark:bg-zinc-950"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                          {item.type === "text" ? (
+                            <FileText className="h-3.5 w-3.5" />
+                          ) : item.type === "image" ? (
+                            <ImageIcon className="h-3.5 w-3.5" />
+                          ) : (
+                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h5 className="text-xs font-bold text-zinc-900 dark:text-white truncate">
+                            {item.title}
+                          </h5>
+                          {item.text && (
+                            <p className="mt-0.5 text-[11px] text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                              {item.text}
+                            </p>
+                          )}
+                          {item.file_name && (
+                            <p className="mt-0.5 text-[10px] text-zinc-400 font-mono truncate">
+                              {item.file_name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {item.media_url && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewMaterial({
+                              title: item.title || item.file_name || "Attachment",
+                              type: item.type,
+                              url: item.media_url,
+                              mime_type: item.mime_type
+                            })}
+                            className="p-1 rounded-lg text-zinc-500 hover:text-violet-600 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition"
+                            title="Preview Attachment"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.id)}
+                          className="p-1 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowMaterialPicker(true)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 transition"
+                >
+                  <Layers className="h-3.5 w-3.5 text-violet-600" />
+                  From Material Base
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomComposer(true)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-violet-600 py-2.5 text-xs font-semibold text-white hover:bg-violet-700 shadow-sm transition"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  + Custom Text
                 </button>
               </div>
             </div>
 
-            {/* Campaign Selector */}
-            {sourceMode === "campaign" ? (
-              <div className="mt-4">
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Select Existing Campaign
-                </label>
-                {loadingCampaigns ? (
-                  <div className="flex h-10 items-center gap-2 text-xs text-zinc-500">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
-                    Loading campaigns...
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <select
-                      value={selectedCampaignId}
-                      onChange={(e) => setSelectedCampaignId(e.target.value)}
-                      className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-3.5 pr-10 text-xs font-medium text-zinc-900 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                    >
-                      {campaigns.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.contactCount || c.totalCalls} Contacts) • {c.status}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-zinc-400" />
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Upload / Google Sheet Option */
-              <div className="mt-4 space-y-3">
-                {/* Submode toggle */}
-                <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-2">
-                  <button
-                    type="button"
-                    onClick={() => setUploadSubMode("file")}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
-                      uploadSubMode === "file"
-                        ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
-                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                    }`}
-                  >
-                    Upload File (.xlsx, .xls, .csv)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUploadSubMode("sheet")}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
-                      uploadSubMode === "sheet"
-                        ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
-                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                    }`}
-                  >
-                    Google Sheets Link
-                  </button>
-                </div>
-
-                {uploadSubMode === "file" ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50/70 p-6 text-center hover:border-violet-500 dark:border-zinc-700 dark:bg-zinc-800/40 transition"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <Upload className="h-7 w-7 text-violet-500" />
-                    <p className="mt-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                      Upload Contacts (.xlsx, .xls, .csv)
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-zinc-400">
-                      Drag and drop or click to browse. Phone numbers will automatically be normalized (+91 format).
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-800/40 space-y-3">
-                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                      Google Sheets Link
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="url"
-                        placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit..."
-                        value={googleSheetUrl}
-                        onChange={(e) => setGoogleSheetUrl(e.target.value)}
-                        className="flex-1 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                      />
-                      <button
-                        type="button"
-                        disabled={loadingGoogleSheet || !googleSheetUrl.trim()}
-                        onClick={handleLoadGoogleSheet}
-                        className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-violet-700 disabled:opacity-50 transition"
-                      >
-                        {loadingGoogleSheet ? (
-                          <>
-                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                            Fetching...
-                          </>
-                        ) : (
-                          "Import Sheet"
-                        )}
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-zinc-400">
-                      Ensure your Google Sheet link is shared as <strong>&ldquo;Anyone with the link can view&rdquo;</strong> so the contact list can be fetched and imported.
-                    </p>
-                  </div>
-                )}
-
-                {uploadedFileStats && (
-                  <div className="mt-3 grid grid-cols-4 gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <div>
-                      <span className="text-[10px] text-zinc-400">Source:</span>
-                      <p className="truncate text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                        {uploadedFileStats.fileName}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-zinc-400">Total Found:</span>
-                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                        {uploadedFileStats.total}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Valid:</span>
-                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        {uploadedFileStats.valid}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-red-500 font-medium">Invalid:</span>
-                      <p className="text-xs font-bold text-red-500">
-                        {uploadedFileStats.invalid}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* STEP 2: Filter & Select Contacts */}
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* STEP 3: Delivery Timing & Scheduling */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 space-y-4">
               <div className="flex items-center gap-2">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
-                  2
+                  3
                 </span>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
-                  Contacts Selection
-                </h3>
-                <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                  {selectedCount} Selected
-                </span>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Delivery Schedule</h3>
               </div>
 
-              {/* Bulk select button */}
+              {/* Timing Switcher */}
+              <div className="grid grid-cols-2 gap-2 bg-zinc-100 p-1 rounded-xl dark:bg-zinc-800 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryTiming("immediate")}
+                  className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                    deliveryTiming === "immediate"
+                      ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-white"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  <Send className="w-3.5 h-3.5 text-violet-600" /> Send Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryTiming("scheduled")}
+                  className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                    deliveryTiming === "scheduled"
+                      ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-white"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  <CalendarClock className="w-3.5 h-3.5 text-indigo-600" /> Schedule Later
+                </button>
+              </div>
+
+              {/* Schedule Date & Time Pickers */}
+              {deliveryTiming === "scheduled" && (
+                <div className="p-3.5 rounded-xl bg-violet-50/60 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-900/60 space-y-3 animate-in fade-in duration-200">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Date</label>
+                      <input
+                        type="date"
+                        min={new Date().toISOString().split("T")[0]}
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Time</label>
+                      <input
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none font-medium"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-violet-800 dark:text-violet-300 font-medium">
+                    📅 Will be dispatched automatically on <strong>{scheduledDate} at {scheduledTime}</strong> (Local Time).
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* STEP 4: Credit Calculation & Send Button */}
+            <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50/60 to-indigo-50/40 p-5 shadow-sm dark:border-violet-900/40 dark:from-zinc-900 dark:to-violet-950/20">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
+                  4
+                </span>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Review & Execute</h3>
+              </div>
+
+              <div className="mt-4 space-y-2 rounded-xl border border-violet-200/60 bg-white/80 p-3.5 dark:border-zinc-800 dark:bg-zinc-900/80">
+                <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+                  <span>Recipients:</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">{selectedCount} Contacts</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+                  <span>Messages per Contact:</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">{itemsCount} Item(s)</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-xs font-semibold dark:border-zinc-800">
+                  <span className="text-zinc-800 dark:text-zinc-200">Required Credits:</span>
+                  <span className="text-sm font-bold text-violet-600 dark:text-violet-400">
+                    {totalRequiredCredits} Credits
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                  <span>Available Credits:</span>
+                  <span className={hasSufficientCredits ? "text-emerald-600 font-semibold" : "text-red-500 font-bold"}>
+                    {userCredits} Credits
+                  </span>
+                </div>
+              </div>
+
+              {/* Insufficient credits warning */}
+              {!hasSufficientCredits && totalRequiredCredits > 0 && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>
+                    Insufficient WhatsApp credits. Required: {totalRequiredCredits}, Available: {userCredits}.
+                  </span>
+                </div>
+              )}
+
+              {/* Send / Schedule Button */}
               <button
                 type="button"
-                onClick={handleToggleSelectAllFiltered}
-                className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
+                disabled={selectedCount === 0 || itemsCount === 0 || !hasSufficientCredits || isSending || connectionState !== "connected"}
+                onClick={() => setShowConfirmModal(true)}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-3 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {filteredContacts.filter((c) => c.is_valid_phone).every((c) => selectedContactIds.has(c.id)) &&
-                filteredContacts.length > 0 ? (
+                {deliveryTiming === "scheduled" ? (
                   <>
-                    <CheckSquare className="h-3.5 w-3.5" /> Deselect All Filtered
+                    <CalendarClock className="h-4 w-4" />
+                    Confirm & Schedule Broadcast ({selectedCount} Contacts)
                   </>
                 ) : (
                   <>
-                    <Square className="h-3.5 w-3.5" /> Select All Filtered ({filteredContacts.filter((c) => c.is_valid_phone).length})
+                    <Send className="h-4 w-4" />
+                    Confirm & Send Broadcast ({selectedCount} Contacts)
                   </>
                 )}
               </button>
             </div>
 
-            {/* Filter controls */}
-            <div className="mt-4 space-y-2.5">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
-                <input
-                  type="text"
-                  placeholder="Search contacts by name or phone..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-1.5 pl-9 pr-3 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                />
-              </div>
-
-              {/* Dropdown Filters (Only in campaign mode) */}
-              {sourceMode === "campaign" && (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {/* Call Type */}
-                  <div>
-                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase mb-1">
-                      Call Type
-                    </label>
-                    <select
-                      value={filterCallType}
-                      onChange={(e) => setFilterCallType(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-1.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                    >
-                      <option value="all">All Types</option>
-                      <option value="Outbound">Outbound</option>
-                      <option value="Inbound">Inbound</option>
-                    </select>
+            {/* Send Progress Box */}
+            {sendProgress && (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Execution Status</h4>
+                  {sendProgress.done ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                      <CheckCircle2 className="h-3 w-3" /> Completed
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 animate-pulse">
+                      <RefreshCw className="h-3 w-3 animate-spin" /> In Progress...
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800">
+                    <span className="text-[10px] text-zinc-400">Total Sent</span>
+                    <p className="text-sm font-bold text-emerald-600">{sendProgress.sent}</p>
                   </div>
-
-                  {/* AI Classification */}
-                  <div>
-                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase mb-1">
-                      AI Class
-                    </label>
-                    <select
-                      value={filterClassification}
-                      onChange={(e) => setFilterClassification(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-1.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                    >
-                      <option value="all">All Leads</option>
-                      <option value="Hot Lead">Hot Lead</option>
-                      <option value="Warm Lead">Warm Lead</option>
-                      <option value="Cold Lead">Cold Lead</option>
-                      <option value="Interested">Interested</option>
-                      <option value="Callback">Callback</option>
-                      <option value="Appointment">Appointment</option>
-                    </select>
+                  <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800">
+                    <span className="text-[10px] text-zinc-400">Failed</span>
+                    <p className="text-sm font-bold text-red-500">{sendProgress.failed}</p>
                   </div>
-
-                  {/* Response */}
-                  <div>
-                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase mb-1">
-                      Response
-                    </label>
-                    <select
-                      value={filterResponse}
-                      onChange={(e) => setFilterResponse(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-1.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                    >
-                      <option value="all">All Responses</option>
-                      <option value="Answered">Answered</option>
-                      <option value="Not Answered">Not Answered</option>
-                      <option value="Appointment Booked">Appointment Booked</option>
-                      <option value="Callback">Callback</option>
-                      <option value="Declined">Declined</option>
-                      <option value="Cut">Cut/Disconnected</option>
-                    </select>
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase mb-1">
-                      Status
-                    </label>
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-1.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                    >
-                      <option value="all">All Status</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Failed">Failed</option>
-                      <option value="In Progress">In Progress</option>
-                    </select>
+                  <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800">
+                    <span className="text-[10px] text-zinc-400">Credits Deducted</span>
+                    <p className="text-sm font-bold text-violet-600">{sendProgress.creditsDeducted}</p>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Contacts List Table */}
-            <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-              {loadingContacts ? (
-                <div className="flex h-36 items-center justify-center">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
-                </div>
-              ) : filteredContacts.length === 0 ? (
-                <div className="p-6 text-center text-xs text-zinc-500">
-                  No contacts found matching the filters.
-                </div>
-              ) : (
-                <table className="w-full text-left text-xs">
-                  <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700 text-zinc-500">
-                    <tr>
-                      <th className="p-2.5 w-10 text-center">
-                        <input
-                          type="checkbox"
-                          checked={
-                            filteredContacts.filter((c) => c.is_valid_phone).length > 0 &&
-                            filteredContacts
-                              .filter((c) => c.is_valid_phone)
-                              .every((c) => selectedContactIds.has(c.id))
-                          }
-                          onChange={handleToggleSelectAllFiltered}
-                          className="rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
-                        />
-                      </th>
-                      <th className="p-2.5 font-semibold">Name</th>
-                      <th className="p-2.5 font-semibold">Phone</th>
-                      <th className="p-2.5 font-semibold">Classification</th>
-                      <th className="p-2.5 font-semibold">Response</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {filteredContacts.map((contact) => {
-                      const isSelected = selectedContactIds.has(contact.id);
-                      return (
-                        <tr
-                          key={contact.id}
-                          onClick={() => {
-                            if (contact.is_valid_phone) handleToggleContact(contact.id);
-                          }}
-                          className={`cursor-pointer transition ${
-                            !contact.is_valid_phone
-                              ? "opacity-40 cursor-not-allowed bg-zinc-50 dark:bg-zinc-900"
-                              : isSelected
-                              ? "bg-violet-50/70 dark:bg-violet-950/40"
-                              : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                          }`}
-                        >
-                          <td className="p-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              disabled={!contact.is_valid_phone}
-                              checked={isSelected}
-                              onChange={() => handleToggleContact(contact.id)}
-                              className="rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
-                            />
-                          </td>
-                          <td className="p-2.5 font-medium text-zinc-900 dark:text-zinc-100">
-                            {contact.name}
-                          </td>
-                          <td className="p-2.5 text-zinc-600 dark:text-zinc-400">
-                            <span className={contact.is_valid_phone ? "font-mono" : "text-red-500"}>
-                              {contact.formatted_phone || contact.phone}
-                            </span>
-                          </td>
-                          <td className="p-2.5">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                contact.ai_classification === "Hot Lead"
-                                  ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                                  : contact.ai_classification === "Warm Lead"
-                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                                  : contact.ai_classification === "Interested"
-                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                              }`}
-                            >
-                              {contact.ai_classification || "Other"}
-                            </span>
-                          </td>
-                          <td className="p-2.5 text-zinc-600 dark:text-zinc-400">
-                            {contact.response || "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ══════════════════════════════════════════════════════
-            RIGHT COLUMN (5 cols): MESSAGE CONTENT & ESTIMATION
-        ══════════════════════════════════════════════════════ */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* STEP 3: Message & Attachments */}
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
-                  3
-                </span>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Message & Materials</h3>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setShowMaterialPicker(true)}
-                  className="flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300 transition"
-                >
-                  <Layers className="h-3 w-3" />
-                  Material Base
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddMaterialModal(true)}
-                  className="flex items-center gap-1 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 transition"
-                >
-                  <Plus className="h-3 w-3" />
-                  Create New
-                </button>
-              </div>
-            </div>
-
-            {/* Selected items list */}
-            <div className="mt-4 space-y-2.5">
-              {selectedItems.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-300 p-6 text-center dark:border-zinc-800">
-                  <FileText className="mx-auto h-7 w-7 text-zinc-400" />
-                  <p className="mt-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    No message content selected
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-zinc-400">
-                    Choose materials from your Material Base or create a custom one-time message.
-                  </p>
-                  <div className="mt-3 flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setShowMaterialPicker(true)}
-                      className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-violet-700 transition"
-                    >
-                      Pick from Material Base
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                selectedItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="flex items-start justify-between gap-2.5 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-950"
-                  >
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                        {item.type === "text" ? (
-                          <FileText className="h-3.5 w-3.5" />
-                        ) : item.type === "image" ? (
-                          <ImageIcon className="h-3.5 w-3.5" />
-                        ) : (
-                          <FileSpreadsheet className="h-3.5 w-3.5" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-                            {item.title}
-                          </span>
-                          <span className="rounded bg-zinc-200/80 px-1.5 py-0.2 text-[9px] uppercase font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                            {item.type}
-                          </span>
-                        </div>
-                        {item.type === "text" && item.text && (
-                          <p className="mt-1 text-[11px] text-zinc-600 line-clamp-2 dark:text-zinc-400 leading-relaxed">
-                            {item.text}
-                          </p>
-                        )}
-                        {item.type !== "text" && item.media_url && (
-                          <p className="mt-0.5 text-[10px] text-zinc-400 font-mono truncate">
-                            {item.file_name || item.media_url}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-200 hover:text-red-600 dark:hover:bg-zinc-800 dark:hover:text-red-400 transition shrink-0"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* STEP 4: Credit Estimation & Confirmation */}
-          <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50/60 to-indigo-50/40 p-5 shadow-sm dark:border-violet-900/40 dark:from-zinc-900 dark:to-violet-950/20">
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
-                4
-              </span>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Credit Calculation</h3>
-            </div>
-
-            <div className="mt-4 space-y-2 rounded-xl border border-violet-200/60 bg-white/80 p-3.5 dark:border-zinc-800 dark:bg-zinc-900/80">
-              <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                <span>Selected Recipients:</span>
-                <span className="font-bold text-zinc-900 dark:text-white">{selectedCount}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                <span>Messages per Contact:</span>
-                <span className="font-bold text-zinc-900 dark:text-white">{itemsCount}</span>
-              </div>
-              <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-xs font-semibold dark:border-zinc-800">
-                <span className="text-zinc-800 dark:text-zinc-200">Total WhatsApp Credits Needed:</span>
-                <span className="text-sm font-bold text-violet-600 dark:text-violet-400">
-                  {totalRequiredCredits} Credits
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-zinc-500">
-                <span>Your Available Credits:</span>
-                <span className={hasSufficientCredits ? "text-emerald-600 font-semibold" : "text-red-500 font-bold"}>
-                  {userCredits} Credits
-                </span>
-              </div>
-            </div>
-
-            {/* Insufficient credits warning */}
-            {!hasSufficientCredits && totalRequiredCredits > 0 && (
-              <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>
-                  Insufficient WhatsApp credits. Required: {totalRequiredCredits}, Available: {userCredits}.
-                </span>
               </div>
             )}
-
-            {/* Send Button */}
-            <button
-              type="button"
-              disabled={selectedCount === 0 || itemsCount === 0 || !hasSufficientCredits || isSending}
-              onClick={() => setShowConfirmModal(true)}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-3 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send className="h-4 w-4" />
-              Confirm & Send ({selectedCount} Contacts • {totalRequiredCredits} Credits)
-            </button>
           </div>
-
-          {/* Send Progress Box */}
-          {sendProgress && (
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Execution Status</h4>
-                {sendProgress.done ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                    <CheckCircle2 className="h-3 w-3" /> Completed
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 animate-pulse">
-                    <RefreshCw className="h-3 w-3 animate-spin" /> In Progress...
-                  </span>
-                )}
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800">
-                  <span className="text-[10px] text-zinc-400">Total Sent</span>
-                  <p className="text-sm font-bold text-emerald-600">{sendProgress.sent}</p>
-                </div>
-                <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800">
-                  <span className="text-[10px] text-zinc-400">Failed</span>
-                  <p className="text-sm font-bold text-red-500">{sendProgress.failed}</p>
-                </div>
-                <div className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800">
-                  <span className="text-[10px] text-zinc-400">Credits Deducted</span>
-                  <p className="text-sm font-bold text-violet-600">{sendProgress.creditsDeducted}</p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1451,64 +1650,76 @@ export default function SendMessagePage() {
                 </div>
                 <textarea
                   rows={4}
-                  placeholder="Hi {{name}}, thank you for speaking with us..."
+                  placeholder="Hello {{name}}, thank you for your time on our call..."
                   value={customText}
                   onChange={(e) => setCustomText(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-900 placeholder-zinc-400 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id="saveMaterialCheck"
+                  id="saveMaterial"
                   checked={saveToMaterial}
                   onChange={(e) => setSaveToMaterial(e.target.checked)}
                   className="rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
                 />
-                <label htmlFor="saveMaterialCheck" className="text-xs font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer">
-                  Save to Material Base for future reuse
+                <label htmlFor="saveMaterial" className="text-xs text-zinc-600 dark:text-zinc-400">
+                  Save this message to Material Base for future reuse
                 </label>
               </div>
+            </div>
 
-              <div className="mt-5 flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setShowCustomComposer(false)}
-                  className="rounded-xl border border-zinc-200 px-4 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddCustomMessage}
-                  className="rounded-xl bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-violet-700"
-                >
-                  Add to Queue
-                </button>
-              </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCustomComposer(false)}
+                className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddCustomMessage}
+                className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-700 shadow-sm transition"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add to Queue
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════
-          MODAL: CONFIRM SEND
+          MODAL: CONFIRM SEND / SCHEDULE
       ══════════════════════════════════════════════════════ */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400">
-                <Send className="h-5 w-5" />
+                {deliveryTiming === "scheduled" ? (
+                  <CalendarClock className="h-5 w-5" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
               </div>
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Confirm WhatsApp Message</h4>
-                <p className="text-xs text-zinc-500">Please review before executing the send.</p>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                  {deliveryTiming === "scheduled" ? "Confirm Scheduled Broadcast" : "Confirm WhatsApp Broadcast"}
+                </h4>
+                <p className="text-xs text-zinc-500">Please review before confirming execution.</p>
               </div>
             </div>
 
             <div className="mt-4 space-y-2.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 dark:border-zinc-800 dark:bg-zinc-950 text-xs">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Delivery Timing:</span>
+                <span className="font-bold text-violet-700 dark:text-violet-300">
+                  {deliveryTiming === "scheduled" ? `📅 ${scheduledDate} at ${scheduledTime}` : "⚡ Send Immediately"}
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">Recipients:</span>
                 <span className="font-bold text-zinc-900 dark:text-white">{selectedCount} Contacts</span>
@@ -1526,7 +1737,7 @@ export default function SendMessagePage() {
                 <span className="font-medium text-zinc-900 dark:text-white">{itemsCount} Item(s)</span>
               </div>
               <div className="flex justify-between border-t border-zinc-200 pt-2 font-bold dark:border-zinc-800">
-                <span className="text-zinc-700 dark:text-zinc-300">Estimated WhatsApp Credits:</span>
+                <span className="text-zinc-700 dark:text-zinc-300">Estimated Credits:</span>
                 <span className="text-sm text-violet-600 dark:text-violet-400">{totalRequiredCredits}</span>
               </div>
             </div>
@@ -1548,8 +1759,79 @@ export default function SendMessagePage() {
                 onClick={handleExecuteSend}
                 className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/20 hover:shadow-lg transition"
               >
-                <Check className="h-3.5 w-3.5" /> Confirm & Send
+                <Check className="h-3.5 w-3.5" />
+                {deliveryTiming === "scheduled" ? "Confirm & Schedule" : "Confirm & Send"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attachment Preview Modal */}
+      {previewMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                  {previewMaterial.type === "image" ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white truncate">{previewMaterial.title}</h3>
+                  <p className="text-[11px] text-zinc-500">
+                    {previewMaterial.mime_type || previewMaterial.type}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {previewMaterial.url && (
+                  <a
+                    href={previewMaterial.url.startsWith("http") ? previewMaterial.url : `${BASE_URL}${previewMaterial.url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                  >
+                    Open in New Tab <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <button
+                  onClick={() => setPreviewMaterial(null)}
+                  className="p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 p-4 bg-zinc-100 dark:bg-zinc-950 overflow-auto flex items-center justify-center min-h-[400px]">
+              {previewMaterial.type === "image" && previewMaterial.url && (
+                <div className="max-w-full max-h-[70vh] flex items-center justify-center">
+                  <img
+                    src={previewMaterial.url.startsWith("http") ? previewMaterial.url : `${BASE_URL}${previewMaterial.url}`}
+                    alt={previewMaterial.title}
+                    className="max-h-[68vh] max-w-full rounded-xl object-contain shadow-lg"
+                  />
+                </div>
+              )}
+
+              {previewMaterial.type === "document" && previewMaterial.url && (
+                <div className="w-full h-[68vh] rounded-xl overflow-hidden border border-zinc-300 dark:border-zinc-800 bg-white shadow-inner">
+                  <iframe
+                    src={`${previewMaterial.url.startsWith("http") ? previewMaterial.url : `${BASE_URL}${previewMaterial.url}`}#toolbar=1`}
+                    className="w-full h-full border-0"
+                    title={previewMaterial.title}
+                  />
+                </div>
+              )}
+
+              {previewMaterial.type === "text" && (
+                <div className="w-full max-w-xl p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-200 shadow-sm leading-relaxed">
+                  {previewMaterial.content}
+                </div>
+              )}
             </div>
           </div>
         </div>

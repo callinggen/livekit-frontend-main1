@@ -303,7 +303,7 @@ export default function UploadSource({
                 value={singleContactPhone || ""}
                 onChange={(e) => onChangeSinglePhone?.(e.target.value)}
                 disabled={disabled}
-                placeholder="Phone Number *"
+                placeholder="Phone Number (10 digits) *"
                 className={`w-full rounded-lg border bg-white px-3 py-2 text-sm transition focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-900 ${
                   errors?.singleContactPhone ? 'border-red-400' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
                 }`}

@@ -32,7 +32,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 import AddMaterialModal from "@/components/whatsapp/AddMaterialModal";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
 interface MaterialItem {
   id: number;
@@ -46,6 +46,24 @@ interface MaterialItem {
   tags?: string;
   created_at: string;
   updated_at: string;
+}
+
+function formatLocalTime(isoString?: string | null, fallback?: string): string {
+  if (!isoString) return fallback || "—";
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return fallback || isoString;
+    return d.toLocaleString(undefined, {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return fallback || isoString;
+  }
 }
 
 export default function MaterialBasePage() {
@@ -64,6 +82,7 @@ export default function MaterialBasePage() {
   const [modalType, setModalType] = useState<"text" | "image" | "document">("text");
   const [editingMaterial, setEditingMaterial] = useState<MaterialItem | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [previewMaterial, setPreviewMaterial] = useState<MaterialItem | null>(null);
 
   // Form states
   const [formTitle, setFormTitle] = useState("");
@@ -597,33 +616,47 @@ export default function MaterialBasePage() {
                 )}
 
                 {item.type === "image" && item.file_url && (
-                  <div className="mt-2.5 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div
+                    onClick={() => setPreviewMaterial(item)}
+                    className="mt-2.5 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 cursor-pointer relative group/img"
+                  >
                     <div className="relative aspect-video w-full">
                       <img
-                        src={`${BASE_URL}${item.file_url}`}
+                        src={item.file_url.startsWith("http") ? item.file_url : `${BASE_URL}${item.file_url}`}
                         alt={item.title}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition group-hover/img:scale-105"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
                             "https://placehold.co/600x400/27272a/ffffff?text=Image+Preview";
                         }}
                       />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/90 text-zinc-900 text-xs font-bold shadow-md">
+                          <Eye className="w-3.5 h-3.5 text-violet-600" /> Click to Preview
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {item.type === "document" && (
-                  <div className="mt-2.5 flex items-center gap-3 rounded-xl border border-amber-200/50 bg-amber-50/30 p-3 dark:border-amber-900/30 dark:bg-amber-950/20">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <div
+                    onClick={() => setPreviewMaterial(item)}
+                    className="mt-2.5 flex items-center gap-3 rounded-xl border border-amber-200/50 bg-amber-50/30 p-3 dark:border-amber-900/30 dark:bg-amber-950/20 cursor-pointer hover:border-amber-400 dark:hover:border-amber-700 transition group/doc"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover/doc:scale-105 transition">
                       <FileSpreadsheet className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                      <p className="truncate text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover/doc:text-amber-600 dark:group-hover/doc:text-amber-400 transition">
                         {item.file_path ? item.file_path.split(/[\\/]/).pop() : "document.pdf"}
                       </p>
                       <p className="text-[10px] text-zinc-500">
                         {formatFileSize(item.file_size)} • {item.mime_type || "PDF Document"}
                       </p>
+                    </div>
+                    <div className="shrink-0 text-amber-600 opacity-80 group-hover/doc:opacity-100">
+                      <Eye className="w-4 h-4" />
                     </div>
                   </div>
                 )}
@@ -633,19 +666,111 @@ export default function MaterialBasePage() {
               <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
                   <Clock className="h-3 w-3" />
-                  <span>{new Date(item.created_at || Date.now()).toLocaleDateString()}</span>
+                  <span>{formatLocalTime(item.created_at)}</span>
                   {item.file_size ? <span>• {formatFileSize(item.file_size)}</span> : null}
                 </div>
 
-                <button
-                  onClick={() => handleUseMaterial(item)}
-                  className="flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/80 transition"
-                >
-                  Use <ArrowRight className="h-3 w-3" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {(item.type === "image" || item.type === "document") && (
+                    <button
+                      onClick={() => setPreviewMaterial(item)}
+                      className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                      title="Preview Document / Image"
+                    >
+                      <Eye className="h-3 w-3 text-zinc-500" /> Preview
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleUseMaterial(item)}
+                    className="flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/80 transition"
+                  >
+                    Use <ArrowRight className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════
+          PREVIEW MODAL (DOCUMENTS & IMAGES)
+      ══════════════════════════════════════ */}
+      {previewMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                  {previewMaterial.type === "image" ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white truncate">{previewMaterial.title}</h3>
+                  <p className="text-[11px] text-zinc-500">
+                    {previewMaterial.mime_type || previewMaterial.type} • {formatFileSize(previewMaterial.file_size)} • Uploaded {formatLocalTime(previewMaterial.created_at)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {previewMaterial.file_url && (
+                  <a
+                    href={previewMaterial.file_url.startsWith("http") ? previewMaterial.file_url : `${BASE_URL}${previewMaterial.file_url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                  >
+                    Open Full Tab <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    handleUseMaterial(previewMaterial);
+                    setPreviewMaterial(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition"
+                >
+                  Use in Send <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setPreviewMaterial(null)}
+                  className="p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 p-4 bg-zinc-100 dark:bg-zinc-950 overflow-auto flex items-center justify-center min-h-[400px]">
+              {previewMaterial.type === "image" && previewMaterial.file_url && (
+                <div className="max-w-full max-h-[70vh] flex items-center justify-center">
+                  <img
+                    src={previewMaterial.file_url.startsWith("http") ? previewMaterial.file_url : `${BASE_URL}${previewMaterial.file_url}`}
+                    alt={previewMaterial.title}
+                    className="max-h-[68vh] max-w-full rounded-xl object-contain shadow-lg"
+                  />
+                </div>
+              )}
+
+              {previewMaterial.type === "document" && previewMaterial.file_url && (
+                <div className="w-full h-[68vh] rounded-xl overflow-hidden border border-zinc-300 dark:border-zinc-800 bg-white shadow-inner">
+                  <iframe
+                    src={`${previewMaterial.file_url.startsWith("http") ? previewMaterial.file_url : `${BASE_URL}${previewMaterial.file_url}`}#toolbar=1`}
+                    className="w-full h-full border-0"
+                    title={previewMaterial.title}
+                  />
+                </div>
+              )}
+
+              {previewMaterial.type === "text" && (
+                <div className="w-full max-w-xl p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-200 shadow-sm leading-relaxed">
+                  {previewMaterial.content}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

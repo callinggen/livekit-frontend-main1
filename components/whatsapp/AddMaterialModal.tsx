@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   FileText,
   Image as ImageIcon,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
 export interface MaterialItem {
@@ -61,6 +61,24 @@ export default function AddMaterialModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Auto-reset state whenever modal opens or switches item
+  useEffect(() => {
+    if (isOpen) {
+      setModalType(editingMaterial ? editingMaterial.type : initialType);
+      setFormTitle(editingMaterial?.title || "");
+      setFormContent(editingMaterial?.content || "");
+      setFormTags(editingMaterial?.tags || "");
+      setSaveToBase(true);
+      setFormFile(null);
+      setFilePreview(editingMaterial?.file_url || null);
+      setErrorMsg(null);
+      setIsSubmitting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [isOpen, editingMaterial, initialType]);
 
   if (!isOpen) return null;
 

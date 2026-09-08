@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { api, CampaignDetail } from "@/lib/api";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
 const formatDateTime = (dateString: string | undefined | null) => {
   if (!dateString) return "";
@@ -340,41 +340,43 @@ export default function CampaignDetailPage() {
     }
   }
 
-  // Determine Duration runtime logs based on Campaign Schedule time and Contact call log durations
   let startedText = "—";
   let endedText = "—";
+  const cStatus = (campaign.status || "").toLowerCase();
 
-  const schedTime = campaign.schedule_date || campaign.schedule || campaign.date;
-  if (schedTime) {
+  const fmtTime = (val: string | null | undefined) => {
+    if (!val) return null;
     try {
-      const cleanStr = schedTime.replace(" UTC", "");
-      const startDate = new Date(cleanStr);
-      if (!isNaN(startDate.getTime())) {
-        startedText = startDate.toLocaleTimeString(undefined, {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        });
-
-        // Sum up the duration of all calls in the campaign from contacts (in seconds)
-        const totalDurationSeconds = enrichedContacts.reduce((acc: number, c: any) => acc + Number(c.duration || 0), 0) || 0;
-
-        if (campaign.status === "Running") {
-          endedText = "In Progress";
-        } else if (campaign.status === "Scheduled" || campaign.status === "pending") {
-          endedText = "Scheduled";
-        } else {
-          // Campaign is Completed / Failed
-          const endDate = new Date(startDate.getTime() + totalDurationSeconds * 1000);
-          endedText = endDate.toLocaleTimeString(undefined, {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          });
-        }
+      let str = String(val).trim();
+      if (!str || str === "—") return null;
+      if (!str.endsWith("Z") && !str.includes("+") && !str.includes("T") && str.includes("-")) {
+        str = str.replace(" ", "T") + "Z";
+      } else if (!str.endsWith("Z") && !str.includes("+") && str.includes("T")) {
+        str = str + "Z";
       }
-    } catch (err) {
-      console.error("Failed to calculate campaign duration:", err);
+      const d = new Date(str.replace(" UTC", ""));
+      if (isNaN(d.getTime())) return null;
+      return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+    } catch { return null; }
+  };
+
+  if (cStatus === "scheduled" || cStatus === "pending") {
+    // Use scheduled_at (UTC ISO string) so browser converts to correct local time
+    const schedFmt = fmtTime(campaign.scheduled_at) ||
+      fmtTime(campaign.schedule_date && campaign.schedule_time
+        ? `${campaign.schedule_date}T${campaign.schedule_time}Z`
+        : campaign.schedule_date);
+    startedText = schedFmt ? `Scheduled for ${schedFmt}` : "Scheduled";
+    endedText = "Scheduled";
+  } else {
+    // Use actual job started_at / finished_at for accurate campaign times
+    const jobStarted = fmtTime(campaign.job?.started_at ?? campaign.started_at);
+    const jobFinished = fmtTime(campaign.job?.finished_at ?? campaign.finished_at);
+    startedText = jobStarted || fmtTime(campaign.created_at) || "—";
+    if (cStatus === "running" || cStatus === "processing") {
+      endedText = "In Progress";
+    } else {
+      endedText = jobFinished || "—";
     }
   }
 
@@ -420,6 +422,16 @@ export default function CampaignDetailPage() {
     }
   ];
 
+  if (loading || !campaign) {
+    return (
+      <DashboardShell title="Campaign Details">
+        <div className="flex h-[calc(100vh-80px)] items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+        </div>
+      </DashboardShell>
+    );
+  }
+
   return (
     <DashboardShell title="Campaign Details">
       <div className="flex flex-col h-[calc(100vh-80px)] p-1 sm:p-4 overflow-y-auto gap-6">
@@ -442,7 +454,7 @@ export default function CampaignDetailPage() {
             </div>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 pl-12">
               <Calendar className="h-4 w-4 text-zinc-400" />
-              Scheduled for: {formatDateTime(campaign.schedule_date || campaign.schedule)}
+              Scheduled for: {formatDateTime(campaign.scheduled_at || campaign.schedule_date || campaign.schedule)}
             </p>
           </div>
 
@@ -637,7 +649,7 @@ export default function CampaignDetailPage() {
             </div>
             <div>
               <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">CREDITS USED</p>
-              <h5 className="text-2xl font-black text-zinc-950 dark:text-white mt-1">${Number(campaign.creditsUsed || 0).toFixed(2)}</h5>
+              <h5 className="text-2xl font-black text-zinc-950 dark:text-white mt-1">{Number(campaign.creditsUsed || 0)}</h5>
             </div>
           </div>
         </div>
