@@ -649,7 +649,7 @@ export default function CampaignDetailPage() {
             </div>
             <div>
               <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">CREDITS USED</p>
-              <h5 className="text-2xl font-black text-zinc-950 dark:text-white mt-1">${Number(campaign.creditsUsed || 0).toFixed(2)}</h5>
+              <h5 className="text-2xl font-black text-zinc-950 dark:text-white mt-1">{Number(campaign.creditsUsed || 0)}</h5>
             </div>
           </div>
         </div>
