@@ -199,6 +199,73 @@ export default function CallLogsPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    const rowsToExport = selectedRows.length > 0 
+      ? processedData.filter(r => selectedRows.includes(r.id))
+      : processedData;
+    
+    if (rowsToExport.length === 0) {
+      alert("No call logs available to export.");
+      return;
+    }
+
+    const headers = [
+      "Call ID",
+      "Name",
+      "Phone",
+      "Direction",
+      "Duration",
+      "AI Classification",
+      "Response",
+      "Status",
+      "Human Response",
+      "Category",
+      "Date & Time",
+      "Campaign",
+      "Credits Deducted",
+      "Sentiment",
+      "Recording URL"
+    ];
+
+    const escapeCSV = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const csvRows = [
+      headers.map(h => escapeCSV(h)).join(","),
+      ...rowsToExport.map(r => [
+        escapeCSV(r.id),
+        escapeCSV(r.name),
+        escapeCSV(r.phone),
+        escapeCSV(r.type),
+        escapeCSV(r.duration),
+        escapeCSV(r.aiClass),
+        escapeCSV(r.response),
+        escapeCSV(r.status),
+        escapeCSV(r.humanResponse || "Not Called"),
+        escapeCSV(r.category),
+        escapeCSV(r.datetime),
+        escapeCSV(r.agent),
+        escapeCSV(r.credits ?? 0),
+        escapeCSV(r.sentiment || "Neutral"),
+        escapeCSV(r.recording_url || "")
+      ].join(","))
+    ];
+
+    const blob = new Blob(["\uFEFF" + csvRows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().split("T")[0];
+    link.setAttribute("href", url);
+    link.setAttribute("download", `call_logs_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const getPillColor = (val: string, type: "response" | "status" | "category" | "type") => {
     if (type === "type") return val === "INBOUND" ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-200" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200";
     
@@ -285,8 +352,12 @@ export default function CallLogsPage() {
           </div>
 
           <div className="ml-auto shrink-0 pl-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-sm">
-              <Download className="w-4 h-4" /> Export
+            <button 
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-sm cursor-pointer active:scale-95"
+              title={selectedRows.length > 0 ? `Export ${selectedRows.length} selected row(s) to CSV` : "Export all filtered call logs to CSV"}
+            >
+              <Download className="w-4 h-4" /> Export{selectedRows.length > 0 ? ` (${selectedRows.length})` : ""}
             </button>
           </div>
         </div>

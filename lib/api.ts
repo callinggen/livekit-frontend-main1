@@ -122,6 +122,8 @@ export interface ResponseLog {
   recording_url?: string;
   human_response?: string;
   creditsDeducted?: number;
+  outcome?: string;
+  agent_name?: string;
 }
 
 // ── Email Campaign Types ───────────────────────────────────────────────────
@@ -317,6 +319,27 @@ export const api = {
   launchCampaign: (campaignId: number) =>
     request<{ job_id: number; total_contacts: number; message: string }>(
       `/api/campaigns/${campaignId}/launch`,
+      { method: "POST" }
+    ),
+
+  /** Pause a running or scheduled campaign, terminating ongoing calls. */
+  pauseCampaign: (campaignId: number | string) =>
+    request<{ message: string; campaign_id: number; status: string }>(
+      `/api/campaigns/${campaignId}/pause`,
+      { method: "POST" }
+    ),
+
+  /** Resume a paused campaign. */
+  resumeCampaign: (campaignId: number | string) =>
+    request<{ message: string; campaign_id: number; status: string }>(
+      `/api/campaigns/${campaignId}/resume`,
+      { method: "POST" }
+    ),
+
+  /** Stop a campaign entirely, terminating ongoing calls and cancelling remaining. */
+  stopCampaign: (campaignId: number | string) =>
+    request<{ message: string; campaign_id: number; status: string }>(
+      `/api/campaigns/${campaignId}/stop`,
       { method: "POST" }
     ),
 
