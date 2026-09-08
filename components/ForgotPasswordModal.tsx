@@ -57,7 +57,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, emailToPrefill }:
         setResetStep("verify");
         setResetMessage("Sending OTP...");
         setIsLoading(true);
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
         fetch(`${backendUrl}/api/auth/forgot-password`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -87,7 +87,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, emailToPrefill }:
       return;
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
     setIsLoading(true);
 
     try {

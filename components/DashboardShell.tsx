@@ -22,14 +22,16 @@ import {
   X,
   Zap,
   CreditCard,
-  ArrowUpCircle,
   Settings,
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 
-
+// Notice: "Buy Credits" has been removed from the sidebar navigation items as requested
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Calendar", icon: CalendarDays, href: "/calendar" },
@@ -37,10 +39,9 @@ const navItems = [
   { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
   { label: "Email Marketing", icon: Mail, href: "/email-campaign" },
+  { label: "WhatsApp", icon: MessageSquare, href: "/whatsapp" },
   { label: "Report", icon: FileText, href: "/report" },
-  { label: "Buy Credits", icon: CreditCard, href: "/pricing" },
 ];
-
 
 export default function DashboardShell({
   title,
@@ -53,9 +54,29 @@ export default function DashboardShell({
   const router = useRouter();
   const { user, logout } = useAuth();
   const { credits } = useCredits();
+  
+  // Mobile drawer open/close
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Desktop sidebar collapsed/elaborated state (stored in localStorage)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Close sidebar on wide screens on resize
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebar-collapsed");
+    if (saved !== null) {
+      setSidebarCollapsed(saved === "true");
+    }
+  }, []);
+
+  const toggleSidebarCollapse = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar-collapsed", String(next));
+      return next;
+    });
+  };
+
+  // Close mobile sidebar on resize
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth >= 1024) setSidebarOpen(false);
@@ -71,11 +92,10 @@ export default function DashboardShell({
     }
   }, [user, router]);
 
-  // Theme toggle — BUG-022/027: persist to localStorage
+  // Theme toggle
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    // Read saved preference (anti-flash script in layout.tsx already set the class)
     const saved = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const dark = saved === "dark" || (saved === null && prefersDark);
@@ -110,26 +130,46 @@ export default function DashboardShell({
       )}
 
       {/* ══════════════════════════════════════
-          SIDEBAR
+          SIDEBAR (Collapsible Desktop / Drawer Mobile)
       ══════════════════════════════════════ */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r
+          fixed inset-y-0 left-0 z-50 flex flex-col border-r
           bg-white dark:bg-zinc-900 dark:border-zinc-800 border-zinc-200
-          transition-transform duration-300 ease-in-out
+          transition-all duration-300 ease-in-out
           lg:static lg:translate-x-0
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          ${sidebarOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0"}
+          ${sidebarCollapsed ? "lg:w-[72px]" : "lg:w-64"}
         `}
       >
         {/* Sidebar header */}
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
+        <div className={`flex h-14 shrink-0 items-center border-b border-zinc-200 dark:border-zinc-800 px-3.5 transition-all ${
+          sidebarCollapsed ? "justify-center" : "justify-between"
+        }`}>
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-md shadow-violet-500/20">
+                <Phone className="h-4 w-4 text-white" />
+              </div>
+            </Link>
+            {!sidebarCollapsed && (
+              <span className="text-sm font-bold tracking-tight truncate animate-in fade-in duration-200">
+                CallingGen
+              </span>
+            )}
+          </div>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-md shadow-violet-500/20">
-              <Phone className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-sm font-bold tracking-tight">CallingGen</span>
-          </Link>
+          {/* 3-line hamburger bar on Desktop to collapse/expand sidebar */}
+          <button
+            onClick={toggleSidebarCollapse}
+            className="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white transition-colors"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            id="sidebar-collapse-toggle"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+
+          {/* Mobile close button */}
           <button
             onClick={() => setSidebarOpen(false)}
             className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white lg:hidden"
@@ -138,91 +178,113 @@ export default function DashboardShell({
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col overflow-y-auto py-4 px-3">
-          {/* Main Navigation */}
-          <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-            Navigation
-          </p>
-          <nav className="space-y-0.5">
+        {/* Sidebar Navigation */}
+        <div className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden py-4 px-2 sm:px-3">
+          {!sidebarCollapsed && (
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 animate-in fade-in duration-150">
+              Navigation
+            </p>
+          )}
+
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active = pathname === item.href;
+              const isWhatsApp = item.href === "/whatsapp";
+              const active = isWhatsApp ? pathname.startsWith("/whatsapp") : pathname === item.href;
+
               return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${active
-                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                <div key={item.label}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    className={`flex items-center rounded-xl py-2.5 text-sm font-medium transition-all group ${
+                      sidebarCollapsed ? "justify-center px-2" : "gap-3 px-3"
+                    } ${
+                      active
+                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20"
+                        : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                     }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                </Link>
+                  >
+                    <Icon className="h-4 w-4 shrink-0 transition-transform group-hover:scale-110" />
+                    {!sidebarCollapsed && (
+                      <span className="flex-1 truncate animate-in fade-in duration-200">{item.label}</span>
+                    )}
+                  </Link>
+                </div>
               );
             })}
           </nav>
-
-          {/* Pro tip banner */}
-          {/* <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/40">
-            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-              <Zap className="h-3.5 w-3.5 text-amber-500" />
-              Demo Mode
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
-              Using dummy data. All metrics are for demonstration only.
-            </p>
-          </div> */}
         </div>
 
         {/* User section at bottom */}
-        <div className="shrink-0 border-t border-zinc-200 p-3 dark:border-zinc-800">
-          <div
-            onClick={() => router.push("/profile")}
-            className="mb-2 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 transition hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
-            title="View Profile Overview"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+        <div className="shrink-0 border-t border-zinc-200 p-2 sm:p-3 dark:border-zinc-800">
+          {!sidebarCollapsed ? (
+            <div className="animate-in fade-in duration-200">
+              <div
+                onClick={() => router.push("/profile")}
+                className="mb-2 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 transition hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
+                title="View Profile Overview"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+                    <UserCircle2 className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold">{user?.name ?? "Admin User"}</p>
+                    <p className="truncate text-[10px] text-zinc-500">{user?.email ?? "admin@callinggen.com"}</p>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition"
+                  title="Settings"
+                >
+                  <Settings className="h-4 w-4 shrink-0" />
+                </button>
+              </div>
+              <button
+                onClick={logout}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-1">
+              <div
+                onClick={() => router.push("/profile")}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-white transition hover:scale-105"
+                title={`${user?.name ?? "Profile"} (${user?.email ?? ""})`}
+              >
                 <UserCircle2 className="h-5 w-5 text-white" />
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold">{user?.name ?? "Admin User"}</p>
-                <p className="truncate text-[10px] text-zinc-500">{user?.email ?? "admin@callinggen.com"}</p>
-              </div>
+              <button
+                onClick={logout}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-red-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-red-400 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
-            <button 
-              type="button" 
-              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition"
-              title="Settings"
-            >
-              <Settings className="h-4 w-4 shrink-0" />
-            </button>
-          </div>
-          <button
-            onClick={logout}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Logout
-          </button>
+          )}
         </div>
       </aside>
 
       {/* ══════════════════════════════════════
           MAIN CONTENT
       ══════════════════════════════════════ */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
 
         {/* ── Top Navbar ── */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center gap-3">
-            {/* Hamburger — 3 lines toggle */}
+            {/* Mobile Hamburger toggle */}
             <button
               onClick={() => setSidebarOpen((prev) => !prev)}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-white lg:hidden"
-              aria-label="Toggle sidebar"
+              aria-label="Toggle mobile menu"
               id="sidebar-toggle"
             >
               <Menu className="h-4 w-4" />
@@ -231,11 +293,11 @@ export default function DashboardShell({
               <p className="text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                 Overview
               </p>
-              <h1 className="text-sm font-semibold leading-tight">{title}</h1>
+              <h1 className="text-sm font-semibold leading-tight text-zinc-900 dark:text-white">{title}</h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {/* Subscription Plan badge */}
             <div
               className="hidden items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 dark:border-violet-800/50 dark:bg-violet-950/40 sm:flex"
@@ -248,8 +310,9 @@ export default function DashboardShell({
             {/* Credits Display */}
             {credits !== null && (
               <div 
-                title="Current Credits"
-                className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex transition ${credits < 100
+                onClick={() => router.push("/pricing")}
+                title="Current Credits (Click to Buy Credits)"
+                className={`hidden cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex transition hover:border-violet-400 ${credits < 100
                   ? "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/40"
                   : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
                   }`}
@@ -267,15 +330,15 @@ export default function DashboardShell({
               </div>
             )}
 
-            {/* Top-Up Credits Button */}
+            {/* Buy Credits Button (Renamed from Top-Up Credits) */}
             <button
               onClick={() => router.push("/pricing")}
-              className="hidden items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-violet-500/20 transition hover:shadow-lg hover:shadow-violet-500/30 hover:scale-[1.02] active:scale-[0.98] sm:flex"
+              className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-violet-500/20 transition hover:shadow-lg hover:shadow-violet-500/30 hover:scale-[1.02] active:scale-[0.98]"
+              id="navbar-buy-credits-btn"
             >
-              <ArrowUpCircle className="h-3.5 w-3.5" />
-              Top-Up Credits
+              <CreditCard className="h-3.5 w-3.5" />
+              <span>Buy Credits</span>
             </button>
-
 
             {/* Dark / Light toggle */}
             <button

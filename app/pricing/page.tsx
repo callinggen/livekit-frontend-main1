@@ -1,24 +1,56 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
-import { CheckCircle2, Sparkles, Loader2, Coins, CreditCard, ShieldCheck, AlertCircle, X } from "lucide-react";
+import { 
+  CheckCircle2, Sparkles, Loader2, Coins, CreditCard, 
+  ShieldCheck, AlertCircle, X, Zap, Crown, ArrowRight, 
+  TrendingUp, Check, Plus, Minus, ArrowDown, Flame, Receipt
+} from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
 import DashboardShell from "@/components/DashboardShell";
 
 export default function PricingPage() {
   const router = useRouter();
   const { isLoggedIn, user, refreshUser } = useAuth();
   const { credits, refreshCredits } = useCredits();
+
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [mockOrder, setMockOrder] = useState<any | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+
+  // Add-On Credits Slider State (Rate: ₹1.5 per credit, min: 100)
+  const [addonCredits, setAddonCredits] = useState<number>(500);
+
+  // Pricing calculation: 1 credit = 1.5 INR
+  const addonPrice = useMemo(() => {
+    return Math.round(addonCredits * 1.5);
+  }, [addonCredits]);
+
+  // Milestone points for slider
+  const milestones = [
+    { credits: 100, price: 150 },
+    { credits: 500, price: 750 },
+    { credits: 1000, price: 1500 },
+    { credits: 2500, price: 3750 },
+    { credits: 5000, price: 7500 },
+    { credits: 10000, price: 15000 },
+    { credits: 20000, price: 30000 },
+  ];
+
+  // Dynamic recommendation tagline based on slider
+  const getAddonTagline = (qty: number) => {
+    if (qty <= 500) return "Best for: Trial campaigns & small follow-ups";
+    if (qty <= 2000) return "Best for: Weekly outreach & active campaigns";
+    if (qty <= 5000) return "Best for: High-volume sales & calling sprints";
+    return "Best for: Large-scale operations & bulk calling";
+  };
 
   // Auto-clear toast alert
   useEffect(() => {
@@ -30,6 +62,13 @@ export default function PricingPage() {
 
   const showToast = (type: "success" | "error" | "info", message: string) => {
     setToast({ type, message });
+  };
+
+  const scrollToTopUp = () => {
+    const el = document.getElementById("topup-section");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   };
 
   const loadRazorpayScript = (): Promise<boolean> => {
@@ -46,16 +85,18 @@ export default function PricingPage() {
     });
   };
 
-  const handlePayment = async (planName: string) => {
+  const handlePayment = async (planName: string, customCredits?: number) => {
     if (!isLoggedIn) {
       router.push(`/login?redirect=/pricing`);
       return;
     }
 
-    setLoadingPlan(planName);
+    const targetKey = customCredits ? `Addon-${customCredits}` : planName;
+    setLoadingPlan(targetKey);
+
     try {
-      // 1. Create order on Backend
-      const orderDetails = await api.createPaymentOrder(planName);
+      // 1. Create order on Backend (supports custom credits)
+      const orderDetails = await api.createPaymentOrder(planName, customCredits);
 
       // 2. Check if order is generated in Developer Sandbox Mock mode
       if (orderDetails.razorpay_order_id.startsWith("order_mock_")) {
@@ -77,14 +118,12 @@ export default function PricingPage() {
         amount: orderDetails.amount,
         currency: orderDetails.currency,
         name: "CallingGen",
-        description: `${orderDetails.plan_name} Pack - ${
-          planName === "Starter" ? "2,000" :
-          planName === "Growth" ? "5,000" :
-          planName === "Pro" ? "10,000" : "25,000"
-        } Credits`,
+        description: customCredits 
+          ? `Add-On Pack - ${customCredits.toLocaleString()} Credits` 
+          : `${orderDetails.plan_name} Plan`,
         order_id: orderDetails.razorpay_order_id,
         handler: async function (response: any) {
-          setLoadingPlan(planName);
+          setLoadingPlan(targetKey);
           try {
             // Call backend verification
             const verifyRes = await api.verifyPayment({
@@ -96,7 +135,7 @@ export default function PricingPage() {
             // Refresh Context Balance and User Data
             refreshCredits();
             await refreshUser();
-            showToast("success", `Success! Credited ${verifyRes.credits} credits to your account.`);
+            showToast("success", `Payment successful! Added ${verifyRes.credits} credits to your account.`);
           } catch (err: any) {
             console.error("Verification failed:", err);
             showToast("error", err.message || "Payment verification failed. Please contact support.");
@@ -149,7 +188,7 @@ export default function PricingPage() {
 
       refreshCredits();
       await refreshUser();
-      showToast("success", `Sandbox Checkout Success! Credited ${planName} pack. New Balance: ${verifyRes.credits} credits.`);
+      showToast("success", `Sandbox Checkout Success! Credited ${planName}. New Balance: ${verifyRes.credits} credits.`);
     } catch (err: any) {
       console.error("Mock verification failed:", err);
       showToast("error", err.message || "Mock payment simulation failed.");
@@ -158,6 +197,7 @@ export default function PricingPage() {
     }
   };
 
+  // Base subscription plans
   const plans = [
     {
       name: "Starter",
@@ -167,8 +207,6 @@ export default function PricingPage() {
       credits: "2,000 Credits",
       minutes: "≈ 133 minutes",
       popular: false,
-      buttonText: "Get Starter Pack",
-      buttonVariant: "outline" as const,
       features: [
         "2,000 Calling Credits / Month",
         "1 Active AI Voice Agent",
@@ -186,8 +224,6 @@ export default function PricingPage() {
       credits: "5,000 Credits",
       minutes: "≈ 333 minutes",
       popular: true,
-      buttonText: "Start Growth",
-      buttonVariant: "default" as const,
       features: [
         "3 Active AI Voice Agents",
         "5,000 Calling Credits",
@@ -204,8 +240,6 @@ export default function PricingPage() {
       credits: "10,000 Credits",
       minutes: "≈ 667 minutes",
       popular: false,
-      buttonText: "Start Pro",
-      buttonVariant: "outline" as const,
       features: [
         "10,000 Calling Credits / Month",
         "10 Active AI Voice Agents",
@@ -224,8 +258,6 @@ export default function PricingPage() {
       credits: "25,000 Credits",
       minutes: "≈ 1,667 minutes",
       popular: false,
-      buttonText: "Get Business Pack",
-      buttonVariant: "outline" as const,
       features: [
         "25,000 Calling Credits / Month",
         "Unlimited AI Voice Agents",
@@ -239,106 +271,160 @@ export default function PricingPage() {
       ],
     },
   ];
+
+  // User's current plan
+  const currentPlanName = user?.subscription_plan || "Starter";
+
   const pageContent = (
-    <>
-      <main className="flex-grow pt-32 pb-24 relative overflow-hidden">
-        
-        {/* Dynamic Background Blurs */}
-        <div className="absolute top-1/4 left-1/10 w-96 h-96 bg-[#4F6BFF]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/10 w-96 h-96 bg-[#7B61FF]/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="space-y-16 pb-16">
+      
+      {/* ── Top Header Section ── */}
+      <div className="text-center max-w-3xl mx-auto pt-6">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-600 dark:text-violet-400 text-xs sm:text-sm font-semibold tracking-wide mb-4">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>FLEXIBLE PLANS & ADD-ON TOP-UPS</span>
+        </div>
 
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px]">
-          
-          {/* Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 relative">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 text-[#4F6BFF] dark:text-[#818CF8] text-xs sm:text-sm font-semibold tracking-wide mb-4 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>PAY-AS-YOU-GO TOP-UPS</span>
+        <h1 className="text-3xl md:text-5xl font-extrabold text-zinc-900 dark:text-white tracking-tight mb-4">
+          Plans & Credits for{" "}
+          <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+            CallingGen
+          </span>
+        </h1>
+        <p className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto mb-6">
+          Upgrade your monthly subscription tier or purchase flexible add-on credits anytime. Credits never expire.
+        </p>
+
+        {/* Current Status Pills & History Link */}
+        {isLoggedIn && (
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-semibold shadow-sm">
+              <Crown className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <span>Current Plan: <strong className="uppercase">{currentPlanName}</strong></span>
             </div>
-
-            <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-6">
-              Credit Top-Up Packs for{" "}
-              <span className="bg-gradient-to-r from-[#4F6BFF] to-[#7B61FF] bg-clip-text text-transparent">
-                CallingGen
-              </span>
-            </h1>
-            <p className="text-lg text-slate-600 dark:text-slate-300 mb-6">
-              Purchase credits instantly and top up your account. No hidden subscriptions, no commitments, and credits never expire.
-            </p>
-
-            {/* Current Balance Display */}
-            {isLoggedIn && credits !== null && (
-              <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
-                <Coins className="w-5 h-5 text-indigo-500" />
-                <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Current Balance:</span>
-                <span className="text-base font-extrabold text-indigo-600 dark:text-indigo-400">{credits} Credits</span>
+            {credits !== null && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-semibold shadow-sm">
+                <Coins className="w-4 h-4 text-indigo-500" />
+                <span>Available Balance: <strong className="text-indigo-600 dark:text-indigo-400 font-mono">{credits} Credits</strong></span>
               </div>
             )}
+            <Link
+              href="/pricing/history"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:border-indigo-500 text-xs font-semibold shadow-sm transition hover:scale-105"
+            >
+              <Receipt className="w-4 h-4 text-indigo-500" />
+              <span>Payment History</span>
+            </Link>
+          </div>
+        )}
+
+        {/* ── Hook Line Banner for Quick Top-Up ── */}
+        <div className="mt-8 max-w-3xl mx-auto p-4 sm:p-5 rounded-2xl border border-indigo-100 bg-indigo-50/70 dark:border-indigo-900/40 dark:bg-indigo-950/20 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+          <div className="flex items-center gap-3.5">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+              <Zap className="w-5 h-5 fill-white text-white animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                  On-Demand Top Up
+                </span>
+                <span className="inline-block h-1 w-1 rounded-full bg-zinc-400"></span>
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  Zero Expiry • 100% Rollover
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white mt-0.5">
+                Need extra credits without upgrading your plan?
+              </h3>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                Top up on-demand starting at just <strong className="text-indigo-600 dark:text-indigo-400">₹150 for 100 credits</strong> (₹1.50/credit).
+              </p>
+            </div>
           </div>
 
-          {/* Pricing Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto items-stretch relative">
-            {plans.map((plan, idx) => {
-              const isActivePlan = isLoggedIn && (user?.subscription_plan || "Starter") === plan.name;
-              
-              return (
+          <button
+            onClick={scrollToTopUp}
+            className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+          >
+            <span>Top Up Credits</span>
+            <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
+          </button>
+        </div>
+      </div>
+
+      {/* ── 1. Subscription Plans Section ── */}
+      <div className="space-y-6">
+        <div className="text-center max-w-xl mx-auto">
+          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Subscription Plans</h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+            Choose the monthly tier that suits your business scale.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto items-stretch">
+          {plans.map((plan, idx) => {
+            const isCurrentPlan = isLoggedIn && currentPlanName.toLowerCase() === plan.name.toLowerCase();
+            const isUpgrade = !isCurrentPlan;
+
+            return (
               <div
                 key={idx}
-                className={`rounded-3xl p-8 border flex flex-col justify-between transition-all duration-300 relative ${
-                  isActivePlan && !plan.popular
-                    ? "bg-white dark:bg-[#111827] border-emerald-500 shadow-lg shadow-emerald-500/10 scale-[1.01]"
+                className={`rounded-3xl p-6 md:p-7 border flex flex-col justify-between transition-all duration-300 relative ${
+                  isCurrentPlan
+                    ? "bg-white dark:bg-zinc-900 border-emerald-500 shadow-lg shadow-emerald-500/10 ring-2 ring-emerald-500/20"
                     : plan.popular
-                    ? "bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white border-[#4F6BFF] shadow-xl shadow-indigo-500/20 scale-[1.03] z-10"
-                    : "bg-white dark:bg-[#111827] border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-lg hover:scale-[1.01]"
+                    ? "bg-gradient-to-b from-zinc-900 via-indigo-950 to-zinc-900 text-white border-violet-500 shadow-xl shadow-violet-500/20 scale-[1.02] z-10"
+                    : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-violet-300 dark:hover:border-violet-700"
                 }`}
               >
-                {isActivePlan && (
+                {isCurrentPlan && (
                   <div className="absolute -top-3 right-4 bg-emerald-500 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-md uppercase tracking-wider flex items-center gap-1 z-20">
                     <CheckCircle2 className="w-3 h-3" /> Current Plan
                   </div>
                 )}
-                {plan.popular && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#4F6BFF] text-white px-4 py-1 rounded-full text-[10px] font-bold shadow-md uppercase tracking-wider">
-                    Most Popular Choice
+                {plan.popular && !isCurrentPlan && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-violet-600 text-white px-3.5 py-1 rounded-full text-[10px] font-bold shadow-md uppercase tracking-wider">
+                    Most Popular
                   </div>
                 )}
 
                 <div>
-                  <h3 className={`text-2xl font-bold mb-1.5 ${plan.popular ? "text-white" : "text-slate-900 dark:text-white"}`}>
+                  <h3 className={`text-xl font-bold mb-1 ${plan.popular && !isCurrentPlan ? "text-white" : "text-zinc-900 dark:text-white"}`}>
                     {plan.name}
                   </h3>
-                  <p className={`text-xs mb-6 min-h-[32px] ${plan.popular ? "text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>
+                  <p className={`text-xs mb-5 min-h-[30px] ${plan.popular && !isCurrentPlan ? "text-zinc-300" : "text-zinc-500 dark:text-zinc-400"}`}>
                     {plan.tagline}
                   </p>
 
-                  <div className="mb-6 pb-6 border-b border-slate-200/60 dark:border-slate-800">
+                  <div className="mb-5 pb-5 border-b border-zinc-200/80 dark:border-zinc-800">
                     <div className="flex items-baseline gap-1">
-                      <span className={`text-4xl font-extrabold ${plan.popular ? "text-white" : "text-slate-900 dark:text-white"}`}>
+                      <span className={`text-3xl font-extrabold ${plan.popular && !isCurrentPlan ? "text-white" : "text-zinc-900 dark:text-white"}`}>
                         {plan.price}
                       </span>
-                      <span className={`text-xs font-medium ${plan.popular ? "text-slate-300" : "text-slate-400"}`}>
-                        One-Time
+                      <span className={`text-xs font-medium ${plan.popular && !isCurrentPlan ? "text-zinc-300" : "text-zinc-400"}`}>
+                        / month
                       </span>
                     </div>
                     <div className="flex flex-col gap-1 mt-2">
                       <span className={`text-xs font-semibold inline-block px-2.5 py-0.5 rounded-full ${
-                        plan.popular ? "bg-indigo-500/20 text-indigo-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                        plan.popular && !isCurrentPlan ? "bg-violet-500/20 text-violet-300" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                       }`}>
                         {plan.credits}
                       </span>
                       {plan.minutes && (
-                        <span className={`text-xs ${plan.popular ? "text-slate-400" : "text-slate-400 dark:text-slate-500"}`}>
+                        <span className={`text-[11px] ${plan.popular && !isCurrentPlan ? "text-zinc-400" : "text-zinc-400"}`}>
                           {plan.minutes}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <ul className="space-y-3.5 mb-8">
+                  <ul className="space-y-3 mb-6">
                     {plan.features.map((feat, fIdx) => (
-                      <li key={fIdx} className="flex items-start gap-3 text-xs sm:text-sm font-medium">
-                        <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${plan.popular ? "text-emerald-400" : "text-[#4F6BFF]"}`} />
-                        <span className={plan.popular ? "text-slate-200" : "text-slate-700 dark:text-slate-300"}>
+                      <li key={fIdx} className="flex items-start gap-2.5 text-xs font-medium">
+                        <Check className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${plan.popular && !isCurrentPlan ? "text-emerald-400" : "text-violet-600 dark:text-violet-400"}`} />
+                        <span className={plan.popular && !isCurrentPlan ? "text-zinc-200" : "text-zinc-600 dark:text-zinc-300"}>
                           {feat}
                         </span>
                       </li>
@@ -347,15 +433,15 @@ export default function PricingPage() {
                 </div>
 
                 <Button
-                  onClick={() => handlePayment(plan.name)}
-                  disabled={loadingPlan !== null}
-                  variant={isActivePlan ? "default" : plan.buttonVariant}
-                  className={`w-full rounded-full py-6 text-sm font-bold transition-all relative overflow-hidden group ${
-                    isActivePlan
-                      ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 disabled:bg-emerald-500/60 border-none"
+                  onClick={() => isUpgrade && handlePayment(plan.name)}
+                  disabled={loadingPlan !== null || isCurrentPlan}
+                  variant={isCurrentPlan ? "outline" : plan.popular ? "default" : "outline"}
+                  className={`w-full rounded-xl py-5 text-xs font-bold transition-all relative overflow-hidden ${
+                    isCurrentPlan
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default opacity-100"
                       : plan.popular
-                      ? "bg-[#4F6BFF] hover:bg-[#435BE0] text-white shadow-lg shadow-[#4F6BFF]/30 disabled:bg-[#4F6BFF]/60"
-                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60"
+                      ? "bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-500/30"
+                      : "border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   }`}
                 >
                   {loadingPlan === plan.name ? (
@@ -363,35 +449,212 @@ export default function PricingPage() {
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Initiating...</span>
                     </span>
-                  ) : isActivePlan ? (
+                  ) : isCurrentPlan ? (
                     <span className="flex items-center justify-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Current Active Plan</span>
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <span>Current Plan</span>
                     </span>
                   ) : (
-                    <span>{plan.buttonText}</span>
+                    <span className="flex items-center justify-center gap-1.5">
+                      <span>Upgrade to {plan.name}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
                   )}
                 </Button>
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* ── 2. Add-On Credits Section (Clean Platform Style) ── */}
+      <div id="topup-section" className="space-y-6 pt-6 scroll-mt-10">
+        <div className="text-center max-w-xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">
+            Add-On Credits
+          </h2>
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+            Need more credits? Top up your plan with flexible on-demand credits at ₹1.50 per credit.
+          </p>
+        </div>
+
+        {/* Clean Platform Card */}
+        <div className="max-w-4xl mx-auto rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19]">
+          
+          {/* Header Row */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+              <span>{getAddonTagline(addonCredits)}</span>
+            </div>
+
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+              Fixed Rate: <span className="text-zinc-900 dark:text-white font-bold">₹1.50 / credit</span>
+            </div>
           </div>
 
-          {/* Footer Security Badges */}
-          <div className="mt-20 flex flex-wrap items-center justify-center gap-8 text-slate-500 dark:text-slate-400 text-sm font-medium">
-            <span className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-500" /> Secure SSL Encryption
+          {/* Quick Preset Packs Grid */}
+          <div className="mb-6">
+            <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2.5">
+              Quick Select Pack:
             </span>
-            <span className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-indigo-500" /> Processed via Razorpay
-            </span>
-            <span className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-500" /> Instant Credits Delivery
-            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+              {[
+                { qty: 100, price: 150, label: "100 Credits" },
+                { qty: 500, price: 750, label: "500 Credits" },
+                { qty: 1000, price: 1500, label: "1,000 Credits" },
+                { qty: 2500, price: 3750, label: "2,500 Credits" },
+                { qty: 5000, price: 7500, label: "5,000 Credits" },
+                { qty: 10000, price: 15000, label: "10,000 Credits" },
+              ].map((p) => {
+                const isSelected = addonCredits === p.qty;
+                return (
+                  <button
+                    key={p.qty}
+                    type="button"
+                    onClick={() => setAddonCredits(p.qty)}
+                    className={`p-3 rounded-xl flex flex-col items-center justify-center transition-all border text-center cursor-pointer ${
+                      isSelected
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                        : "bg-zinc-50 dark:bg-zinc-900/60 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700"
+                    }`}
+                  >
+                    <span className="text-xs font-bold">{p.label}</span>
+                    <span className={`text-[11px] font-mono mt-0.5 ${isSelected ? "text-indigo-100" : "text-zinc-500"}`}>
+                      ₹{p.price.toLocaleString("en-IN")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Credits & Price Display with Animated Top-Up Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 my-6 p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-baseline gap-3">
+              <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                {addonCredits.toLocaleString()} credits
+              </h3>
+              <span className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                ₹{addonPrice.toLocaleString("en-IN")}
+              </span>
+            </div>
+
+            {/* Animated Button with Shimmer and Pulse */}
+            <button
+              onClick={() => handlePayment("Add-On Credits", addonCredits)}
+              disabled={loadingPlan !== null}
+              className="relative group overflow-hidden inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-7 py-3.5 text-sm font-bold shadow-md shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+            >
+              {/* Shimmer Light Beam Animation */}
+              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></span>
+              
+              {loadingPlan === `Addon-${addonCredits}` ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              ) : (
+                <Zap className="h-4 w-4 fill-white text-white group-hover:scale-110 transition-transform duration-200" />
+              )}
+              <span>Top Up ₹{addonPrice.toLocaleString("en-IN")}</span>
+            </button>
+          </div>
+
+          {/* Slider */}
+          <div className="space-y-3 pt-2">
+            <div className="relative flex items-center">
+              <input
+                type="range"
+                min={100}
+                max={20000}
+                step={100}
+                value={addonCredits}
+                onChange={(e) => setAddonCredits(Number(e.target.value))}
+                className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-zinc-200 dark:bg-zinc-700 accent-indigo-600 focus:outline-none"
+              />
+            </div>
+
+            {/* Milestone Markers */}
+            <div className="flex justify-between items-center text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 px-1 font-mono">
+              {milestones.map((m) => (
+                <button
+                  key={m.credits}
+                  type="button"
+                  onClick={() => setAddonCredits(m.credits)}
+                  className={`transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                    addonCredits === m.credits ? "text-indigo-600 dark:text-indigo-400 font-bold" : ""
+                  }`}
+                >
+                  ₹{m.price.toLocaleString("en-IN")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick adjust stepper & custom quantity input */}
+          <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">Quick adjust:</span>
+              <button
+                type="button"
+                onClick={() => setAddonCredits((prev) => Math.max(100, prev - 500))}
+                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
+              >
+                -500
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddonCredits((prev) => Math.max(100, prev - 100))}
+                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
+              >
+                -100
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddonCredits((prev) => Math.min(50000, prev + 100))}
+                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
+              >
+                +100
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddonCredits((prev) => Math.min(50000, prev + 500))}
+                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
+              >
+                +500
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">Custom credits:</span>
+              <input
+                type="number"
+                min={100}
+                max={100000}
+                step={50}
+                value={addonCredits}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (val >= 1) setAddonCredits(val);
+                }}
+                className="w-24 rounded-lg bg-white dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 font-mono text-center focus:outline-none focus:border-indigo-500"
+              />
+            </div>
           </div>
 
         </div>
-      </main>
+      </div>
+
+      {/* ── Security & Guarantee Badges ── */}
+      <div className="flex flex-wrap items-center justify-center gap-8 text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium pt-4">
+        <span className="flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-500" /> 256-Bit SSL Encrypted
+        </span>
+        <span className="flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-indigo-500" /> Powered by Razorpay
+        </span>
+        <span className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-amber-500" /> Instant Credits Delivery
+        </span>
+      </div>
 
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* 1. MOCK DEVELOPER SANDBOX MODAL */}
@@ -403,7 +666,7 @@ export default function PricingPage() {
               onClick={() => {
                 setMockOrder(null);
                 setLoadingPlan(null);
-                showToast("info", "Local sandbox checkout closed.");
+                showToast("info", "Sandbox checkout closed.");
               }}
               className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
@@ -426,7 +689,7 @@ export default function PricingPage() {
                 <span className="font-mono text-xs">{mockOrder.razorpay_order_id}</span>
               </div>
               <div className="flex justify-between">
-                <span className="font-medium text-slate-500 dark:text-slate-400">Plan Selected:</span>
+                <span className="font-medium text-slate-500 dark:text-slate-400">Item Selected:</span>
                 <span className="font-semibold">{mockOrder.plan_name}</span>
               </div>
               <div className="flex justify-between">
@@ -449,7 +712,7 @@ export default function PricingPage() {
                 onClick={() => {
                   setMockOrder(null);
                   setLoadingPlan(null);
-                  showToast("info", "Local payment simulation cancelled.");
+                  showToast("info", "Payment simulation cancelled.");
                 }}
                 className="w-full rounded-full py-5 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
               >
@@ -494,12 +757,12 @@ export default function PricingPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 
   if (isLoggedIn) {
     return (
-      <DashboardShell title="Pricing & Credits">
+      <DashboardShell title="Buy Credits & Plans">
         {pageContent}
       </DashboardShell>
     );
@@ -508,7 +771,11 @@ export default function PricingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#090D16] transition-colors duration-300">
       <Navbar />
-      {pageContent}
+      <main className="flex-grow pt-28">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px]">
+          {pageContent}
+        </div>
+      </main>
       <Footer />
     </div>
   );

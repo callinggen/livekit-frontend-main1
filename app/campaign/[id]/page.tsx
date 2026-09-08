@@ -6,13 +6,14 @@ import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
 import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
-import { 
-  ArrowLeft, Calendar, User, FileText, CheckCircle2, 
-  PhoneCall, Clock, Database, Zap, PlayCircle, X, Phone
+import {
+  ArrowLeft, Calendar, User, FileText, CheckCircle2,
+  PhoneCall, Clock, Database, Zap, PlayCircle, X, Phone,
+  XCircle, HelpCircle, Award, MessageSquare, Send
 } from "lucide-react";
 import { api, CampaignDetail } from "@/lib/api";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
 const formatDateTime = (dateString: string | undefined | null) => {
   if (!dateString) return "";
@@ -50,7 +51,7 @@ const formatTimeOnly = (dateString: string | undefined | null) => {
 
 const getPillColor = (val: string, type: "response" | "status" | "category" | "type") => {
   if (type === "type") return val === "INBOUND" ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-200" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200";
-  
+
   const v = (val || "").toUpperCase();
   if (v.includes("DO NOT CALL") || v.includes("REFUSAL") || v === "NOT INTERESTED" || v === "INVALID" || v === "FAILED" || v.includes("CUT")) {
     return "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-200";
@@ -93,7 +94,7 @@ const renderTranscript = (transcriptData: any) => {
         {lines.map((line, index) => {
           const isAgent = line.toLowerCase().startsWith("assistant:") || line.toLowerCase().startsWith("agent:");
           const isUser = line.toLowerCase().startsWith("user:") || line.toLowerCase().startsWith("customer:");
-          
+
           let speakerName = "System";
           let content = line;
           let bubbleStyle = "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 self-start";
@@ -254,7 +255,7 @@ export default function CampaignDetailPage() {
       <DashboardShell title="Campaign Details">
         <div className="flex flex-col items-center justify-center h-64 text-zinc-500 gap-4">
           <p className="font-semibold text-lg">Campaign not found.</p>
-          <button 
+          <button
             onClick={() => router.push("/campaign")}
             className="flex items-center gap-2 px-4 py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 font-medium text-zinc-700 transition"
           >
@@ -272,7 +273,7 @@ export default function CampaignDetailPage() {
   const dialedCount = enrichedContacts.filter((c: any) => c.status !== "pending").length || 0;
   const connectedCount = enrichedContacts.filter((c: any) => c.status === "completed").length || 0;
   const disconnectedCount = dialedCount - connectedCount;
-  
+
   const interestedCount = enrichedContacts.filter((c: any) => {
     const resp = (c.response || "").toLowerCase();
     return resp.includes("interested") && !resp.includes("not interested");
@@ -339,41 +340,43 @@ export default function CampaignDetailPage() {
     }
   }
 
-  // Determine Duration runtime logs based on Campaign Schedule time and Contact call log durations
   let startedText = "—";
   let endedText = "—";
+  const cStatus = (campaign.status || "").toLowerCase();
 
-  const schedTime = campaign.schedule_date || campaign.schedule || campaign.date;
-  if (schedTime) {
+  const fmtTime = (val: string | null | undefined) => {
+    if (!val) return null;
     try {
-      const cleanStr = schedTime.replace(" UTC", "");
-      const startDate = new Date(cleanStr);
-      if (!isNaN(startDate.getTime())) {
-        startedText = startDate.toLocaleTimeString(undefined, {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        });
-
-        // Sum up the duration of all calls in the campaign from contacts (in seconds)
-        const totalDurationSeconds = enrichedContacts.reduce((acc: number, c: any) => acc + Number(c.duration || 0), 0) || 0;
-
-        if (campaign.status === "Running") {
-          endedText = "In Progress";
-        } else if (campaign.status === "Scheduled" || campaign.status === "pending") {
-          endedText = "Scheduled";
-        } else {
-          // Campaign is Completed / Failed
-          const endDate = new Date(startDate.getTime() + totalDurationSeconds * 1000);
-          endedText = endDate.toLocaleTimeString(undefined, {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          });
-        }
+      let str = String(val).trim();
+      if (!str || str === "—") return null;
+      if (!str.endsWith("Z") && !str.includes("+") && !str.includes("T") && str.includes("-")) {
+        str = str.replace(" ", "T") + "Z";
+      } else if (!str.endsWith("Z") && !str.includes("+") && str.includes("T")) {
+        str = str + "Z";
       }
-    } catch (err) {
-      console.error("Failed to calculate campaign duration:", err);
+      const d = new Date(str.replace(" UTC", ""));
+      if (isNaN(d.getTime())) return null;
+      return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+    } catch { return null; }
+  };
+
+  if (cStatus === "scheduled" || cStatus === "pending") {
+    // Use scheduled_at (UTC ISO string) so browser converts to correct local time
+    const schedFmt = fmtTime(campaign.scheduled_at) ||
+      fmtTime(campaign.schedule_date && campaign.schedule_time
+        ? `${campaign.schedule_date}T${campaign.schedule_time}Z`
+        : campaign.schedule_date);
+    startedText = schedFmt ? `Scheduled for ${schedFmt}` : "Scheduled";
+    endedText = "Scheduled";
+  } else {
+    // Use actual job started_at / finished_at for accurate campaign times
+    const jobStarted = fmtTime(campaign.job?.started_at ?? campaign.started_at);
+    const jobFinished = fmtTime(campaign.job?.finished_at ?? campaign.finished_at);
+    startedText = jobStarted || fmtTime(campaign.created_at) || "—";
+    if (cStatus === "running" || cStatus === "processing") {
+      endedText = "In Progress";
+    } else {
+      endedText = jobFinished || "—";
     }
   }
 
@@ -381,14 +384,16 @@ export default function CampaignDetailPage() {
     { key: "name", label: "CONTACT NAME", sortable: true, render: (c) => <span className="font-semibold text-zinc-900 dark:text-white">{c.name}</span> },
     { key: "phone", label: "PHONE NUMBER", sortable: true },
     { key: "type", label: "TYPE", render: () => <Badge variant="neutral">OUTBOUND</Badge> },
-    { key: "duration", label: "DURATION", sortable: true, render: (c) => {
+    {
+      key: "duration", label: "DURATION", sortable: true, render: (c) => {
         const dur = Number(c.duration || 0);
         return <span>{dur ? `${Math.floor(dur / 60).toString().padStart(2, "0")}:${(dur % 60).toString().padStart(2, "0")}` : "00:00"}</span>;
       }
     },
     { key: "datetime", label: "TIME", sortable: true, render: (c) => <span>{c.datetime || "—"}</span> },
     { key: "credits", label: "CREDITS", sortable: true, render: (c) => <span>{c.credits !== undefined && c.credits !== null ? c.credits : "—"}</span> },
-    { key: "response", label: "RESPONSE", sortable: true, render: (c) => {
+    {
+      key: "response", label: "RESPONSE", sortable: true, render: (c) => {
         const resp = c.response || "—";
         const isInvalid = resp.toLowerCase().includes("invalid") || resp.toLowerCase().includes("fail");
         const isNotInterested = resp.toLowerCase().includes("not interested");
@@ -400,7 +405,8 @@ export default function CampaignDetailPage() {
         );
       }
     },
-    { key: "status", label: "STATUS", sortable: true, render: (c) => {
+    {
+      key: "status", label: "STATUS", sortable: true, render: (c) => {
         const statusMap: Record<string, BadgeVariant> = {
           completed: "success",
           failed: "error",
@@ -410,35 +416,59 @@ export default function CampaignDetailPage() {
           pending: "warning",
           calling: "info"
         };
-        const displayStatus = c.status === "pending" ? "scheduled" : c.status;
+        const displayStatus = c.status === "pending" ? "scheduled" : c.status === "no_answer" ? "no answer" : c.status;
         return <Badge variant={statusMap[c.status] || "neutral"}>{displayStatus}</Badge>;
       }
     }
   ];
 
+  if (loading || !campaign) {
+    return (
+      <DashboardShell title="Campaign Details">
+        <div className="flex h-[calc(100vh-80px)] items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+        </div>
+      </DashboardShell>
+    );
+  }
+
   return (
     <DashboardShell title="Campaign Details">
       <div className="flex flex-col h-[calc(100vh-80px)] p-1 sm:p-4 overflow-y-auto gap-6">
-        
+
         {/* Header Section */}
-        <div className="flex flex-col gap-2 shrink-0">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => router.push("/campaign")}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 transition shadow-sm text-zinc-600 dark:text-zinc-400"
-              title="Back to campaigns"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-              {campaign.name}
-              {getStatusBadge(campaign.status)}
-            </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push("/campaign")}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 transition shadow-sm text-zinc-600 dark:text-zinc-400"
+                title="Back to campaigns"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
+                {campaign.name}
+                {getStatusBadge(campaign.status)}
+              </h2>
+            </div>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 pl-12">
+              <Calendar className="h-4 w-4 text-zinc-400" />
+              Scheduled for: {formatDateTime(campaign.scheduled_at || campaign.schedule_date || campaign.schedule)}
+            </p>
           </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 pl-12">
-            <Calendar className="h-4 w-4 text-zinc-400" />
-            Scheduled for: {formatDateTime(campaign.schedule_date || campaign.schedule)}
-          </p>
+
+          {/* Top Right Action: Send Message via WhatsApp */}
+          <div className="flex items-center gap-2 pl-12 sm:pl-0">
+            <button
+              onClick={() => router.push(`/whatsapp/send?campaign_id=${campaign.id}`)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition"
+              title="Send WhatsApp follow-up to contacts of this campaign"
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span>Send WhatsApp</span>
+            </button>
+          </div>
         </div>
 
         {/* Top Info Cards (4 Cards Row) */}
@@ -619,7 +649,7 @@ export default function CampaignDetailPage() {
             </div>
             <div>
               <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">CREDITS USED</p>
-              <h5 className="text-2xl font-black text-zinc-950 dark:text-white mt-1">${Number(campaign.creditsUsed || 0).toFixed(2)}</h5>
+              <h5 className="text-2xl font-black text-zinc-950 dark:text-white mt-1">{Number(campaign.creditsUsed || 0)}</h5>
             </div>
           </div>
         </div>
@@ -631,7 +661,7 @@ export default function CampaignDetailPage() {
             <h2 className="text-lg font-bold text-zinc-950 dark:text-white uppercase tracking-wider">Contact Details & Call Logs</h2>
           </div>
           <div>
-            <DataTable 
+            <DataTable
               data={enrichedContacts}
               columns={columns}
               searchableKeys={["name", "phone", "response", "status"]}
@@ -646,29 +676,29 @@ export default function CampaignDetailPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSelectedContact(null)}></div>
             <div className="relative bg-white dark:bg-[#0B0F19] w-full max-w-5xl max-h-[95vh] overflow-hidden rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col animate-in zoom-in-95 duration-200">
-              
+
               {/* Modal Header & Actions */}
               <div className="bg-white dark:bg-[#0B0F19] z-10 border-b border-zinc-200 dark:border-zinc-800 p-5 flex flex-col md:flex-row md:justify-between md:items-start shrink-0 gap-4">
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
                   {/* Detailed Call Info First */}
                   <div className="flex gap-4 items-center">
-                     <div className="w-14 h-14 rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400 border border-violet-200 dark:border-violet-800/50 shrink-0 flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400 border border-violet-200 dark:border-violet-800/50 shrink-0 flex items-center justify-center">
                       <User className="w-7 h-7" />
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold flex items-center gap-3 text-zinc-900 dark:text-white">
-                        {activeSelectedContact.name} 
+                        {activeSelectedContact.name}
                       </h2>
                       <div className="flex items-center gap-3 mt-1 text-zinc-500 dark:text-zinc-400 text-sm font-medium">
-                        <span className="flex items-center gap-1.5"><Phone className="w-4 h-4"/> {activeSelectedContact.phone}</span>
+                        <span className="flex items-center gap-1.5"><Phone className="w-4 h-4" /> {activeSelectedContact.phone}</span>
                         <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
                         <span>{activeSelectedContact.datetime || "—"}</span>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="h-full w-px bg-zinc-200 dark:bg-zinc-800 hidden md:block mx-2"></div>
-                  
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-sm">
                     <div>
                       <p className="text-zinc-400 dark:text-zinc-500 text-[10px] uppercase font-bold tracking-wider mb-1">Status</p>
@@ -696,14 +726,14 @@ export default function CampaignDetailPage() {
                 {/* Close Actions */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => setSelectedContact(null)} className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-zinc-500 dark:text-zinc-400">
-                    <X className="w-5 h-5"/>
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
               </div>
-              
+
               {/* Modal Body: Transcript & Recording Side-by-Side */}
               <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto bg-zinc-50/30 dark:bg-zinc-950/10">
-                
+
                 {/* Transcript Section */}
                 <div className="flex flex-col h-full">
                   <h4 className="font-semibold flex items-center gap-2 mb-3 text-zinc-900 dark:text-white"><FileText className="w-4 h-4 text-violet-600" /> Call Transcript</h4>
@@ -714,7 +744,7 @@ export default function CampaignDetailPage() {
 
                 {/* Player & Insights Section */}
                 <div className="flex flex-col gap-6 h-full">
-                  
+
                   {/* Player */}
                   <div className="flex flex-col">
                     <h4 className="font-semibold flex items-center gap-2 mb-3 text-zinc-900 dark:text-white"><PlayCircle className="w-4 h-4 text-violet-600" /> Recording</h4>
@@ -724,16 +754,16 @@ export default function CampaignDetailPage() {
                           No recording available for this call.
                         </div>
                       ) : (
-                        <audio 
+                        <audio
                           src={activeSelectedContact.recording_url.startsWith('http') ? activeSelectedContact.recording_url : BASE + activeSelectedContact.recording_url}
-                          controls 
+                          controls
                           className="w-full outline-none"
                           preload="metadata"
                         />
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Extracted Data */}
                   <div className="flex flex-col flex-1">
                     <h4 className="font-semibold text-sm mb-3 text-zinc-400 dark:text-zinc-500 flex items-center gap-2">Key Insights</h4>

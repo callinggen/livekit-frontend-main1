@@ -10,9 +10,10 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import React from "react";
+import * as XLSX from "xlsx";
 import { api } from "@/lib/api";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
 // Dummy Data matching the screenshot
 const INITIAL_DATA = [
@@ -75,7 +76,8 @@ export default function CallLogsPage() {
         status: (r.status || "COMPLETED").toUpperCase(),
         humanResponse: r.human_response || "",
         aiClass: r.summary || "Pending",
-        agent: r.agent_name || r.campaign || "System Agent",
+        agent: r.agent_name || "Sales Agent",
+        campaign: r.campaign || "General",
         category: (r.category || "UNCATEGORIZED").toUpperCase(),
         sentiment: r.sentiment || "Neutral",
         transcript: r.transcript || [],
@@ -96,11 +98,11 @@ export default function CallLogsPage() {
   }
 
   // Filter options
-  const uniqueTypes = ["All", ...Array.from(new Set(data.map(d => d.type)))];
-  const uniqueCategories = ["All", ...Array.from(new Set(data.map(d => d.category)))];
-  const uniqueAgents = ["All", ...Array.from(new Set(data.map(d => d.agent)))];
-  const uniqueStatuses = ["All", ...Array.from(new Set(data.map(d => d.status)))];
-  const uniqueResponses = ["All", ...Array.from(new Set(data.map(d => d.response)))];
+  const uniqueTypes = ["All", ...Array.from(new Set(data.map(d => d.type).filter(Boolean)))];
+  const uniqueCategories = ["All", ...Array.from(new Set(data.map(d => d.category).filter(Boolean)))];
+  const uniqueAgents = ["All", ...Array.from(new Set(data.map(d => d.agent).filter(Boolean)))];
+  const uniqueStatuses = ["All", ...Array.from(new Set(data.map(d => d.status).filter(Boolean)))];
+  const uniqueResponses = ["All", ...Array.from(new Set(data.map(d => d.response).filter(Boolean)))];
 
   const processedData = useMemo(() => {
     // Filter
@@ -108,8 +110,9 @@ export default function CallLogsPage() {
       const matchesSearch = 
         r.name.toLowerCase().includes(search.toLowerCase()) || 
         r.phone.includes(search) || 
-        r.agent.toLowerCase().includes(search.toLowerCase()) ||
-        r.aiClass.toLowerCase().includes(search.toLowerCase());
+        (r.agent && r.agent.toLowerCase().includes(search.toLowerCase())) ||
+        (r.campaign && r.campaign.toLowerCase().includes(search.toLowerCase())) ||
+        (r.aiClass && r.aiClass.toLowerCase().includes(search.toLowerCase()));
         
       const matchesType = filterType === "All" || r.type === filterType;
       const matchesCategory = filterCategory === "All" || r.category === filterCategory;
@@ -145,6 +148,41 @@ export default function CallLogsPage() {
 
     return filtered;
   }, [data, search, filterType, filterCategory, filterAgent, filterStatus, filterResponse, sortConfig]);
+
+  const handleExport = () => {
+    const rowsToExport = selectedRows.length > 0 
+      ? processedData.filter(r => selectedRows.includes(r.id))
+      : processedData;
+
+    if (rowsToExport.length === 0) {
+      alert("No call logs available to export.");
+      return;
+    }
+
+    const exportRows = rowsToExport.map((row) => ({
+      "Name": row.name || "",
+      "Phone Number": row.phone || "",
+      "Direction": row.type || "OUTBOUND",
+      "Duration": row.duration || "00:00",
+      "Credits": row.credits ?? 0,
+      "AI Classification": row.aiClass || "",
+      "Response": row.response || "",
+      "Status": row.status || "",
+      "Human Response": row.humanResponse || "",
+      "Category": row.category || "",
+      "Sentiment": row.sentiment || "",
+      "Date & Time": row.datetime || "",
+      "Agent": row.agent || "",
+      "Campaign": row.campaign || "",
+      "Caller Number": row.caller_number || "",
+      "Called Number": row.called_number || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Call Logs");
+    const dateStr = new Date().toISOString().split("T")[0];
+  };
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -212,8 +250,11 @@ export default function CallLogsPage() {
     if (v === "CALLBACK" || v === "WARM" || v === "RUNNING") {
       return "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200";
     }
-    if (v === "COLD" || v === "NO ANSWER") {
-      return "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200";
+    if (v === "VOICEMAIL" || v === "INCOMPLETE") {
+      return "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 border-purple-200";
+    }
+    if (v === "COLD" || v === "NO ANSWER" || v === "MISSED CALL") {
+      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300";
     }
     return "bg-gray-50 text-gray-600 border-gray-200";
   };
@@ -266,7 +307,7 @@ export default function CallLogsPage() {
               { val: filterStatus, set: setFilterStatus, options: uniqueStatuses, label: "Status" },
               { val: filterResponse, set: setFilterResponse, options: uniqueResponses, label: "Response" },
               { val: filterCategory, set: setFilterCategory, options: uniqueCategories, label: "Category" },
-              { val: filterAgent, set: setFilterAgent, options: uniqueAgents, label: "Campaign" },
+              { val: filterAgent, set: setFilterAgent, options: uniqueAgents, label: "Agent" },
             ].map((f) => (
               <div key={f.label} className="relative group shrink-0">
                 <select 
@@ -274,7 +315,13 @@ export default function CallLogsPage() {
                   onChange={(e) => f.set(e.target.value)}
                   className="appearance-none flex items-center gap-2 pl-3 pr-8 py-2 border border-border rounded-lg text-sm font-medium hover:bg-accent bg-background transition-colors outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
-                  {f.options.map(opt => <option key={opt} value={opt}>{opt === "All" ? `All ${f.label}s` : opt}</option>)}
+                  {f.options.map(opt => (
+                    <option key={opt} value={opt}>
+                      {opt === "All" 
+                        ? (f.label === "Status" ? "All Statuses" : f.label === "Category" ? "All Categories" : `All ${f.label}s`) 
+                        : opt}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
               </div>
@@ -282,7 +329,10 @@ export default function CallLogsPage() {
           </div>
 
           <div className="ml-auto shrink-0 pl-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-sm">
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-sm active:scale-95 cursor-pointer"
+            >
               <Download className="w-4 h-4" /> Export
             </button>
           </div>
@@ -307,14 +357,16 @@ export default function CallLogsPage() {
                     { key: "phone", label: "Phone" },
                     { key: "type", label: "Direction" },
                     { key: "duration", label: "Duration" },
-                    { key: "aiClass", label: "AI Classification" }, // Swapped from Date & Time
+                    { key: "credits", label: "Credits" },
+                    { key: "aiClass", label: "AI Classification" },
                     { key: "response", label: "Response" },
                     { key: "status", label: "Status" },
                     { key: "humanResponse", label: "Human Response" },
-                    { key: "category", label: "Category" }, // Moved here
-                    { key: null, label: "Recording / Script" }, // Unsortable
-                    { key: "datetime", label: "Date & Time" }, // Swapped from AI Classification
-                    { key: "agent", label: "Campaign" },
+                    { key: "category", label: "Category" },
+                    { key: null, label: "Recording / Script" },
+                    { key: "datetime", label: "Date & Time" },
+                    { key: "campaign", label: "Campaign" },
+                    { key: "agent", label: "Agent" },
                   ].map((col, idx) => (
                     <th 
                       key={idx} 
@@ -330,7 +382,7 @@ export default function CallLogsPage() {
               <tbody className="divide-y divide-border/50">
                 {loading ? (
                   <tr>
-                    <td colSpan={13} className="text-center py-10 text-muted-foreground">
+                    <td colSpan={15} className="text-center py-10 text-muted-foreground">
                       <div className="flex items-center justify-center gap-2">
                         <span className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
                         Loading call logs...
@@ -339,7 +391,7 @@ export default function CallLogsPage() {
                   </tr>
                 ) : processedData.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="text-center py-10 text-muted-foreground">
+                    <td colSpan={15} className="text-center py-10 text-muted-foreground">
                       No call logs found matching your filters.
                     </td>
                   </tr>
@@ -373,6 +425,7 @@ export default function CallLogsPage() {
                           </span>
                         </td>
                         <td className="px-3 py-3 text-foreground/80 font-medium whitespace-nowrap">{row.duration}</td>
+                        <td className="px-3 py-3 font-semibold text-violet-600 dark:text-violet-400 whitespace-nowrap">{row.credits ?? 0}</td>
                         <td className="px-3 py-3 text-foreground/80 whitespace-nowrap">{row.aiClass}</td>
                         
                         <td className="px-3 py-3 whitespace-nowrap">
@@ -424,7 +477,8 @@ export default function CallLogsPage() {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-muted-foreground text-xs whitespace-nowrap">{row.datetime}</td>
-                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap flex items-center gap-1.5"><User className="w-3 h-3"/> {row.agent}</td>
+                        <td className="px-3 py-3 font-medium text-foreground text-xs whitespace-nowrap">{row.campaign}</td>
+                        <td className="px-3 py-3 text-muted-foreground text-xs whitespace-nowrap flex items-center gap-1.5"><User className="w-3 h-3"/> {row.agent}</td>
                       </tr>
                     );
                   })
@@ -462,7 +516,7 @@ export default function CallLogsPage() {
                   
                   <div className="h-full w-px bg-border hidden md:block mx-2"></div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 text-sm">
                     <div>
                       <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Status</p>
                       <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(selectedCall.status, "status")}`}>
@@ -477,7 +531,11 @@ export default function CallLogsPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Campaign</p>
-                      <p className="font-semibold text-foreground truncate max-w-[120px]">{selectedCall.agent}</p>
+                      <p className="font-semibold text-foreground truncate max-w-[120px]" title={selectedCall.campaign}>{selectedCall.campaign}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Agent</p>
+                      <p className="font-semibold text-foreground truncate max-w-[120px]" title={selectedCall.agent}>{selectedCall.agent}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Credits</p>
@@ -615,6 +673,30 @@ export default function CallLogsPage() {
                           })()}
                         </li>
                       </ul>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp Automation Activity */}
+                  <div className="flex flex-col">
+                    <h4 className="font-semibold text-sm mb-3 text-muted-foreground flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-emerald-500" /> WhatsApp Actions
+                    </h4>
+                    <div className="bg-background border border-border/50 rounded-xl p-4 shadow-sm space-y-2">
+                      {selectedCall.response === "NO ANSWER" || selectedCall.status === "FAILED" ? (
+                        <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Missed call follow-up sent
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{selectedCall.datetime}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Digital asset & summary ready
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{selectedCall.datetime}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -3,7 +3,7 @@
  * Base URL comes from NEXT_PUBLIC_API_URL (.env.local).
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://localhost:8000");
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,7 @@ export interface CampaignCreatePayload {
   selection_type?: "all" | "range";
   start_row?: number;
   end_row?: number;
+  whatsapp_automation?: any;
   contacts: ApiContact[];
   upload_source?: string;
   sheet_name?: string;
@@ -38,6 +39,19 @@ export interface UserPhoneNumber {
   is_default: boolean;
 }
 
+export interface PaymentRecord {
+  id: number;
+  plan_name: string;
+  amount: number;
+  currency: string;
+  credits: number;
+  razorpay_order_id: string;
+  razorpay_payment_id?: string | null;
+  status: "pending" | "success" | "failed";
+  created_at: string;
+  updated_at?: string;
+}
+
 
 export interface CampaignRow {
   id: string;
@@ -45,6 +59,7 @@ export interface CampaignRow {
   date: string;
   schedule: string;
   schedule_date?: string;
+  created_at?: string;
   sheetName: string;
 
   totalCalls: number;
@@ -71,6 +86,9 @@ export interface CampaignDetail extends CampaignRow {
   sheet_name?: string;
   schedule_date?: string;
   schedule_time?: string;
+  scheduled_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
   job?: {
     total_contacts: number;
     completed_contacts: number;
@@ -377,10 +395,10 @@ export const api = {
       }
     ),
 
-  /** Generate an AI report over a date range. */
-  generateReport: (startDate: string, endDate: string) =>
-    request<{ report: string; stats: any; id: number }>(
-      `/api/reports/generate?start_date=${startDate}&end_date=${endDate}`
+  /** Generate an AI report over a date or date range. */
+  generateReport: (startDate: string, endDate?: string) =>
+    request<{ report: string; stats: any; id: number; credits_deducted?: number; remaining_credits?: number }>(
+      `/api/reports/generate?start_date=${startDate}&end_date=${endDate || startDate}`
     ),
 
   /** Get all generated reports. */
@@ -394,6 +412,12 @@ export const api = {
     request<{ id: number; title: string; start_date: string; end_date: string; content: string; stats: any; generated_at: string }>(
       `/api/reports/${id}`
     ),
+
+  /** Delete a report by ID. */
+  deleteReport: (id: number) =>
+    request<{ message: string }>(`/api/reports/${id}`, {
+      method: "DELETE",
+    }),
 
   /** Get available calendar booking slots. */
   getCalendarSlots: () =>
@@ -520,12 +544,12 @@ export const api = {
     request<VerifiedSenderOption[]>("/api/custom-domains/verified-senders"),
 
   /** Create a Razorpay payment order. */
-  createPaymentOrder: (planName: string) =>
+  createPaymentOrder: (planName: string, customCredits?: number) =>
     request<{ razorpay_order_id: string; amount: number; currency: string; key_id: string; plan_name: string }>(
       "/api/payments/create-order",
       {
         method: "POST",
-        body: JSON.stringify({ plan_name: planName }),
+        body: JSON.stringify({ plan_name: planName, custom_credits: customCredits }),
       }
     ),
 
@@ -535,6 +559,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /** Fetch current user's payment & credit purchase history. */
+  getPaymentHistory: () => request<PaymentRecord[]>("/api/payments/history"),
 };
 
 

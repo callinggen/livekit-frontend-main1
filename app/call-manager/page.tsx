@@ -8,11 +8,25 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 import DashboardShell from "@/components/DashboardShell";
 import CampaignForm from "@/components/call-manager/CampaignForm";
-import LiveTracking from "@/components/call-manager/LiveTracking";
 import ContactsTable from "@/components/call-manager/ContactsTable";
-import { CampaignFormData, Contact, LiveTrackingStats, UploadSourceType } from "@/components/call-manager/types";
+import { CampaignFormData, Contact, UploadSourceType } from "@/components/call-manager/types";
+import { CheckCircle2, X, ArrowRight, Bot, Clock, Users, Sparkles, Layers, Zap, Phone, ShieldCheck, Paperclip, FileText, Image as ImageIcon, Rocket, AlertCircle, Calendar, Edit3, Loader2 } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+
+interface LaunchSuccessModalData {
+  campaignId: number;
+  campaignName: string;
+  agentName: string;
+  totalContacts: number;
+  remainingContacts?: number;
+  scheduleDate: string;
+  scheduleTime: string;
+  selectionType: "all" | "range";
+  startRow?: number;
+  endRow?: number;
+  uploadSource: string;
+}
 
 /** Returns current date/time in IST as { date: "YYYY-MM-DD", time: "HH:MM" } */
 function getISTNow() {
@@ -30,10 +44,12 @@ function getISTNow() {
   return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${min}` };
 }
 
+const TAXES_AGENT_DEFAULT_SCRIPT = "Hello, this is your AI assistant.";
+
 export default function CallManagerPage() {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
-  const { refreshCredits } = useCredits();
+  const { credits, refreshCredits } = useCredits();
 
   const [formData, setFormData] = useState<CampaignFormData>(() => {
     const { date, time } = getISTNow();
@@ -47,7 +63,14 @@ export default function CallManagerPage() {
       googleSheetUrl: "",
       singleContactName: "",
       singleContactPhone: "",
+      outboundPhoneNumber: "",
       selectionType: "all",
+      startRow: 1,
+      endRow: 1,
+      whatsappAutomation: {
+        enabled: false,
+        rules: [],
+      },
     };
   });
 
@@ -59,17 +82,10 @@ export default function CallManagerPage() {
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
 
-  const [liveStats, setLiveStats] = useState<LiveTrackingStats>({
-    registry: 0,
-    standby: 0,
-    dialer: 0,
-    analysis: 0,
-    completed: 0,
-    failed: 0,
-  });
+  const [launchSuccessData, setLaunchSuccessData] = useState<LaunchSuccessModalData | null>(null);
   const [launching, setLaunching] = useState(false);
-  // BUG-007: Ref to store the polling interval so we can clear it
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [showPreLaunchModal, setShowPreLaunchModal] = useState(false);
+  const [showExhaustedModal, setShowExhaustedModal] = useState(false);
 
   // Agent State
   const [fetchedAgents, setFetchedAgents] = useState<{ id: number; name: string; language: string; voice: string; script: string }[]>([]);
@@ -77,84 +93,26 @@ export default function CallManagerPage() {
   useEffect(() => {
     async function loadAgents() {
       try {
-        const agentsData = await api.getAgents();
-        setFetchedAgents(agentsData);
-        if (agentsData.length > 0) {
-          setFormData(prev => {
-            const exists = agentsData.some(a => a.name === prev.agent);
-            if (!prev.agent || !exists) {
-              const firstAgent = agentsData[0];
-              return {
-                ...prev,
-                agent: firstAgent.name,
-                script: prev.script && prev.script.trim() !== "" ? prev.script : (firstAgent.script || "")
-              };
-            }
-            return prev;
-          });
+        const data = await api.getAgents();
+        if (data && data.length > 0) {
+          setFetchedAgents(data);
+          // Set default agent if none selected
+          if (!formData.agent) {
+            setFormData(prev => ({
+              ...prev,
+              agent: data[0].name,
+              script: prev.script || data[0].script || TAXES_AGENT_DEFAULT_SCRIPT,
+            }));
+          }
         }
       } catch (err) {
-        console.warn("Failed to fetch agents:", err);
+        console.warn("Could not fetch agents:", err);
       }
     }
     if (isLoggedIn) {
       loadAgents();
     }
   }, [isLoggedIn]);
-
-  // Stop polling on unmount
-  useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []);
-
-  // BUG-007: Start polling /live endpoint every 5s after campaign launch
-  const startLivePolling = (campaignId: number) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const live = await api.getCampaignLive(campaignId);
-        setLiveStats(prev => {
-          if (prev.completed !== live.completed) {
-            refreshCredits();
-          }
-          return {
-            registry: live.registry,
-            standby: live.standby,
-            dialer: live.dialer,
-            analysis: live.analysis,
-            completed: live.completed,
-            failed: live.failed,
-            campaign_status: live.campaign_status,
-            schedule_date: live.schedule_date,
-            schedule_time: live.schedule_time,
-          };
-        });
-
-        // Map the backend lightweight contacts to the frontend Contact type
-        if (live.contacts) {
-          setContacts(prevContacts => {
-            // We map over prevContacts to preserve any fields not returned by the lightweight endpoint,
-            // while updating status and response.
-            const updatedMap = new Map(live.contacts.map(c => [String(c.phone), c]));
-            return prevContacts.map(pc => {
-              const updated = updatedMap.get(String(pc.phone));
-              if (updated) {
-                return { ...pc, status: updated.status as any, response: updated.response };
-              }
-              return pc;
-            });
-          });
-        }
-
-        // Stop polling when campaign is no longer running
-        if (live.campaign_status === "Completed" || live.campaign_status === "Failed") {
-          if (pollRef.current) clearInterval(pollRef.current);
-        }
-      } catch {
-        // silently ignore polling errors
-      }
-    }, 5000);
-  };
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -163,10 +121,28 @@ export default function CallManagerPage() {
   if (!isLoggedIn) return null;
 
   const handleChange = (updates: Partial<CampaignFormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
-    const newErrors = { ...errors };
-    Object.keys(updates).forEach(key => delete newErrors[key]);
-    setErrors(newErrors);
+    setFormData((prev) => {
+      const next = { ...prev, ...updates };
+
+      // Auto-populate script when agent changes (if user hasn't heavily customized or if script matches a known agent script)
+      if (updates.agent && updates.agent !== prev.agent) {
+        const matchedAgent = fetchedAgents.find(a => a.name === updates.agent);
+        if (matchedAgent && matchedAgent.script) {
+          next.script = matchedAgent.script;
+        }
+      }
+
+      return next;
+    });
+
+    // Clear error for field being updated
+    if (Object.keys(updates).length > 0) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        Object.keys(updates).forEach((k) => delete next[k]);
+        return next;
+      });
+    }
   };
 
   /** Parse a File (CSV or Excel) → Contact[] using PapaParse / SheetJS */
@@ -180,7 +156,7 @@ export default function CallManagerPage() {
           skipEmptyLines: true,
           complete: (results) => {
             const rows = results.data as Record<string, string>[];
-            if (!rows.length) return reject(new Error("CSV is empty"));
+            if (!rows.length) return reject(new Error("CSV file is empty"));
             const headers = Object.keys(rows[0]).map(h => h.toLowerCase().trim());
             if (!headers.some(h => h.includes("name")) || !headers.some(h => h.includes("phone"))) {
               return reject(new Error("CSV must have 'Name' and 'Phone' columns"));
@@ -261,6 +237,11 @@ export default function CallManagerPage() {
       setFileUploaded(true);
       setFileName(file.name);
       setFileSize((file.size / 1024).toFixed(1) + " KB");
+      setFormData(prev => ({
+        ...prev,
+        startRow: 1,
+        endRow: parsed.length,
+      }));
       setErrors(prev => { const e = { ...prev }; delete e.upload; return e; });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to parse file";
@@ -273,6 +254,11 @@ export default function CallManagerPage() {
     setFileUploaded(true);
     setFileName(`Google Sheet (${sheetId.substring(0, 8)}...)`);
     setFileSize("");
+    setFormData(prev => ({
+      ...prev,
+      startRow: 1,
+      endRow: loadedContacts.length,
+    }));
     setErrors(prev => { const e = { ...prev }; delete e.googleSheetUrl; delete e.upload; return e; });
   };
 
@@ -306,7 +292,14 @@ export default function CallManagerPage() {
       }
     } else if (formData.uploadSource === "single") {
       if (!formData.singleContactName?.trim()) newErrors.singleContactName = "Name is required.";
-      if (!formData.singleContactPhone?.trim()) newErrors.singleContactPhone = "Phone number is required.";
+      if (!formData.singleContactPhone?.trim()) {
+        newErrors.singleContactPhone = "Phone number is required.";
+      } else {
+        const digits = formData.singleContactPhone.replace(/\D/g, "");
+        if (digits.length < 10) {
+          newErrors.singleContactPhone = "Please enter a valid 10-digit phone number (e.g. 9876543210).";
+        }
+      }
     } else if (!fileUploaded || contacts.length === 0) {
       newErrors.upload = "Please upload a contact list.";
     }
@@ -315,9 +308,8 @@ export default function CallManagerPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const [showExhaustedModal, setShowExhaustedModal] = useState(false);
-
-  const handleSubmit = async () => {
+  // Step 1: Pre-Launch Check & Modal Trigger
+  const handleRequestLaunch = async () => {
     if (!validateForm()) return;
 
     // Check credits before launching
@@ -331,9 +323,44 @@ export default function CallManagerPage() {
       console.warn("Could not fetch credits:", err);
     }
 
+    const isSingle = formData.uploadSource === "single";
+    const totalAvailable = isSingle ? (formData.singleContactPhone ? 1 : 0) : contacts.length;
+    if (totalAvailable === 0) {
+      alert("No contacts to dial.");
+      return;
+    }
+
+    const selectionType = isSingle ? "all" : formData.selectionType;
+    const startRow = isSingle ? undefined : formData.startRow;
+    const endRow = isSingle ? undefined : formData.endRow;
+
+    if (!isSingle && selectionType === "range") {
+      const start = startRow ?? 0;
+      const end = endRow ?? 0;
+      if (start < 1) {
+        alert("Start Row must be 1 or greater.");
+        return;
+      }
+      if (end > totalAvailable) {
+        alert(`End Row cannot exceed Total Contacts (${totalAvailable}).`);
+        return;
+      }
+      if (start > end) {
+        alert("Start Row cannot be greater than End Row.");
+        return;
+      }
+    }
+
+    // Open the comprehensive pre-launch confirmation modal
+    setShowPreLaunchModal(true);
+  };
+
+  // Step 2: Confirmed Execution of Campaign Launch
+  const handleExecuteLaunch = async () => {
+    setShowPreLaunchModal(false);
+
     // Build contacts list from whichever source was used
     let contactList: ApiContact[] = [];
-
 
     if (formData.uploadSource === "single") {
       contactList = [{
@@ -343,7 +370,6 @@ export default function CallManagerPage() {
         original_row: 1
       }];
     } else {
-      // Excel / CSV / Google Sheet — contacts already parsed into state
       contactList = contacts.map((c, i) => ({
         name: c.name,
         phone: c.phone,
@@ -357,28 +383,28 @@ export default function CallManagerPage() {
       return;
     }
 
-    if (formData.uploadSource !== "single" && formData.selectionType === "range") {
-      const start = formData.startRow ?? 0;
-      const end = formData.endRow ?? 0;
-      if (start < 1) {
-        alert("Start Row must be 1 or greater.");
-        return;
-      }
-      if (end > contactList.length) {
-        alert(`End Row cannot exceed Total Contacts (${contactList.length}).`);
-        return;
-      }
-      if (start > end) {
-        alert("Start Row cannot be greater than End Row.");
-        return;
-      }
-    }
+    const isSingle = formData.uploadSource === "single";
+    const selectionType = isSingle ? "all" : formData.selectionType;
+    const startRow = isSingle ? undefined : formData.startRow;
+    const endRow = isSingle ? undefined : formData.endRow;
 
     try {
       setLaunching(true);
 
-      const localDate = new Date(`${formData.scheduleDate}T${formData.scheduleTime}:00`);
-      const isoUtcStr = localDate.toISOString(); // e.g., 2026-07-22T08:30:00.000Z
+      let isoUtcStr = new Date().toISOString();
+      if (formData.scheduleDate && formData.scheduleTime) {
+        try {
+          const [yyyy, mm, dd] = formData.scheduleDate.split("-").map(Number);
+          const [hh, min] = formData.scheduleTime.split(":").map(Number);
+          // IST is UTC+5:30 -> UTC = IST - 5h 30m
+          const scheduledUtcDate = new Date(Date.UTC(yyyy, mm - 1, dd, hh - 5, min - 30));
+          if (!isNaN(scheduledUtcDate.getTime())) {
+            isoUtcStr = scheduledUtcDate.toISOString();
+          }
+        } catch {
+          isoUtcStr = new Date().toISOString();
+        }
+      }
 
       // 1. Create the campaign + contacts
       const { campaign_id } = await api.createCampaign({
@@ -388,47 +414,41 @@ export default function CallManagerPage() {
         schedule_date: isoUtcStr,
         schedule_time: "UTC",
         outbound_phone_number: formData.outboundPhoneNumber,
-        selection_type: formData.selectionType,
-        start_row: formData.startRow,
-        end_row: formData.endRow,
+        selection_type: selectionType,
+        start_row: startRow,
+        end_row: endRow,
+        whatsapp_automation: formData.whatsappAutomation,
         contacts: contactList,
         upload_source: formData.uploadSource,
-        sheet_name: formData.uploadSource === "single"
+        sheet_name: isSingle
           ? "Single Call Input"
           : formData.uploadSource === "google_sheet"
           ? "Google Sheet"
           : fileName || "File Upload",
       });
 
-
       // 2. Launch it (creates the job + starts the worker loop)
       const { total_contacts } = await api.launchCampaign(campaign_id);
 
-      let successMsg = `Campaign launched! Dialling ${total_contacts} contact${total_contacts !== 1 ? "s" : ""}.`;
-      if (formData.uploadSource !== "single" && formData.selectionType === "range") {
-          const remaining = contactList.length - total_contacts;
-          if (remaining > 0) {
-              successMsg = `Campaign created successfully.\n\n${total_contacts} contacts have been added to the campaign.\n\n${remaining} remaining contacts have been saved under "${formData.campaignTitle.trim()} - Remaining" and can be used later.`;
-          }
-      }
-      
-      alert(successMsg);
+      // Refresh credits after launching
+      refreshCredits();
 
-      // Update live stats optimistically
-      setLiveStats({
-        registry: total_contacts,
-        standby: total_contacts,
-        dialer: 0,
-        analysis: 0,
-        completed: 0,
-        failed: 0,
+      // Show in-app launch confirmation modal
+      setLaunchSuccessData({
+        campaignId: campaign_id,
+        campaignName: formData.campaignTitle.trim(),
+        agentName: formData.agent,
+        totalContacts: total_contacts,
+        remainingContacts: formData.uploadSource !== "single" && formData.selectionType === "range"
+          ? Math.max(0, contactList.length - total_contacts)
+          : 0,
+        scheduleDate: formData.scheduleDate,
+        scheduleTime: formData.scheduleTime,
+        selectionType: formData.selectionType,
+        startRow: formData.startRow,
+        endRow: formData.endRow,
+        uploadSource: formData.uploadSource,
       });
-
-      // BUG-007: Start real polling so Live Journey updates in real time
-      startLivePolling(campaign_id);
-
-      // Navigate to campaign list
-      // router.push("/campaign");
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unable to start campaign.";
@@ -439,7 +459,7 @@ export default function CallManagerPage() {
     }
   };
 
-  const isFormDisabled = launching || ["Scheduled", "Running", "Paused"].includes(liveStats.campaign_status as string);
+  const isFormDisabled = launching;
 
   // Compute the displayed contacts based on selection
   const displayedContacts = useMemo(() => {
@@ -456,40 +476,396 @@ export default function CallManagerPage() {
     return contacts;
   }, [contacts, formData.selectionType, formData.startRow, formData.endRow, formData.uploadSource]);
 
+  // Computed summary values for confirmation modal
+  const confirmedDialCount = useMemo(() => {
+    if (formData.uploadSource === "single") return 1;
+    if (formData.selectionType === "range" && formData.startRow && formData.endRow) {
+      return Math.max(0, Math.min(contacts.length, formData.endRow) - Math.max(1, formData.startRow) + 1);
+    }
+    return contacts.length;
+  }, [formData.uploadSource, formData.selectionType, formData.startRow, formData.endRow, contacts.length]);
+
+  const activeWhatsAppRules = useMemo(() => {
+    if (!formData.whatsappAutomation?.enabled) return [];
+    return (formData.whatsappAutomation.rules || []).filter(r => r.enabled);
+  }, [formData.whatsappAutomation]);
+
   return (
     <DashboardShell title="Call Manager">
-      <div className="flex flex-col gap-6 p-1 sm:p-4">
-        {/* Top Section: Two Columns */}
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-          {/* Left Column: Form */}
-          <div className="h-full">
-            <CampaignForm
-              agents={fetchedAgents}
-              formData={formData}
-              onChange={handleChange}
-              onSubmit={handleSubmit}
-              errors={errors}
-              onFileUpload={handleFileUpload}
-              fileUploaded={fileUploaded}
-              fileName={fileName}
-              fileSize={fileSize}
-              totalContacts={contacts.length}
-              onGoogleSheetLoaded={handleGoogleSheetLoaded}
-              disabled={isFormDisabled}
-            />
-          </div>
-
-          {/* Right Column: Live Tracking */}
-          <div className="h-full">
-            <LiveTracking stats={liveStats} />
-          </div>
+      <div className="flex flex-col gap-6 p-1 sm:p-4 max-w-5xl mx-auto w-full">
+        {/* Top Section: Form (Spacious full width layout) */}
+        <div className="w-full">
+          <CampaignForm
+            agents={fetchedAgents}
+            formData={formData}
+            onChange={handleChange}
+            onSubmit={handleRequestLaunch}
+            errors={errors}
+            onFileUpload={handleFileUpload}
+            fileUploaded={fileUploaded}
+            fileName={fileName}
+            fileSize={fileSize}
+            totalContacts={contacts.length}
+            onGoogleSheetLoaded={handleGoogleSheetLoaded}
+            disabled={isFormDisabled}
+          />
         </div>
 
-        {/* Bottom Section: Contacts Table */}
-        <div className="mt-2">
+        {/* Bottom Section: Contacts Preview Table */}
+        <div className="mt-2 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-4 dark:border-zinc-800">
+            <div>
+              <h3 className="text-base font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                <Users className="h-4 w-4 text-violet-600" />
+                Contacts Table Preview
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {displayedContacts.length === 0
+                  ? "Upload contacts or enter a single contact above to view the preview."
+                  : formData.selectionType === "range" && formData.startRow && formData.endRow
+                  ? `Showing rows ${formData.startRow} to ${formData.endRow} (${displayedContacts.length} contacts selected for dialing)`
+                  : `Showing all ${displayedContacts.length} contacts`}
+              </p>
+            </div>
+            {displayedContacts.length > 0 && (
+              <span className="inline-flex items-center rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-950/50 dark:text-violet-300 border border-violet-100 dark:border-violet-900/40">
+                {displayedContacts.length} Contacts to Dial
+              </span>
+            )}
+          </div>
           <ContactsTable contacts={displayedContacts} onDeleteContact={handleDeleteContact} />
         </div>
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          PRE-LAUNCH CONFIRMATION MODAL (Call + WhatsApp Details)
+      ───────────────────────────────────────────────────────────── */}
+      {showPreLaunchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="w-full max-w-2xl my-6 rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200 space-y-4.5 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/25">
+                  <Rocket className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-zinc-900 dark:text-white flex items-center gap-2">
+                    Confirm Campaign Launch
+                  </h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Review your voice calling settings & automated WhatsApp follow-ups before launch.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPreLaunchModal(false)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Modal Content */}
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+              {/* Card 1: Voice Calling Campaign Details */}
+              <div className="rounded-xl border border-violet-200/80 bg-violet-50/40 p-4 dark:border-violet-900/40 dark:bg-violet-950/20 space-y-3">
+                <div className="flex items-center justify-between border-b border-violet-200/60 dark:border-violet-900/40 pb-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-violet-900 dark:text-violet-200 uppercase tracking-wider">
+                    <Phone className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                    1. Voice Call Configuration
+                  </div>
+                  <span className="text-[11px] font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2.5 py-0.5 rounded-full">
+                    {confirmedDialCount} {confirmedDialCount === 1 ? "Contact" : "Contacts"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                  <div>
+                    <span className="text-zinc-500 dark:text-zinc-400 block text-[11px] font-medium">Campaign Name</span>
+                    <span className="font-bold text-zinc-900 dark:text-white truncate block">
+                      {formData.campaignTitle}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-zinc-500 dark:text-zinc-400 block text-[11px] font-medium">AI Voice Agent</span>
+                    <span className="font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                      <Bot className="w-3.5 h-3.5" />
+                      {formData.agent || "Default Agent"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-zinc-500 dark:text-zinc-400 block text-[11px] font-medium">Outbound Caller ID</span>
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                      {formData.outboundPhoneNumber || "Default Outbound Trunk"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-zinc-500 dark:text-zinc-400 block text-[11px] font-medium">Scheduled Time</span>
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                      {formData.scheduleDate} at {formData.scheduleTime} (IST)
+                    </span>
+                  </div>
+                </div>
+
+                {formData.uploadSource !== "single" && formData.selectionType === "range" && (
+                  <div className="text-[11px] bg-white/70 dark:bg-zinc-800/80 p-2 rounded-lg border border-violet-100 dark:border-violet-900/30 text-violet-800 dark:text-violet-300">
+                    Dialing rows <strong>{formData.startRow || 1}</strong> to <strong>{formData.endRow || contacts.length}</strong> ({confirmedDialCount} contacts from {fileName || "Uploaded File"}).
+                  </div>
+                )}
+              </div>
+
+              {/* Card 2: WhatsApp Automation Configuration */}
+              <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20 space-y-3">
+                <div className="flex items-center justify-between border-b border-emerald-200/60 dark:border-emerald-900/40 pb-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 dark:text-emerald-200 uppercase tracking-wider">
+                    <Zap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    2. WhatsApp Post-Call Follow-ups
+                  </div>
+
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                      formData.whatsappAutomation?.enabled && activeWhatsAppRules.length > 0
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700"
+                        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                    }`}
+                  >
+                    {formData.whatsappAutomation?.enabled && activeWhatsAppRules.length > 0
+                      ? `ENABLED (${activeWhatsAppRules.length} ${activeWhatsAppRules.length === 1 ? "Rule" : "Rules"})`
+                      : "DISABLED"}
+                  </span>
+                </div>
+
+                {formData.whatsappAutomation?.enabled && activeWhatsAppRules.length > 0 ? (
+                  <div className="space-y-3">
+                    {activeWhatsAppRules.map((rule, rIdx) => {
+                      const ctLabel = !rule.call_type_filters || rule.call_type_filters.length === 0 ? "All Types" : rule.call_type_filters.join(", ");
+                      const aiLabel = !rule.ai_class_filters || rule.ai_class_filters.length === 0 ? "All Classes" : rule.ai_class_filters.join(", ");
+                      const respLabel = !rule.response_filters || rule.response_filters.length === 0 ? "All Responses" : rule.response_filters.join(", ");
+                      const stLabel = !rule.status_filters || rule.status_filters.length === 0 ? "All Status" : rule.status_filters.join(", ");
+
+                      return (
+                        <div
+                          key={rule.id || rIdx}
+                          className="rounded-lg bg-white dark:bg-zinc-800/90 p-3 border border-emerald-100 dark:border-zinc-700 space-y-2 text-xs shadow-2xs"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white">
+                                {rIdx + 1}
+                              </span>
+                              Automation Rule #{rIdx + 1}
+                            </span>
+                            <span className="text-[10px] font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950 px-2 py-0.5 rounded">
+                              {rule.source_mode === "material_base" ? "From Material Base" : "Custom Template"}
+                            </span>
+                          </div>
+
+                          {/* Trigger Filters */}
+                          <div className="flex flex-wrap gap-1.5 text-[10px]">
+                            <span className="bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded font-medium">
+                              Call: {ctLabel}
+                            </span>
+                            <span className="bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded font-medium">
+                              AI: {aiLabel}
+                            </span>
+                            <span className="bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded font-medium">
+                              Resp: {respLabel}
+                            </span>
+                            <span className="bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded font-medium">
+                              Status: {stLabel}
+                            </span>
+                            <span className="bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded font-bold">
+                              Consent: {rule.require_permission !== false ? "Required ✓" : "Optional"}
+                            </span>
+                          </div>
+
+                          {/* Message Text Preview */}
+                          {rule.message_text && (
+                            <div className="p-2 rounded bg-zinc-50 dark:bg-zinc-900 text-[11px] text-zinc-700 dark:text-zinc-300 font-mono italic line-clamp-2 border border-zinc-100 dark:border-zinc-800">
+                              "{rule.message_text}"
+                            </div>
+                          )}
+
+                          {/* Attached Media */}
+                          <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                            <span className="text-[10px] font-bold text-zinc-400">Attached Media:</span>
+                            {rule.attachments && rule.attachments.length > 0 ? (
+                              rule.attachments.map((att, aIdx) => (
+                                <span
+                                  key={aIdx}
+                                  className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                >
+                                  {att.type === "image" ? (
+                                    <ImageIcon className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <FileText className="w-3 h-3 text-purple-600" />
+                                  )}
+                                  {att.title}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-zinc-400 italic">Text message only (no file attachments)</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
+                    WhatsApp Automation is disabled. No post-call WhatsApp messages will be triggered.
+                  </p>
+                )}
+              </div>
+
+              {/* Ready to launch note */}
+              <div className="flex items-start gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-800/70 p-3 text-xs text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700/60">
+                <AlertCircle className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" />
+                <span>
+                  Once confirmed, the voice dialer worker will initiate outbound calls according to the schedule. WhatsApp follow-ups will dispatch automatically upon live call completion.
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowPreLaunchModal(false)}
+                disabled={launching}
+                className="flex-1 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 transition"
+              >
+                Go Back & Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExecuteLaunch}
+                disabled={launching}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-500/25 hover:from-violet-500 hover:to-indigo-500 transition disabled:opacity-50"
+              >
+                {launching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Launching Campaign...</span>
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4" />
+                    <span>Confirm & Launch Campaign</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Campaign Launch Success Modal (Post-Launch View) */}
+      {launchSuccessData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900 border border-violet-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            {/* Header with Icon */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/30">
+                  <CheckCircle2 className="h-7 w-7" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-zinc-900 dark:text-white">
+                    Campaign Launched Successfully!
+                  </h3>
+                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                    AI Dialing Job Initiated & Active
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setLaunchSuccessData(null)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Campaign Summary Card */}
+            <div className="mt-5 space-y-3 rounded-xl bg-zinc-50 p-4 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 text-sm">
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Campaign Name</span>
+                <span className="font-bold text-zinc-900 dark:text-white">{launchSuccessData.campaignName}</span>
+              </div>
+              
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">AI Agent</span>
+                <span className="font-semibold text-violet-600 dark:text-violet-400 flex items-center gap-1.5">
+                  <Bot className="h-3.5 w-3.5" />
+                  {launchSuccessData.agentName}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Contacts Dialing</span>
+                <div className="text-right">
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {launchSuccessData.totalContacts} Contacts
+                  </span>
+                  {launchSuccessData.selectionType === "range" && launchSuccessData.startRow && launchSuccessData.endRow && (
+                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                      (Rows {launchSuccessData.startRow} to {launchSuccessData.endRow})
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {launchSuccessData.remainingContacts !== undefined && launchSuccessData.remainingContacts > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-700 bg-amber-50/70 dark:bg-amber-950/20 p-2.5 rounded-lg">
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Remaining Contacts</span>
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                    {launchSuccessData.remainingContacts} saved as "{launchSuccessData.campaignName} - Remaining"
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Scheduled Time</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-zinc-400" />
+                  {launchSuccessData.scheduleDate} at {launchSuccessData.scheduleTime}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-6 flex flex-col sm:flex-row gap-2.5">
+              <button
+                onClick={() => {
+                  setLaunchSuccessData(null);
+                  router.push(`/campaign/${launchSuccessData.campaignId}`);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 hover:from-violet-500 hover:to-indigo-500 active:scale-[0.98] transition-all"
+              >
+                <span>View Live Campaign</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setLaunchSuccessData(null);
+                  router.push("/campaign");
+                }}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all"
+              >
+                Campaigns List
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Credits Exhausted Modal */}
       {showExhaustedModal && (
