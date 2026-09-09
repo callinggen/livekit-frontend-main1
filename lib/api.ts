@@ -325,7 +325,16 @@ export const api = {
   /** Get current user details. */
   getMe: () => request<any>("/api/auth/me"),
   /** Update user profile information. */
-  updateProfile: (data: { full_name?: string; company_name?: string; industry?: string; phone_number?: string }) =>
+  updateProfile: (data: {
+    full_name?: string;
+    company_name?: string;
+    industry?: string;
+    phone_number?: string;
+    agent_name?: string;
+    agent_language?: string;
+    agent_voice?: string;
+    agent_script?: string;
+  }) =>
     request<any>("/api/auth/profile", {
       method: "PUT",
       body: JSON.stringify(data),
