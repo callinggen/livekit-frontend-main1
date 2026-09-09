@@ -6,7 +6,7 @@ import Footer from "@/components/landing/Footer";
 import { 
   CheckCircle2, Sparkles, Loader2, Coins, CreditCard, 
   ShieldCheck, AlertCircle, X, Zap, Crown, ArrowRight, 
-  TrendingUp, Check, Plus, Minus, ArrowDown, Flame, Receipt
+  Check, ArrowDown, Receipt
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ export default function PricingPage() {
   const [mockOrder, setMockOrder] = useState<any | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
-  // Add-On Credits Slider State (Rate: ₹1.5 per credit, min: 100)
+  // Add-On Credits Slider State for Logged-In Users (Rate: ₹1.5 per credit, min: 100)
   const [addonCredits, setAddonCredits] = useState<number>(500);
 
   // Pricing calculation: 1 credit = 1.5 INR
@@ -95,7 +95,7 @@ export default function PricingPage() {
     setLoadingPlan(targetKey);
 
     try {
-      // 1. Create order on Backend (supports custom credits)
+      // 1. Create order on Backend
       const orderDetails = await api.createPaymentOrder(planName, customCredits);
 
       // 2. Check if order is generated in Developer Sandbox Mock mode
@@ -120,7 +120,7 @@ export default function PricingPage() {
         name: "CallingGen",
         description: customCredits 
           ? `Add-On Pack - ${customCredits.toLocaleString()} Credits` 
-          : `${orderDetails.plan_name} Plan`,
+          : `${orderDetails.plan_name} Plan Subscription`,
         order_id: orderDetails.razorpay_order_id,
         handler: async function (response: any) {
           setLoadingPlan(targetKey);
@@ -135,7 +135,12 @@ export default function PricingPage() {
             // Refresh Context Balance and User Data
             refreshCredits();
             await refreshUser();
-            showToast("success", `Payment successful! Added ${verifyRes.credits} credits to your account.`);
+            showToast(
+              "success", 
+              customCredits 
+                ? `Payment successful! Added ${verifyRes.credits || customCredits} credits to your account.`
+                : `Payment successful! Upgraded to ${orderDetails.plan_name} plan.`
+            );
           } catch (err: any) {
             console.error("Verification failed:", err);
             showToast("error", err.message || "Payment verification failed. Please contact support.");
@@ -226,7 +231,7 @@ export default function PricingPage() {
       popular: true,
       features: [
         "3 Active AI Voice Agents",
-        "5,000 Calling Credits",
+        "5,000 Calling Credits / Month",
         "Inbound & Outbound Calling",
         "Multi-language Support",
         "Standard Support",
@@ -261,7 +266,6 @@ export default function PricingPage() {
       features: [
         "25,000 Calling Credits / Month",
         "Unlimited AI Voice Agents",
-        "25,000 Calling Credits",
         "Custom Concurrency & SIP Trunks",
         "Dedicated Server Infrastructure",
         "White-Label UI Capabilities",
@@ -282,20 +286,23 @@ export default function PricingPage() {
       <div className="text-center max-w-3xl mx-auto pt-6">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-600 dark:text-violet-400 text-xs sm:text-sm font-semibold tracking-wide mb-4">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>FLEXIBLE PLANS & ADD-ON TOP-UPS</span>
+          <span>{isLoggedIn ? "FLEXIBLE PLANS & TOP-UP CREDITS" : "TRANSPARENT SUBSCRIPTION PLANS"}</span>
         </div>
 
         <h1 className="text-3xl md:text-5xl font-extrabold text-zinc-900 dark:text-white tracking-tight mb-4">
-          Plans & Credits for{" "}
+          {isLoggedIn ? "Plans & Credits for " : "Subscription Plans for "}
           <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
             CallingGen
           </span>
         </h1>
         <p className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto mb-6">
-          Upgrade your monthly subscription tier or purchase flexible add-on credits anytime. Credits never expire.
+          {isLoggedIn 
+            ? "Upgrade your monthly subscription tier or purchase flexible add-on credits anytime. Credits never expire."
+            : "Choose the monthly plan that fits your business scale. Scale your AI calling operations seamlessly with transparent pricing."
+          }
         </p>
 
-        {/* Current Status Pills & History Link */}
+        {/* Current Status Pills & History Link (Logged In Only) */}
         {isLoggedIn && (
           <div className="flex flex-wrap items-center justify-center gap-3">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-semibold shadow-sm">
@@ -318,50 +325,45 @@ export default function PricingPage() {
           </div>
         )}
 
-        {/* ── Hook Line Banner for Quick Top-Up ── */}
-        <div className="mt-8 max-w-3xl mx-auto p-4 sm:p-5 rounded-2xl border border-indigo-100 bg-indigo-50/70 dark:border-indigo-900/40 dark:bg-indigo-950/20 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
-          <div className="flex items-center gap-3.5">
-            <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-              <Zap className="w-5 h-5 fill-white text-white animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                  On-Demand Top Up
-                </span>
-                <span className="inline-block h-1 w-1 rounded-full bg-zinc-400"></span>
-                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                  Zero Expiry • 100% Rollover
-                </span>
+        {/* ── Quick Top-Up Banner (Logged In Dashboard Only) ── */}
+        {isLoggedIn && (
+          <div className="mt-8 max-w-3xl mx-auto p-4 sm:p-5 rounded-2xl border border-indigo-100 bg-indigo-50/70 dark:border-indigo-900/40 dark:bg-indigo-950/20 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+            <div className="flex items-center gap-3.5">
+              <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                <Zap className="w-5 h-5 fill-white text-white animate-pulse" />
               </div>
-              <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white mt-0.5">
-                Need extra credits without upgrading your plan?
-              </h3>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                Top up on-demand starting at just <strong className="text-indigo-600 dark:text-indigo-400">₹150 for 100 credits</strong> (₹1.50/credit).
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                    On-Demand Top Up
+                  </span>
+                  <span className="inline-block h-1 w-1 rounded-full bg-zinc-400"></span>
+                  <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    Zero Expiry • 100% Rollover
+                  </span>
+                </div>
+                <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white mt-0.5">
+                  Need extra credits without upgrading your plan?
+                </h3>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  Top up on-demand starting at just <strong className="text-indigo-600 dark:text-indigo-400">₹150 for 100 credits</strong> (₹1.50/credit).
+                </p>
+              </div>
             </div>
-          </div>
 
-          <button
-            onClick={scrollToTopUp}
-            className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          >
-            <span>Top Up Credits</span>
-            <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
-          </button>
-        </div>
+            <button
+              onClick={scrollToTopUp}
+              className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              <span>Top Up Credits</span>
+              <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── 1. Subscription Plans Section ── */}
       <div className="space-y-6">
-        <div className="text-center max-w-xl mx-auto">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Subscription Plans</h2>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Choose the monthly tier that suits your business scale.
-          </p>
-        </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto items-stretch">
           {plans.map((plan, idx) => {
             const isCurrentPlan = isLoggedIn && currentPlanName.toLowerCase() === plan.name.toLowerCase();
@@ -467,181 +469,183 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* ── 2. Add-On Credits Section (Clean Platform Style) ── */}
-      <div id="topup-section" className="space-y-6 pt-6 scroll-mt-10">
-        <div className="text-center max-w-xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">
-            Add-On Credits
-          </h2>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Need more credits? Top up your plan with flexible on-demand credits at ₹1.50 per credit.
-          </p>
-        </div>
-
-        {/* Clean Platform Card */}
-        <div className="max-w-4xl mx-auto rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19]">
-          
-          {/* Header Row */}
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-zinc-100 dark:border-zinc-800">
-            <div className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-              <span>{getAddonTagline(addonCredits)}</span>
-            </div>
-
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-              Fixed Rate: <span className="text-zinc-900 dark:text-white font-bold">₹1.50 / credit</span>
-            </div>
+      {/* ── 2. Add-On Credits Section (Only Shown for Logged-In Users in Dashboard) ── */}
+      {isLoggedIn && (
+        <div id="topup-section" className="space-y-6 pt-6 scroll-mt-10">
+          <div className="text-center max-w-xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">
+              Add-On Credits
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              Need more credits? Top up your plan with flexible on-demand credits at ₹1.50 per credit.
+            </p>
           </div>
 
-          {/* Quick Preset Packs Grid */}
-          <div className="mb-6">
-            <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2.5">
-              Quick Select Pack:
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-              {[
-                { qty: 100, price: 150, label: "100 Credits" },
-                { qty: 500, price: 750, label: "500 Credits" },
-                { qty: 1000, price: 1500, label: "1,000 Credits" },
-                { qty: 2500, price: 3750, label: "2,500 Credits" },
-                { qty: 5000, price: 7500, label: "5,000 Credits" },
-                { qty: 10000, price: 15000, label: "10,000 Credits" },
-              ].map((p) => {
-                const isSelected = addonCredits === p.qty;
-                return (
+          {/* Clean Platform Card */}
+          <div className="max-w-4xl mx-auto rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19]">
+            
+            {/* Header Row */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-zinc-100 dark:border-zinc-800">
+              <div className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                <span>{getAddonTagline(addonCredits)}</span>
+              </div>
+
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                Fixed Rate: <span className="text-zinc-900 dark:text-white font-bold">₹1.50 / credit</span>
+              </div>
+            </div>
+
+            {/* Quick Preset Packs Grid */}
+            <div className="mb-6">
+              <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2.5">
+                Quick Select Pack:
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                {[
+                  { qty: 100, price: 150, label: "100 Credits" },
+                  { qty: 500, price: 750, label: "500 Credits" },
+                  { qty: 1000, price: 1500, label: "1,000 Credits" },
+                  { qty: 2500, price: 3750, label: "2,500 Credits" },
+                  { qty: 5000, price: 7500, label: "5,000 Credits" },
+                  { qty: 10000, price: 15000, label: "10,000 Credits" },
+                ].map((p) => {
+                  const isSelected = addonCredits === p.qty;
+                  return (
+                    <button
+                      key={p.qty}
+                      type="button"
+                      onClick={() => setAddonCredits(p.qty)}
+                      className={`p-3 rounded-xl flex flex-col items-center justify-center transition-all border text-center cursor-pointer ${
+                        isSelected
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                          : "bg-zinc-50 dark:bg-zinc-900/60 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700"
+                      }`}
+                    >
+                      <span className="text-xs font-bold">{p.label}</span>
+                      <span className={`text-[11px] font-mono mt-0.5 ${isSelected ? "text-indigo-100" : "text-zinc-500"}`}>
+                        ₹{p.price.toLocaleString("en-IN")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Credits & Price Display with Animated Top-Up Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 my-6 p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-baseline gap-3">
+                <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                  {addonCredits.toLocaleString()} credits
+                </h3>
+                <span className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                  ₹{addonPrice.toLocaleString("en-IN")}
+                </span>
+              </div>
+
+              {/* Animated Button with Shimmer and Pulse */}
+              <button
+                onClick={() => handlePayment("Add-On Credits", addonCredits)}
+                disabled={loadingPlan !== null}
+                className="relative group overflow-hidden inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-7 py-3.5 text-sm font-bold shadow-md shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              >
+                {/* Shimmer Light Beam Animation */}
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></span>
+                
+                {loadingPlan === `Addon-${addonCredits}` ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                ) : (
+                  <Zap className="h-4 w-4 fill-white text-white group-hover:scale-110 transition-transform duration-200" />
+                )}
+                <span>Top Up ₹{addonPrice.toLocaleString("en-IN")}</span>
+              </button>
+            </div>
+
+            {/* Slider */}
+            <div className="space-y-3 pt-2">
+              <div className="relative flex items-center">
+                <input
+                  type="range"
+                  min={100}
+                  max={20000}
+                  step={100}
+                  value={addonCredits}
+                  onChange={(e) => setAddonCredits(Number(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-zinc-200 dark:bg-zinc-700 accent-indigo-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Milestone Markers */}
+              <div className="flex justify-between items-center text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 px-1 font-mono">
+                {milestones.map((m) => (
                   <button
-                    key={p.qty}
+                    key={m.credits}
                     type="button"
-                    onClick={() => setAddonCredits(p.qty)}
-                    className={`p-3 rounded-xl flex flex-col items-center justify-center transition-all border text-center cursor-pointer ${
-                      isSelected
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                        : "bg-zinc-50 dark:bg-zinc-900/60 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700"
+                    onClick={() => setAddonCredits(m.credits)}
+                    className={`transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                      addonCredits === m.credits ? "text-indigo-600 dark:text-indigo-400 font-bold" : ""
                     }`}
                   >
-                    <span className="text-xs font-bold">{p.label}</span>
-                    <span className={`text-[11px] font-mono mt-0.5 ${isSelected ? "text-indigo-100" : "text-zinc-500"}`}>
-                      ₹{p.price.toLocaleString("en-IN")}
-                    </span>
+                    ₹{m.price.toLocaleString("en-IN")}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Credits & Price Display with Animated Top-Up Button */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 my-6 p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
-            <div className="flex items-baseline gap-3">
-              <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                {addonCredits.toLocaleString()} credits
-              </h3>
-              <span className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">
-                ₹{addonPrice.toLocaleString("en-IN")}
-              </span>
+                ))}
+              </div>
             </div>
 
-            {/* Animated Button with Shimmer and Pulse */}
-            <button
-              onClick={() => handlePayment("Add-On Credits", addonCredits)}
-              disabled={loadingPlan !== null}
-              className="relative group overflow-hidden inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-7 py-3.5 text-sm font-bold shadow-md shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-            >
-              {/* Shimmer Light Beam Animation */}
-              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></span>
-              
-              {loadingPlan === `Addon-${addonCredits}` ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              ) : (
-                <Zap className="h-4 w-4 fill-white text-white group-hover:scale-110 transition-transform duration-200" />
-              )}
-              <span>Top Up ₹{addonPrice.toLocaleString("en-IN")}</span>
-            </button>
-          </div>
-
-          {/* Slider */}
-          <div className="space-y-3 pt-2">
-            <div className="relative flex items-center">
-              <input
-                type="range"
-                min={100}
-                max={20000}
-                step={100}
-                value={addonCredits}
-                onChange={(e) => setAddonCredits(Number(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-zinc-200 dark:bg-zinc-700 accent-indigo-600 focus:outline-none"
-              />
-            </div>
-
-            {/* Milestone Markers */}
-            <div className="flex justify-between items-center text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 px-1 font-mono">
-              {milestones.map((m) => (
+            {/* Quick adjust stepper & custom quantity input */}
+            <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500">Quick adjust:</span>
                 <button
-                  key={m.credits}
                   type="button"
-                  onClick={() => setAddonCredits(m.credits)}
-                  className={`transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 ${
-                    addonCredits === m.credits ? "text-indigo-600 dark:text-indigo-400 font-bold" : ""
-                  }`}
+                  onClick={() => setAddonCredits((prev) => Math.max(100, prev - 500))}
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
                 >
-                  ₹{m.price.toLocaleString("en-IN")}
+                  -500
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setAddonCredits((prev) => Math.max(100, prev - 100))}
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
+                >
+                  -100
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddonCredits((prev) => Math.min(50000, prev + 100))}
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
+                >
+                  +100
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddonCredits((prev) => Math.min(50000, prev + 500))}
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
+                >
+                  +500
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500">Custom credits:</span>
+                <input
+                  type="number"
+                  min={100}
+                  max={100000}
+                  step={50}
+                  value={addonCredits}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val >= 1) setAddonCredits(val);
+                  }}
+                  className="w-24 rounded-lg bg-white dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 font-mono text-center focus:outline-none focus:border-indigo-500"
+                />
+              </div>
             </div>
+
           </div>
-
-          {/* Quick adjust stepper & custom quantity input */}
-          <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Quick adjust:</span>
-              <button
-                type="button"
-                onClick={() => setAddonCredits((prev) => Math.max(100, prev - 500))}
-                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
-              >
-                -500
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddonCredits((prev) => Math.max(100, prev - 100))}
-                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
-              >
-                -100
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddonCredits((prev) => Math.min(50000, prev + 100))}
-                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
-              >
-                +100
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddonCredits((prev) => Math.min(50000, prev + 500))}
-                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition"
-              >
-                +500
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Custom credits:</span>
-              <input
-                type="number"
-                min={100}
-                max={100000}
-                step={50}
-                value={addonCredits}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (val >= 1) setAddonCredits(val);
-                }}
-                className="w-24 rounded-lg bg-white dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 font-mono text-center focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
-
         </div>
-      </div>
+      )}
 
       {/* ── Security & Guarantee Badges ── */}
       <div className="flex flex-wrap items-center justify-center gap-8 text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium pt-4">

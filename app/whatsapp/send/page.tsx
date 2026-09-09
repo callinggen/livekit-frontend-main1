@@ -527,16 +527,53 @@ function SendMessageContent() {
     showToast(`Loaded ${rows.length} contacts (${validCount} valid WhatsApp numbers)`);
   };
 
-  // 5. Contact Selection Helpers
-  const toggleSelectAll = () => {
-    if (selectedContactIds.size === filteredContacts.filter((c) => c.is_valid_phone).length) {
-      setSelectedContactIds(new Set());
-    } else {
-      const allValid = new Set(filteredContacts.filter((c) => c.is_valid_phone).map((c) => c.id));
-      setSelectedContactIds(allValid);
+  // 5. Classification Badge Styler
+  const getClassificationBadge = (cls?: string) => {
+    if (!cls || cls === "—" || cls === "-") return <span className="text-zinc-400 text-xs">—</span>;
+    const lower = cls.toLowerCase();
+    if (lower.includes("hot")) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300">
+          Hot Lead
+        </span>
+      );
     }
+    if (lower.includes("warm")) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300">
+          Warm Lead
+        </span>
+      );
+    }
+    if (lower.includes("cold")) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300">
+          Cold Lead
+        </span>
+      );
+    }
+    if (lower.includes("interested") || lower.includes("appointment")) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+          {cls}
+        </span>
+      );
+    }
+    if (lower.includes("callback")) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300">
+          Callback
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        {cls}
+      </span>
+    );
   };
 
+  // 6. Contact Selection Helpers
   const toggleSelectContact = (id: string | number) => {
     setSelectedContactIds((prev) => {
       const next = new Set(prev);
@@ -549,35 +586,73 @@ function SendMessageContent() {
     });
   };
 
-  // 6. Filter contacts
+  // 7. Filter contacts
   const filteredContacts = useMemo(() => {
     return contacts.filter((c) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchName = c.name.toLowerCase().includes(q);
-        const matchPhone = c.phone.includes(q);
+        const matchName = (c.name || "").toLowerCase().includes(q);
+        const matchPhone = (c.phone || "").includes(q) || (c.formatted_phone || "").includes(q);
         if (!matchName && !matchPhone) return false;
       }
 
-      if (filterCallType !== "all" && c.call_type?.toLowerCase() !== filterCallType.toLowerCase()) {
+      if (filterCallType !== "all" && (c.call_type || "Outbound").toLowerCase() !== filterCallType.toLowerCase()) {
         return false;
       }
-      if (filterClassification !== "all" && c.ai_classification?.toLowerCase() !== filterClassification.toLowerCase()) {
-        return false;
+      if (filterClassification !== "all") {
+        const cClass = (c.ai_classification || "Other").toLowerCase();
+        if (!cClass.includes(filterClassification.toLowerCase())) {
+          return false;
+        }
       }
-      if (filterResponse !== "all" && c.response?.toLowerCase() !== filterResponse.toLowerCase()) {
-        return false;
+      if (filterResponse !== "all") {
+        const cResp = (c.response || "").toLowerCase();
+        if (!cResp.includes(filterResponse.toLowerCase())) {
+          return false;
+        }
       }
       if (filterStatus !== "all") {
         if (filterStatus === "valid" && !c.is_valid_phone) return false;
         if (filterStatus === "invalid" && c.is_valid_phone) return false;
+        if (filterStatus !== "valid" && filterStatus !== "invalid") {
+          if ((c.status || "Completed").toLowerCase() !== filterStatus.toLowerCase()) return false;
+        }
       }
 
       return true;
     });
   }, [contacts, searchQuery, filterCallType, filterClassification, filterResponse, filterStatus]);
 
-  // 7. Message Queue Items Management
+  const validFilteredContacts = useMemo(() => {
+    return filteredContacts.filter((c) => c.is_valid_phone);
+  }, [filteredContacts]);
+
+  const isAllFilteredSelected = useMemo(() => {
+    return (
+      validFilteredContacts.length > 0 &&
+      validFilteredContacts.every((c) => selectedContactIds.has(c.id))
+    );
+  }, [validFilteredContacts, selectedContactIds]);
+
+  const toggleSelectFiltered = () => {
+    if (isAllFilteredSelected) {
+      // Deselect all filtered contacts
+      setSelectedContactIds((prev) => {
+        const next = new Set(prev);
+        validFilteredContacts.forEach((c) => next.delete(c.id));
+        return next;
+      });
+    } else {
+      // Select all valid filtered contacts
+      setSelectedContactIds((prev) => {
+        const next = new Set(prev);
+        validFilteredContacts.forEach((c) => next.add(c.id));
+        return next;
+      });
+    }
+  };
+
+  // 8. Message Queue Items Management
   const handleSelectMaterial = (mat: MaterialItem) => {
     if (selectedItems.some((item) => item.id === `mat_${mat.id}`)) {
       showToast("This material is already in your message queue", "error");
@@ -930,9 +1005,9 @@ function SendMessageContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* ══════════════════════════════════════════════════════
-              LEFT COLUMN: CONTACTS SELECTION (5 COLS)
+              LEFT COLUMN: CONTACTS SELECTION (7 COLS)
           ══════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-7 space-y-6">
             
             {/* STEP 1: Select Source Mode */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -1012,7 +1087,7 @@ function SendMessageContent() {
                         value={selectedCampaignId}
                         onChange={(e) => setSelectedCampaignId(e.target.value)}
                         disabled={loadingCampaigns}
-                        className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs text-zinc-900 font-medium focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                        className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs text-zinc-900 font-medium focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 cursor-pointer"
                       >
                         {campaigns.length === 0 ? (
                           <option value="">No campaigns available</option>
@@ -1134,110 +1209,234 @@ function SendMessageContent() {
               </div>
             </div>
 
-            {/* Contacts Table & Filter Bar (2 Clean Columns: Name & Phone) */}
-            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
-              <div className="p-3.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2 bg-zinc-50/50 dark:bg-zinc-800/30">
-                <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Contacts</h4>
-                  <span className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                    {selectedCount} / {contacts.filter((c) => c.is_valid_phone).length}
+            {/* STEP 2: Contacts Selection Card (Rich Filter Bar & Table matching User Design) */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
+                    2
+                  </span>
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Contacts Selection</h3>
+                  <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                    {selectedCount} Selected
                   </span>
                 </div>
 
-                <div className="relative">
-                  <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 pr-2.5 py-1 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none w-36"
-                  />
+                <button
+                  type="button"
+                  onClick={toggleSelectFiltered}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 transition cursor-pointer"
+                >
+                  {isAllFilteredSelected ? (
+                    <>
+                      <CheckSquare className="h-4 w-4" />
+                      <span>Deselect All Filtered</span>
+                    </>
+                  ) : (
+                    <>
+                      <Square className="h-4 w-4" />
+                      <span>Select All Filtered</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search contacts by name or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:border-violet-500 focus:outline-none placeholder-zinc-400 text-zinc-900 dark:text-white"
+                />
+              </div>
+
+              {/* 4 Filter Dropdowns: CALL TYPE | AI CLASS | RESPONSE | STATUS */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {/* 1. CALL TYPE */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    CALL TYPE
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={filterCallType}
+                      onChange={(e) => setFilterCallType(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-7 text-xs font-medium text-zinc-800 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 cursor-pointer"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="outbound">Outbound</option>
+                      <option value="inbound">Inbound</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                  </div>
+                </div>
+
+                {/* 2. AI CLASS */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    AI CLASS
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={filterClassification}
+                      onChange={(e) => setFilterClassification(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-7 text-xs font-medium text-zinc-800 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 cursor-pointer"
+                    >
+                      <option value="all">All Leads</option>
+                      <option value="Hot Lead">Hot Lead</option>
+                      <option value="Warm Lead">Warm Lead</option>
+                      <option value="Cold Lead">Cold Lead</option>
+                      <option value="Interested">Interested</option>
+                      <option value="Callback">Callback</option>
+                      <option value="Appointment">Appointment</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                  </div>
+                </div>
+
+                {/* 3. RESPONSE */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    RESPONSE
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={filterResponse}
+                      onChange={(e) => setFilterResponse(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-7 text-xs font-medium text-zinc-800 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 cursor-pointer"
+                    >
+                      <option value="all">All Responses</option>
+                      <option value="Answered">Answered</option>
+                      <option value="Not Answered">Not Answered</option>
+                      <option value="Appointment Booked">Appointment Booked</option>
+                      <option value="Callback">Callback</option>
+                      <option value="Declined">Declined</option>
+                      <option value="Cut/Disconnected">Cut/Disconnected</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                  </div>
+                </div>
+
+                {/* 4. STATUS */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    STATUS
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2 pr-7 text-xs font-medium text-zinc-800 focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 cursor-pointer"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="Completed">Completed</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Failed">Failed</option>
+                      <option value="valid">Valid Numbers</option>
+                      <option value="invalid">Invalid Numbers</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                  </div>
                 </div>
               </div>
 
-              {/* 2-Column Table: Name & WhatsApp Number */}
-              <div className="max-h-[380px] overflow-y-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 text-zinc-500 font-bold">
-                    <tr>
-                      <th className="py-2 px-3 w-8 text-center">
-                        <button type="button" onClick={toggleSelectAll}>
-                          {selectedCount > 0 && selectedCount === filteredContacts.filter((c) => c.is_valid_phone).length ? (
-                            <CheckSquare className="h-4 w-4 text-violet-600" />
-                          ) : (
-                            <Square className="h-4 w-4 text-zinc-400" />
-                          )}
-                        </button>
-                      </th>
-                      <th className="py-2 px-3">Name</th>
-                      <th className="py-2 px-3">WhatsApp Number</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                    {loadingContacts ? (
+              {/* Table Box */}
+              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800 overflow-hidden">
+                <div className="max-h-[380px] overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-800/90 border-b border-zinc-200 dark:border-zinc-700 text-zinc-500 font-semibold">
                       <tr>
-                        <td colSpan={3} className="py-8 text-center text-zinc-400">
-                          <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-1 text-violet-600" />
-                          Loading contacts...
-                        </td>
+                        <th className="py-2.5 px-3 w-10 text-center">
+                          <button type="button" onClick={toggleSelectFiltered} className="text-violet-600">
+                            {isAllFilteredSelected ? (
+                              <CheckSquare className="h-4 w-4" />
+                            ) : (
+                              <Square className="h-4 w-4 text-zinc-400" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="py-2.5 px-3 font-semibold text-zinc-600 dark:text-zinc-300">Name</th>
+                        <th className="py-2.5 px-3 font-semibold text-zinc-600 dark:text-zinc-300">Phone</th>
+                        <th className="py-2.5 px-3 font-semibold text-zinc-600 dark:text-zinc-300">Classification</th>
+                        <th className="py-2.5 px-3 font-semibold text-zinc-600 dark:text-zinc-300">Response</th>
                       </tr>
-                    ) : filteredContacts.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="py-8 text-center text-zinc-400">
-                          No contacts found.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredContacts.map((contact) => {
-                        const isSelected = selectedContactIds.has(contact.id);
-                        return (
-                          <tr
-                            key={contact.id}
-                            onClick={() => contact.is_valid_phone && toggleSelectContact(contact.id)}
-                            className={`cursor-pointer transition ${
-                              isSelected ? "bg-violet-50/40 dark:bg-violet-950/20" : "hover:bg-zinc-50/50"
-                            } ${!contact.is_valid_phone ? "opacity-40 cursor-not-allowed" : ""}`}
-                          >
-                            <td className="py-2 px-3 text-center">
-                              {contact.is_valid_phone ? (
-                                isSelected ? (
-                                  <CheckSquare className="h-4 w-4 text-violet-600 inline" />
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 bg-white dark:bg-zinc-900">
+                      {loadingContacts ? (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-zinc-400">
+                            <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-violet-600" />
+                            Loading contacts...
+                          </td>
+                        </tr>
+                      ) : filteredContacts.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-zinc-400">
+                            No contacts match your filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredContacts.map((contact) => {
+                          const isSelected = selectedContactIds.has(contact.id);
+                          return (
+                            <tr
+                              key={contact.id}
+                              onClick={() => contact.is_valid_phone && toggleSelectContact(contact.id)}
+                              className={`cursor-pointer transition ${
+                                isSelected ? "bg-violet-50/40 dark:bg-violet-950/20" : "hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40"
+                              } ${!contact.is_valid_phone ? "opacity-40 cursor-not-allowed" : ""}`}
+                            >
+                              <td className="py-2.5 px-3 text-center">
+                                {contact.is_valid_phone ? (
+                                  isSelected ? (
+                                    <CheckSquare className="h-4 w-4 text-violet-600 inline" />
+                                  ) : (
+                                    <Square className="h-4 w-4 text-zinc-400 inline" />
+                                  )
                                 ) : (
-                                  <Square className="h-4 w-4 text-zinc-400 inline" />
-                                )
-                              ) : (
-                                <X className="h-4 w-4 text-rose-400 inline" />
-                              )}
-                            </td>
-                            <td className="py-2 px-3 font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[140px]">
-                              {contact.name}
-                            </td>
-                            <td className="py-2 px-3 font-mono text-zinc-600 dark:text-zinc-400">
-                              {contact.formatted_phone}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                                  <X className="h-4 w-4 text-rose-400 inline" />
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[140px]">
+                                {contact.name}
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-zinc-600 dark:text-zinc-400">
+                                {contact.phone || contact.formatted_phone}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {getClassificationBadge(contact.ai_classification)}
+                              </td>
+                              <td className="py-2.5 px-3 text-zinc-700 dark:text-zinc-300 font-medium">
+                                {contact.response || "—"}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
           </div>
 
           {/* ══════════════════════════════════════════════════════
-              RIGHT COLUMN: MESSAGE COMPOSITION & TIMING (7 COLS)
+              RIGHT COLUMN: MESSAGE COMPOSITION & TIMING (5 COLS)
           ══════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="lg:col-span-5 space-y-6">
             
-            {/* STEP 2: Choose Message Content */}
+            {/* STEP 3: Choose Message Content */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[11px] font-bold text-white">
-                    2
+                    3
                   </span>
                   <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Message & Attachments</h3>
                 </div>
