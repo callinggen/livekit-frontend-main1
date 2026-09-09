@@ -237,6 +237,59 @@ export interface VerifiedSenderOption {
   domain: string;
   is_default: boolean;
   is_verified: boolean;
+  is_smtp?: boolean;
+  provider?: string;
+  mailbox_id?: number;
+}
+
+export interface UserMailbox {
+  id: number;
+  user_id: number;
+  provider: string;
+  sender_name: string;
+  sender_email: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_encryption: string;
+  username: string;
+  is_verified: boolean;
+  is_active: boolean;
+  is_default: boolean;
+  last_tested_at?: string | null;
+  error_message?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MailboxCreatePayload {
+  provider: string;
+  sender_name: string;
+  sender_email: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_encryption: string;
+  username: string;
+  password: string;
+  is_default?: boolean;
+  send_test_on_create?: boolean;
+}
+
+export interface MailboxTestPayload {
+  provider?: string;
+  sender_name: string;
+  sender_email: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_encryption: string;
+  username: string;
+  password: string;
+  recipient_email?: string;
+}
+
+export interface MailboxTestResult {
+  success: boolean;
+  message: string;
+  tested_at: string;
 }
 
 export interface EmailAIGeneratePayload {
@@ -551,6 +604,43 @@ export const api = {
   /** Get verified sender options for Email Marketing campaign dropdown. */
   getVerifiedSenders: () =>
     request<VerifiedSenderOption[]>("/api/custom-domains/verified-senders"),
+
+  // ── Connected Mailboxes (Custom SMTP - Method 2) ───────────────────────────
+
+  /** List all connected SMTP mailboxes for the authenticated user. */
+  getMailboxes: () => request<UserMailbox[]>("/api/smtp-mailboxes"),
+
+  /** Connect and save a new SMTP mailbox (tests credentials first). */
+  createMailbox: (payload: MailboxCreatePayload) =>
+    request<UserMailbox>("/api/smtp-mailboxes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Test SMTP connection and deliver a verification email without saving. */
+  testMailbox: (payload: MailboxTestPayload) =>
+    request<MailboxTestResult>("/api/smtp-mailboxes/test", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Re-test an existing mailbox by ID. */
+  testExistingMailbox: (id: number) =>
+    request<MailboxTestResult>(`/api/smtp-mailboxes/${id}/test`, {
+      method: "POST",
+    }),
+
+  /** Set a mailbox as the default sending account. */
+  setDefaultMailbox: (id: number) =>
+    request<{ message: string }>(`/api/smtp-mailboxes/${id}/set-default`, {
+      method: "POST",
+    }),
+
+  /** Disconnect and remove an SMTP mailbox. */
+  deleteMailbox: (id: number) =>
+    request<{ message: string }>(`/api/smtp-mailboxes/${id}`, {
+      method: "DELETE",
+    }),
 
   /** Create a Razorpay payment order. */
   createPaymentOrder: (planName: string, customCredits?: number) =>

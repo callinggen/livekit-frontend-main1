@@ -37,6 +37,7 @@ import {
   api,
   EmailCampaignRow,
   EmailMarketingTemplate,
+  UserMailbox,
 } from "@/lib/api";
 
 const getStatusBadge = (status: string) => {
@@ -145,7 +146,7 @@ export default function EmailCampaignPage() {
   const { isLoggedIn } = useAuth();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<"campaigns" | "templates">("campaigns");
+  const [activeTab, setActiveTab] = useState<"campaigns" | "templates" | "mailboxes">("campaigns");
 
   // Campaigns State
   const [campaigns, setCampaigns] = useState<EmailCampaignRow[]>([]);
@@ -158,6 +159,27 @@ export default function EmailCampaignPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
+
+  // Mailboxes State (Method 2: Custom SMTP Integration)
+  const [mailboxes, setMailboxes] = useState<UserMailbox[]>([]);
+  const [mailboxesLoading, setMailboxesLoading] = useState(false);
+  const [testingMailboxId, setTestingMailboxId] = useState<number | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showAppPasswordGuide, setShowAppPasswordGuide] = useState(true);
+
+  // Connect Mailbox Form State
+  const [mbProvider, setMbProvider] = useState<"gmail" | "outlook" | "zoho" | "custom">("gmail");
+  const [mbSenderName, setMbSenderName] = useState("");
+  const [mbSenderEmail, setMbSenderEmail] = useState("");
+  const [mbSmtpHost, setMbSmtpHost] = useState("smtp.gmail.com");
+  const [mbSmtpPort, setMbSmtpPort] = useState(587);
+  const [mbEncryption, setMbEncryption] = useState<"tls" | "ssl" | "none">("tls");
+  const [mbUsername, setMbUsername] = useState("");
+  const [mbPassword, setMbPassword] = useState("");
+  const [mbIsDefault, setMbIsDefault] = useState(true);
+  const [connectingMailbox, setConnectingMailbox] = useState(false);
+  const [connectError, setConnectError] = useState("");
+  const [connectSuccess, setConnectSuccess] = useState("");
 
   // Preview Modal
   const [previewTemplate, setPreviewTemplate] = useState<EmailMarketingTemplate | null>(null);
@@ -201,13 +223,129 @@ export default function EmailCampaignPage() {
     }
   };
 
+  // Load Connected Mailboxes
+  const loadMailboxes = async () => {
+    setMailboxesLoading(true);
+    try {
+      const data = await api.getMailboxes();
+      setMailboxes(data);
+    } catch (e) {
+      console.warn("Failed to load mailboxes:", e);
+    } finally {
+      setMailboxesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isLoggedIn) return;
     loadCampaigns();
     loadTemplates();
-    const interval = setInterval(loadCampaigns, 12000);
+    loadMailboxes();
+    const interval = setInterval(() => {
+      loadCampaigns();
+    }, 12000);
     return () => clearInterval(interval);
   }, [isLoggedIn]);
+
+  const handleProviderSelect = (p: "gmail" | "outlook" | "zoho" | "custom") => {
+    setMbProvider(p);
+    setConnectError("");
+    setConnectSuccess("");
+    if (p === "gmail") {
+      setMbSmtpHost("smtp.gmail.com");
+      setMbSmtpPort(587);
+      setMbEncryption("tls");
+      setShowAppPasswordGuide(true);
+    } else if (p === "outlook") {
+      setMbSmtpHost("smtp.office365.com");
+      setMbSmtpPort(587);
+      setMbEncryption("tls");
+      setShowAppPasswordGuide(false);
+    } else if (p === "zoho") {
+      setMbSmtpHost("smtp.zoho.in");
+      setMbSmtpPort(587);
+      setMbEncryption("tls");
+      setShowAppPasswordGuide(false);
+    } else {
+      setMbSmtpHost("");
+      setMbSmtpPort(587);
+      setMbEncryption("tls");
+      setShowAppPasswordGuide(false);
+    }
+  };
+
+  const handleConnectMailbox = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConnectError("");
+    setConnectSuccess("");
+
+    if (!mbSenderName.trim() || !mbSenderEmail.trim() || !mbSmtpHost.trim() || !mbPassword.trim()) {
+      setConnectError("Please fill in all required fields (Sender Name, Email, SMTP Host, Password).");
+      return;
+    }
+
+    setConnectingMailbox(true);
+    try {
+      const usernameVal = mbUsername.trim() || mbSenderEmail.trim();
+      const created = await api.createMailbox({
+        provider: mbProvider,
+        sender_name: mbSenderName.trim(),
+        sender_email: mbSenderEmail.trim(),
+        smtp_host: mbSmtpHost.trim(),
+        smtp_port: Number(mbSmtpPort) || 587,
+        smtp_encryption: mbEncryption,
+        username: usernameVal,
+        password: mbPassword.trim(),
+        is_default: mbIsDefault,
+        send_test_on_create: true,
+      });
+
+      setConnectSuccess("✅ Connected and verified! Test email sent successfully.");
+      await loadMailboxes();
+      setTimeout(() => {
+        setShowConnectModal(false);
+        setConnectSuccess("");
+        setMbPassword("");
+      }, 1500);
+    } catch (err: any) {
+      setConnectError(err.message || "Failed to verify and connect mailbox. Please check your credentials.");
+    } finally {
+      setConnectingMailbox(false);
+    }
+  };
+
+  const handleTestExistingMailbox = async (id: number) => {
+    setTestingMailboxId(id);
+    try {
+      const res = await api.testExistingMailbox(id);
+      alert(`✅ ${res.message}`);
+      await loadMailboxes();
+    } catch (err: any) {
+      alert(`❌ Verification Failed: ${err.message || "Could not connect to SMTP server"}`);
+      await loadMailboxes();
+    } finally {
+      setTestingMailboxId(null);
+    }
+  };
+
+  const handleSetDefaultMailbox = async (id: number) => {
+    try {
+      await api.setDefaultMailbox(id);
+      await loadMailboxes();
+    } catch (err: any) {
+      alert(err.message || "Failed to set default mailbox");
+    }
+  };
+
+  const handleDeleteMailbox = async (id: number) => {
+    if (!confirm("Disconnect this email mailbox? Broadcast campaigns will no longer be able to send from this address.")) return;
+    try {
+      await api.deleteMailbox(id);
+      setMailboxes((prev) => prev.filter((m) => m.id !== id));
+    } catch (err: any) {
+      alert(err.message || "Failed to disconnect mailbox");
+    }
+  };
 
   const handleDeleteCampaign = async (id: number) => {
     if (!confirm("Delete this email campaign? This cannot be undone.")) return;
@@ -305,6 +443,20 @@ export default function EmailCampaignPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {activeTab === "mailboxes" && (
+              <button
+                onClick={() => {
+                  setShowConnectModal(true);
+                  setConnectError("");
+                  setConnectSuccess("");
+                }}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                Connect Email Account
+              </button>
+            )}
+
             {activeTab === "templates" && (
               <button
                 onClick={() => setShowCreateModal(true)}
@@ -357,6 +509,21 @@ export default function EmailCampaignPage() {
             Template Library
             <span className="ml-1.5 rounded-full bg-violet-100 dark:bg-violet-950/60 px-2 py-0.5 text-xs text-violet-700 dark:text-violet-300 font-mono font-semibold">
               {templates.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("mailboxes")}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all ${
+              activeTab === "mailboxes"
+                ? "border-violet-600 text-violet-600 dark:border-violet-400 dark:text-violet-400"
+                : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-white"
+            }`}
+          >
+            <Mail className="h-4 w-4 text-emerald-500" />
+            Connected Mailboxes (SMTP)
+            <span className="ml-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-300 font-mono font-bold">
+              {mailboxes.length}
             </span>
           </button>
         </div>
@@ -748,7 +915,242 @@ export default function EmailCampaignPage() {
           </div>
         )}
 
+        {/* ══════════════════════════════════════════════════════════════════════
+            TAB 3: CONNECTED MAILBOXES (CUSTOM SMTP - METHOD 2)
+        ══════════════════════════════════════════════════════════════════════ */}
+        {activeTab === "mailboxes" && (
+          <div className="flex flex-col gap-6">
+            
+            {/* Method 2 Advantage Banner */}
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/50 p-6 shadow-sm dark:border-emerald-500/20 dark:from-emerald-950/20 dark:via-zinc-900 dark:to-teal-950/10">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="space-y-2 max-w-2xl">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                    Method 2: Direct Mailbox Sending (SMTP)
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+                    Send Campaigns Directly from Your Own Real Email
+                  </h3>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    Connect your <strong>Google Workspace, Gmail, Microsoft 365, Zoho, or cPanel</strong> account. 
+                    CallingGen dispatches emails through your authenticated mail server so emails appear in your own 
+                    <strong>Sent folder</strong>, pass all spam filters, and replies go directly to your personal inbox.
+                  </p>
+                </div>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConnectModal(true);
+                    setConnectError("");
+                    setConnectSuccess("");
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-3 shadow-md shadow-emerald-600/20 transition shrink-0 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  + Connect Email Account
+                </button>
+              </div>
+
+              {/* 4 Feature Highlights */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-emerald-200/60 dark:border-emerald-900/30 text-xs">
+                <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300 font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>100% White-Labeled</span>
+                </div>
+                <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300 font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>Zero Spam Penalties</span>
+                </div>
+                <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300 font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>Sent Folder Sync</span>
+                </div>
+                <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300 font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>Direct Inbox Replies</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Mailboxes Grid */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-violet-600" />
+                  Connected Email Accounts ({mailboxes.length})
+                </h3>
+              </div>
+
+              {mailboxesLoading ? (
+                <div className="flex items-center justify-center py-20 gap-3 text-zinc-500">
+                  <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+                  Loading connected mailboxes…
+                </div>
+              ) : mailboxes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-12 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 mb-4">
+                    <Mail className="h-8 w-8" />
+                  </div>
+                  <h4 className="text-base font-bold text-zinc-900 dark:text-white">
+                    No Email Mailboxes Connected Yet
+                  </h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mt-1.5 mb-6">
+                    Connect your Google Workspace, Gmail, Outlook, or private domain SMTP in 60 seconds with an App Password to begin sending verified marketing broadcasts.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowConnectModal(true);
+                      setConnectError("");
+                      setConnectSuccess("");
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-500/20 hover:opacity-95 transition cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Connect Your First Mailbox
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {mailboxes.map((mb) => (
+                    <div
+                      key={mb.id}
+                      className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:border-zinc-800 dark:bg-[#0B0F19] dark:hover:border-emerald-800"
+                    >
+                      {/* Top Bar */}
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
+                              mb.provider === "gmail"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300"
+                                : mb.provider === "outlook"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300"
+                                : mb.provider === "zoho"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300"
+                                : "bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+                            }`}
+                          >
+                            {mb.provider === "gmail"
+                              ? "Google / Gmail"
+                              : mb.provider === "outlook"
+                              ? "Microsoft 365"
+                              : mb.provider === "zoho"
+                              ? "Zoho Mail"
+                              : "Custom SMTP"}
+                          </span>
+
+                          <div className="flex items-center gap-2">
+                            {mb.is_default && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <Check className="h-3 w-3" />
+                                Default
+                              </span>
+                            )}
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                mb.is_verified
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200/60"
+                                  : "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400 border border-red-200/60"
+                              }`}
+                            >
+                              {mb.is_verified ? "Verified" : "Needs Re-test"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Sender Info */}
+                        <div className="space-y-1">
+                          <h4 className="text-base font-bold text-zinc-900 dark:text-white truncate">
+                            {mb.sender_name}
+                          </h4>
+                          <p className="text-xs font-mono font-medium text-emerald-600 dark:text-emerald-400 truncate">
+                            {mb.sender_email}
+                          </p>
+                        </div>
+
+                        {/* Connection Details */}
+                        <div className="mt-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/80 p-3 space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400 border border-zinc-100 dark:border-zinc-800">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-zinc-400">Server:</span>
+                            <span className="font-mono text-zinc-800 dark:text-zinc-200 text-[11px] font-semibold">
+                              {mb.smtp_host}:{mb.smtp_port}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-zinc-400">Security:</span>
+                            <span className="font-mono text-zinc-800 dark:text-zinc-200 text-[11px] uppercase">
+                              {mb.smtp_encryption}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-zinc-400">Username:</span>
+                            <span className="font-mono text-zinc-800 dark:text-zinc-200 text-[11px] truncate max-w-[150px]">
+                              {mb.username}
+                            </span>
+                          </div>
+                          {mb.last_tested_at && (
+                            <div className="flex items-center justify-between pt-1 border-t border-zinc-200/50 dark:border-zinc-800 text-[10px] text-zinc-400">
+                              <span>Last Verified:</span>
+                              <span>{new Date(mb.last_tested_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {mb.error_message && (
+                          <div className="mt-2 text-[11px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 p-2 rounded-lg border border-red-200 dark:border-red-900">
+                            {mb.error_message}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Footer */}
+                      <div className="mt-5 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          {!mb.is_default && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefaultMailbox(mb.id)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition cursor-pointer"
+                            >
+                              Make Default
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleTestExistingMailbox(mb.id)}
+                            disabled={testingMailboxId === mb.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 rounded-lg transition disabled:opacity-50 cursor-pointer"
+                          >
+                            {testingMailboxId === mb.id ? (
+                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Send className="h-3.5 w-3.5" />
+                            )}
+                            Test
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMailbox(mb.id)}
+                          className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer"
+                          title="Disconnect Mailbox"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════════
             MODAL: CREATE CUSTOM TEMPLATE
@@ -891,7 +1293,258 @@ export default function EmailCampaignPage() {
           </div>
         )}
 
+        {/* ══════════════════════════════════════════════════════════════════════
+            MODAL: CONNECT EMAIL ACCOUNT (CUSTOM SMTP - METHOD 2)
+        ══════════════════════════════════════════════════════════════════════ */}
+        {showConnectModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+              
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                      Connect Your Email Account (SMTP)
+                    </h3>
+                    <p className="text-xs text-zinc-500">Method 2: Send marketing broadcasts directly from your verified mailbox</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowConnectModal(false)}
+                  className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleConnectMailbox} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+                
+                {/* 1. Provider Selection Cards */}
+                <div>
+                  <label className="block text-xs font-bold uppercase text-zinc-500 mb-2">
+                    1. Select Email Provider
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {[
+                      { id: "gmail", label: "Google / Gmail", sub: "Workspace or Gmail" },
+                      { id: "outlook", label: "Microsoft 365", sub: "Outlook / Office 365" },
+                      { id: "zoho", label: "Zoho Mail", sub: "Zoho Workspace" },
+                      { id: "custom", label: "Custom SMTP", sub: "cPanel / Private Server" },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleProviderSelect(p.id as any)}
+                        className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                          mbProvider === p.id
+                            ? "border-emerald-600 bg-emerald-50/70 dark:border-emerald-500 dark:bg-emerald-950/40 ring-1 ring-emerald-500/30"
+                            : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                        }`}
+                      >
+                        <div className="font-bold text-zinc-900 dark:text-white text-xs">{p.label}</div>
+                        <div className="text-[10px] text-zinc-500 truncate mt-0.5">{p.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Step-by-Step Google App Password Guide (if Gmail selected) */}
+                {mbProvider === "gmail" && (
+                  <div className="rounded-xl border border-amber-200/80 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-300 text-xs">
+                        <Info className="h-4 w-4 text-amber-600 shrink-0" />
+                        How to get your Google 16-letter App Password:
+                      </div>
+                      <a
+                        href="https://myaccount.google.com/apppasswords"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1"
+                      >
+                        Open Google App Passwords <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-amber-800 dark:text-amber-300/90 pl-1 leading-relaxed">
+                      <li>Go to <strong>Google Account</strong> (myaccount.google.com) &rarr; <strong>Security</strong></li>
+                      <li>Enable <strong>2-Step Verification</strong> (if not already enabled)</li>
+                      <li>Under 2-Step Verification, scroll down to <strong>App Passwords</strong></li>
+                      <li>Enter App name <strong>&quot;CallingGen&quot;</strong> and click <strong>Create</strong></li>
+                      <li>Copy the generated <strong>16-letter code</strong> and paste it in the App Password field below!</li>
+                    </ol>
+                  </div>
+                )}
+
+                {/* 3. Account Details Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                      Sender Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Sai Sathwik - GenX Reality"
+                      value={mbSenderName}
+                      onChange={(e) => setMbSenderName(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                      Sender Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="saisathwik@genxreality.in"
+                      value={mbSenderEmail}
+                      onChange={(e) => {
+                        setMbSenderEmail(e.target.value);
+                        if (!mbUsername) setMbUsername(e.target.value);
+                      }}
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-emerald-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                      SMTP Host *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="smtp.gmail.com"
+                      value={mbSmtpHost}
+                      onChange={(e) => setMbSmtpHost(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-emerald-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
+                        Port &amp; Security *
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        required
+                        value={mbSmtpPort}
+                        onChange={(e) => setMbSmtpPort(Number(e.target.value))}
+                        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-emerald-500 font-mono"
+                      />
+                      <select
+                        value={mbEncryption}
+                        onChange={(e) => setMbEncryption(e.target.value as any)}
+                        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-emerald-500"
+                      >
+                        <option value="tls">TLS (Port 587)</option>
+                        <option value="ssl">SSL (Port 465)</option>
+                        <option value="none">Plain (Port 25)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                      Username / Login Email *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="saisathwik@genxreality.in"
+                      value={mbUsername || mbSenderEmail}
+                      onChange={(e) => setMbUsername(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-emerald-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                      {mbProvider === "gmail" ? "16-Letter App Password *" : "Password / App Password *"}
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="•••• •••• •••• ••••"
+                      value={mbPassword}
+                      onChange={(e) => setMbPassword(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-emerald-500 font-mono tracking-wider"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="mbIsDefault"
+                    checked={mbIsDefault}
+                    onChange={(e) => setMbIsDefault(e.target.checked)}
+                    className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="mbIsDefault" className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
+                    Set as default sender for new email marketing campaigns
+                  </label>
+                </div>
+
+                {connectError && (
+                  <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{connectError}</span>
+                  </div>
+                )}
+
+                {connectSuccess && (
+                  <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>{connectSuccess}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowConnectModal(false)}
+                    className="px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={connectingMailbox}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-emerald-500/20 disabled:opacity-60 cursor-pointer"
+                  >
+                    {connectingMailbox ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Testing &amp; Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5" />
+                        Send Test Email &amp; Connect Mailbox
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </form>
+
+            </div>
+          </div>
+        )}
+
       </div>
     </DashboardShell>
   );
 }
+
