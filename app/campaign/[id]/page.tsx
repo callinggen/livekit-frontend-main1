@@ -190,7 +190,7 @@ export default function CampaignDetailPage() {
       setCampaign(prev => prev ? { ...prev, status: "Paused" } : null);
       const [data, callsData] = await Promise.all([
         api.getCampaign(Number(id)),
-        api.getCalls().catch(() => [])
+        api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
       ]);
       setCampaign(data);
       setCalls(callsData || []);
@@ -209,7 +209,7 @@ export default function CampaignDetailPage() {
       setCampaign(prev => prev ? { ...prev, status: "Running" } : null);
       const [data, callsData] = await Promise.all([
         api.getCampaign(Number(id)),
-        api.getCalls().catch(() => [])
+        api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
       ]);
       setCampaign(data);
       setCalls(callsData || []);
@@ -231,7 +231,7 @@ export default function CampaignDetailPage() {
       setCampaign(prev => prev ? { ...prev, status: "Stopped" } : null);
       const [data, callsData] = await Promise.all([
         api.getCampaign(Number(id)),
-        api.getCalls().catch(() => [])
+        api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
       ]);
       setCampaign(data);
       setCalls(callsData || []);
@@ -278,7 +278,7 @@ export default function CampaignDetailPage() {
       try {
         const [data, callsData] = await Promise.all([
           api.getCampaign(Number(id)),
-          api.getCalls().catch(() => [])
+          api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
         ]);
         if (active) {
           setCampaign(data);

@@ -98,8 +98,9 @@ export default function CalendarPage() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    Promise.all([api.getCampaigns(), api.getCalls()])
-      .then(([cData, callData]) => {
+    Promise.all([api.getCampaigns(), api.getCalls({ page_size: 500 })])
+      .then(([cData, callRes]) => {
+        const callData = callRes.calls;
         const events: Record<string, CalEvent[]> = {};
 
         const pushEvent = (dateKey: string, event: CalEvent) => {
