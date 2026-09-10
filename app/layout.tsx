@@ -6,6 +6,7 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import { CreditsProvider } from "@/components/CreditsContext";
 import { LanguageProvider } from "@/components/LanguageContext";
+import GetCallModal from "@/components/landing/GetCallModal";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -43,7 +44,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
           <AuthProvider>
-            <CreditsProvider>{children}</CreditsProvider>
+            <CreditsProvider>
+              {children}
+              <GetCallModal />
+            </CreditsProvider>
           </AuthProvider>
         </LanguageProvider>
       </body>

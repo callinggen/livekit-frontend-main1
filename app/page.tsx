@@ -6,7 +6,6 @@ import FeaturesSection from "@/components/landing/FeaturesSection";
 import IndustriesSection from "@/components/landing/IndustriesSection";
 import TestimonialsSection from "@/components/landing/TestimonialsSection";
 import Footer from "@/components/landing/Footer";
-import GetCallModal from "@/components/landing/GetCallModal";
 
 export default function Home() {
   return (
@@ -21,7 +20,6 @@ export default function Home() {
         <TestimonialsSection />
       </main>
       <Footer />
-      <GetCallModal />
     </div>
   );
 }

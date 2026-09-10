@@ -1,31 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
 import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
-import DetailsDrawer from "@/components/shared/DetailsDrawer";
-import { Calendar, PhoneCall, CheckCircle2, FileText, PlayCircle } from "lucide-react";
-import { api, CampaignRow, CampaignDetail } from "@/lib/api";
+import { 
+  PlayCircle, CheckCircle2, Clock, AlertCircle, FileText, 
+  Calendar, Pause, Play, Square, Loader2 
+} from "lucide-react";
+import { api, CampaignRow } from "@/lib/api";
 
 const formatDateTime = (dateString: string | undefined | null) => {
   if (!dateString) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString.trim())) {
     return dateString;
   }
-  try {
-    const cleanStr = dateString.replace(" UTC", "");
-    const d = new Date(cleanStr);
-    if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true
-    });
-  } catch {
-    return dateString;
-  }
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(date);
 };
 
 interface Campaign extends CampaignRow {}
@@ -61,33 +63,97 @@ export default function CampaignsPage() {
   const { isLoggedIn } = useAuth();
   
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [pendingCampaigns, setPendingCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [launchingId, setLaunchingId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
 
+  const loadCampaigns = () => {
+    Promise.all([
+      api.getCampaigns("normal"),
+      api.getCampaigns("pending")
+    ])
+    .then(([normalData, pendingData]) => {
+      setCampaigns(normalData ? (normalData as Campaign[]) : []);
+      setPendingCampaigns(pendingData ? (pendingData as Campaign[]) : []);
+    })
+    .catch(err => {
+      console.warn("Failed to load campaigns:", err);
+    })
+    .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
     if (!isLoggedIn) return;
-    const load = () => {
-      api.getCampaigns("normal")
-        .then((normalData) => {
-          setCampaigns(normalData ? (normalData as Campaign[]) : []);
-        })
-        .catch(err => {
-          console.warn("Failed to load campaigns:", err);
-        })
-        .finally(() => setLoading(false));
-    };
-
-    load();
-    const interval = setInterval(load, 10000);
+    loadCampaigns();
+    const interval = setInterval(loadCampaigns, 10000);
     return () => clearInterval(interval);
   }, [isLoggedIn]);
 
+  const handleLaunchPending = async (campaignId: string) => {
+    try {
+      setLaunchingId(campaignId);
+      const { total_contacts } = await api.launchCampaign(Number(campaignId));
+      alert(`Campaign launched! Dialling ${total_contacts} contact(s).`);
+      loadCampaigns();
+    } catch (err: any) {
+      alert(err.message || "Failed to launch pending campaign");
+    } finally {
+      setLaunchingId(null);
+    }
+  };
+
+  const handlePause = async (e: React.MouseEvent, campaignId: string) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to pause this campaign? Any active calls will be terminated immediately.")) return;
+    try {
+      setActionLoadingId(campaignId);
+      await api.pauseCampaign(campaignId);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: "Paused" } : c));
+      loadCampaigns();
+    } catch (err: any) {
+      alert(err.message || "Failed to pause campaign");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleResume = async (e: React.MouseEvent, campaignId: string) => {
+    e.stopPropagation();
+    try {
+      setActionLoadingId(campaignId);
+      await api.resumeCampaign(campaignId);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: "Running" } : c));
+      loadCampaigns();
+    } catch (err: any) {
+      alert(err.message || "Failed to resume campaign");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleStop = async (e: React.MouseEvent, campaignId: string) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to stop this campaign? Any active calls will be terminated and remaining calls will NOT be placed.")) return;
+    try {
+      setActionLoadingId(campaignId);
+      await api.stopCampaign(campaignId);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: "Stopped" } : c));
+      loadCampaigns();
+    } catch (err: any) {
+      alert(err.message || "Failed to stop campaign");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   if (!isLoggedIn) return null;
 
-  const columns: Column<Campaign>[] = [
+  const baseColumns: Column<Campaign>[] = [
     { key: "name", label: "Campaign Name", sortable: true, render: (c) => <span className="font-semibold text-zinc-900 dark:text-white">{c.name}</span> },
     { key: "date", label: "Date", sortable: true, render: (c) => <span>{formatDateTime(c.date)}</span> },
     { key: "sheetName", label: "Data Source", sortable: true, render: (c) => <span className="text-xs text-zinc-500">{c.sheetName}</span> },
@@ -95,6 +161,68 @@ export default function CampaignsPage() {
     { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">{Number(c.creditsUsed || 0)}</span> },
     { key: "agent", label: "AI Agent", sortable: true },
     { key: "status", label: "Status", sortable: true, render: (c) => getStatusBadge(c.status) },
+  ];
+
+  const activeColumns: Column<Campaign>[] = [
+    ...baseColumns,
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (c) => {
+        const isActionLoading = actionLoadingId === c.id;
+        const normStatus = (c.status || "").toLowerCase();
+        if (normStatus === "running" || normStatus === "in_progress") {
+          return (
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => handlePause(e, c.id)}
+                disabled={isActionLoading}
+                title="Pause campaign and terminate ongoing calls"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Pause className="w-3 h-3" />}
+                Pause
+              </button>
+              <button
+                onClick={(e) => handleStop(e, c.id)}
+                disabled={isActionLoading}
+                title="Stop campaign permanently"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3" />}
+                Stop
+              </button>
+            </div>
+          );
+        }
+        if (normStatus === "paused") {
+          return (
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => handleResume(e, c.id)}
+                disabled={isActionLoading}
+                title="Resume campaign execution"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                Resume
+              </button>
+              <button
+                onClick={(e) => handleStop(e, c.id)}
+                disabled={isActionLoading}
+                title="Stop campaign permanently"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3" />}
+                Stop
+              </button>
+            </div>
+          );
+        }
+        return <span className="text-xs text-zinc-400">—</span>;
+      }
+    }
   ];
 
   const isCompletedCampaign = (status: string) => {
@@ -179,10 +307,10 @@ export default function CampaignsPage() {
           <div>
             <DataTable 
               data={activeCampaignsData}
-              columns={columns}
+              columns={activeColumns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
-                { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Draft", value: "Draft"}, {label: "Paused", value: "Paused"}] },
+                { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Draft", value: "Draft"}, {label: "Paused", value: "Paused"}, {label: "Failed", value: "Failed"}] },
                 { key: "agent", label: "Agent", options: Array.from(new Set(activeCampaignsData.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
               ]}
               exportFileName="active_campaigns_export.xlsx"
@@ -202,7 +330,7 @@ export default function CampaignsPage() {
           <div>
             <DataTable 
               data={completedCampaignsData}
-              columns={columns}
+              columns={baseColumns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
                 { key: "status", label: "Status", options: [{label: "Completed", value: "Completed"}, {label: "Incomplete", value: "Incomplete"}, {label: "Failed", value: "Failed"}, {label: "Stopped", value: "Stopped"}] },
@@ -211,6 +339,61 @@ export default function CampaignsPage() {
               exportFileName="completed_campaigns_export.xlsx"
               onRowClick={(c) => router.push(`/campaign/${c.id}`)}
             />
+          </div>
+        </section>
+
+        {/* Pending Campaigns Section */}
+        <section className="flex flex-col gap-4 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Pending Campaigns</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              These are your remaining contacts from custom range selections. Launch them whenever you're ready.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pendingCampaigns.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-zinc-500">
+                No pending campaigns found.
+              </div>
+            ) : (
+              pendingCampaigns.map(c => (
+                <div key={c.id} className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19]">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{c.name}</h3>
+                    <p className="text-sm text-zinc-500 mt-1">
+                      From: <span className="font-medium text-zinc-700 dark:text-zinc-300">{c.parentCampaignName || "Unknown"}</span>
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-zinc-500">Remaining Contacts</span>
+                      <span className="font-mono text-lg font-semibold dark:text-white">{c.contactCount || 0}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-zinc-500">Status</span>
+                      <div><Badge variant="warning">Pending</Badge></div>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex gap-3">
+                    <button 
+                      onClick={() => router.push(`/campaign/${c.id}`)}
+                      className="flex-1 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    >
+                      View Contacts
+                    </button>
+                    <button 
+                      onClick={() => handleLaunchPending(c.id)}
+                      disabled={launchingId === c.id}
+                      className="flex-1 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                    >
+                      {launchingId === c.id ? "Launching..." : "Run Campaign"}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </div>
