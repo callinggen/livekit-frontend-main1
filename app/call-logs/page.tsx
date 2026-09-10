@@ -602,79 +602,81 @@ export default function CallLogsPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-muted/10">
-              {/* Audio Player */}
-              <div className="bg-background border border-border/50 rounded-xl p-4 shadow-xs">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Mic className="w-3.5 h-3.5" /> Call Audio Recording
-                  </span>
-                  <span className="text-xs font-mono font-medium text-primary">Duration: {selectedCall.duration}</span>
-                </div>
-                {selectedCall.recording_url ? (
-                  <audio controls className="w-full h-10 accent-primary" src={selectedCall.recording_url.startsWith("http") ? selectedCall.recording_url : `${BASE}${selectedCall.recording_url}`}>
-                    Your browser does not support the audio element.
-                  </audio>
-                ) : (
-                  <div className="text-xs text-muted-foreground/60 italic py-2 text-center bg-muted/20 rounded-lg">
-                    No audio recording available for this call
-                  </div>
-                )}
-              </div>
-
+            <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto bg-muted/10">
               {/* Transcript */}
-              <div className="bg-background border border-border/50 rounded-xl p-5 shadow-xs">
-                <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" /> Full Call Transcript
-                </h3>
-                <div className="space-y-4 max-h-72 overflow-y-auto pr-2">
-                  {selectedCall.transcript && selectedCall.transcript.length > 0 ? (
+              <div className="flex flex-col h-full">
+                <h4 className="font-semibold flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-primary" /> Call Transcript
+                </h4>
+                <div className="bg-background border border-border/50 rounded-xl p-5 flex-1 min-h-[300px] overflow-y-auto space-y-6 text-sm shadow-sm">
+                  {!selectedCall.transcript || selectedCall.transcript.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-muted-foreground italic">
+                      No transcript available.
+                    </div>
+                  ) : (
                     selectedCall.transcript.map((msg: any, i: number) => {
-                      const isUser = msg.sender?.toLowerCase() === "user" || msg.role === "user";
+                      const speaker = (msg.speaker || msg.sender || msg.role || "").toLowerCase();
+                      const isAgent = speaker === "assistant" || speaker === "agent" || speaker === "ai agent" || speaker === "bot";
+                      const text = msg.text || msg.message || msg.content || "";
                       return (
-                        <div key={i} className={`flex flex-col ${isUser ? "items-start" : "items-end"}`}>
-                          <div className="flex items-center gap-1.5 mb-1 px-1">
-                            <span className="text-[11px] font-bold text-muted-foreground">{isUser ? "Contact" : "AI Agent"}</span>
-                            {msg.time && <span className="text-[10px] text-muted-foreground/50">{msg.time}</span>}
+                        <div key={i} className="flex gap-4">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ${
+                              isAgent
+                                ? "bg-primary/20 text-primary"
+                                : "bg-secondary text-secondary-foreground"
+                            }`}
+                          >
+                            {isAgent ? "A" : "C"}
                           </div>
-                          <div className={`p-3 rounded-2xl max-w-[80%] text-sm shadow-2xs ${isUser ? "bg-muted text-foreground rounded-tl-xs" : "bg-primary text-primary-foreground rounded-tr-xs"}`}>
-                            {msg.message || msg.text || msg.content}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-foreground">{isAgent ? "Agent" : "Customer"}</p>
+                            </div>
+                            <p className="text-muted-foreground leading-relaxed">{text}</p>
                           </div>
                         </div>
                       );
                     })
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      No transcript recorded for this call.
-                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Analysis & Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Player & Insights */}
+              <div className="flex flex-col gap-6 h-full">
                 <div className="flex flex-col">
-                  <h4 className="font-semibold text-sm mb-3 text-muted-foreground flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-primary" /> Call Information
+                  <h4 className="font-semibold flex items-center gap-2 mb-3">
+                    <PlayCircle className="w-4 h-4 text-primary" /> Recording
                   </h4>
-                  <div className="bg-background border border-border/50 rounded-xl p-4 shadow-xs flex-1">
-                    <ul className="space-y-3 text-xs">
+                  <div className="bg-background border border-border/50 rounded-xl p-6 shadow-sm flex flex-col items-center justify-center min-h-[140px]">
+                    {!selectedCall.recording_url ? (
+                      <div className="text-muted-foreground italic">No recording available for this call.</div>
+                    ) : (
+                      <audio
+                        src={selectedCall.recording_url.startsWith("http") ? selectedCall.recording_url : BASE + selectedCall.recording_url}
+                        controls
+                        className="w-full outline-none"
+                        preload="metadata"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col flex-1">
+                  <h4 className="font-semibold text-sm mb-3 text-muted-foreground flex items-center gap-2">Key Insights</h4>
+                  <div className="bg-background border border-border/50 rounded-xl p-5 shadow-sm flex-1">
+                    <ul className="space-y-4 text-sm">
                       <li className="flex justify-between items-center border-b border-border/50 pb-3">
                         <span className="text-muted-foreground">AI Classification</span>
-                        <span className="font-medium text-foreground">{selectedCall.aiClass}</span>
+                        <span className="font-semibold text-foreground bg-accent px-2 py-0.5 rounded-md">{selectedCall.aiClass}</span>
                       </li>
                       <li className="flex justify-between items-center border-b border-border/50 pb-3">
                         <span className="text-muted-foreground">Category</span>
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(selectedCall.category, "category")}`}>
-                          {selectedCall.category}
-                        </span>
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(selectedCall.category, "category")}`}>{selectedCall.category}</span>
                       </li>
                       <li className="flex justify-between items-center border-b border-border/50 pb-3">
                         <span className="text-muted-foreground">Response</span>
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(selectedCall.response, "response")}`}>
-                          {selectedCall.response}
-                        </span>
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(selectedCall.response, "response")}`}>{selectedCall.response}</span>
                       </li>
                       {selectedCall.caller_number && (
                         <li className="flex justify-between items-center border-b border-border/50 pb-3">
@@ -701,24 +703,19 @@ export default function CallLogsPage() {
                   </div>
                 </div>
 
-                {/* WhatsApp Automation Activity */}
                 <div className="flex flex-col">
                   <h4 className="font-semibold text-sm mb-3 text-muted-foreground flex items-center gap-2">
                     <Zap className="w-4 h-4 text-emerald-500" /> WhatsApp Actions
                   </h4>
-                  <div className="bg-background border border-border/50 rounded-xl p-4 shadow-xs space-y-2 flex-1">
+                  <div className="bg-background border border-border/50 rounded-xl p-4 shadow-sm space-y-2">
                     {selectedCall.response === "NO ANSWER" || selectedCall.status === "FAILED" ? (
                       <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
-                        <span className="font-semibold flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Missed call follow-up sent
-                        </span>
+                        <span className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Missed call follow-up sent</span>
                         <span className="text-[10px] text-muted-foreground">{selectedCall.datetime}</span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
-                        <span className="font-semibold flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Digital asset & summary ready
-                        </span>
+                        <span className="font-semibold flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Digital asset & summary ready</span>
                         <span className="text-[10px] text-muted-foreground">{selectedCall.datetime}</span>
                       </div>
                     )}
