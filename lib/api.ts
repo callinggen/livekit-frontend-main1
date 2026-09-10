@@ -452,14 +452,14 @@ export const api = {
     ),
 
   /** Paginated calls list (Responses / Call Logs page). */
-  getCalls: (params?: {
+  getCalls: async (params?: {
     page?: number;
     page_size?: number;
     search?: string;
     status?: string;
     direction?: string;
     campaign_id?: number;
-  }) => {
+  }): Promise<{ total: number; page: number; page_size: number; calls: ResponseLog[] }> => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
     if (params?.page_size) qs.set("page_size", String(params.page_size));
@@ -468,7 +468,21 @@ export const api = {
     if (params?.direction) qs.set("direction", params.direction);
     if (params?.campaign_id) qs.set("campaign_id", String(params.campaign_id));
     const url = `/api/calls${qs.toString() ? `?${qs.toString()}` : ""}`;
-    return request<{ total: number; page: number; page_size: number; calls: ResponseLog[] }>(url);
+    const raw: any = await request<any>(url);
+    if (Array.isArray(raw)) {
+      return {
+        total: raw.length,
+        page: params?.page || 1,
+        page_size: params?.page_size || raw.length,
+        calls: raw,
+      };
+    }
+    return {
+      total: raw?.total ?? (raw?.calls?.length || 0),
+      page: raw?.page ?? 1,
+      page_size: raw?.page_size ?? 50,
+      calls: Array.isArray(raw?.calls) ? raw.calls : [],
+    };
   },
 
   /** BUG-007: Live contact-status counts for the Live Journey panel. */

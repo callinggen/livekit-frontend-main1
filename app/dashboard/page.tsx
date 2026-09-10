@@ -38,10 +38,15 @@ export default function Dashboard() {
     if (!isLoggedIn) return;
     Promise.all([api.getCampaigns(), api.getCalls({ page_size: 500 })])
       .then(([cData, callRes]) => {
-        setCampaigns(cData);
-        setCalls(callRes.calls);
+        setCampaigns(Array.isArray(cData) ? cData : []);
+        const callList = Array.isArray(callRes) ? callRes : (callRes?.calls || []);
+        setCalls(callList);
       })
-      .catch((err) => console.warn("Failed to load dashboard data:", err))
+      .catch((err) => {
+        console.warn("Failed to load dashboard data:", err);
+        setCampaigns([]);
+        setCalls([]);
+      })
       .finally(() => setLoading(false));
   }, [isLoggedIn]);
 
@@ -49,12 +54,15 @@ export default function Dashboard() {
 
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  const totalCampaigns = campaigns.length;
-  const totalCalls = campaigns.reduce((acc, c) => acc + c.totalCalls, 0);
-  const completedCalls = campaigns.reduce((acc, c) => acc + c.completedCalls, 0);
-  const interestedLeads = calls.filter(c => ["HOT", "WARM", "COLD"].includes((c.category || "").toUpperCase())).length;
-  const callbacks = campaigns.reduce((acc, c) => acc + (c.callbacks || 0), 0);
-  const activeAgents = Array.from(new Set(campaigns.filter(c => (c.status || "").toLowerCase() === "running").map(c => c.agent))).filter(Boolean).length;
+  const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+  const safeCalls = Array.isArray(calls) ? calls : [];
+
+  const totalCampaigns = safeCampaigns.length;
+  const totalCalls = safeCampaigns.reduce((acc, c) => acc + (Number(c.totalCalls) || 0), 0);
+  const completedCalls = safeCampaigns.reduce((acc, c) => acc + (Number(c.completedCalls) || 0), 0);
+  const interestedLeads = safeCalls.filter(c => ["HOT", "WARM", "COLD"].includes((c.category || "").toUpperCase())).length;
+  const callbacks = safeCampaigns.reduce((acc, c) => acc + (Number(c.callbacks) || 0), 0);
+  const activeAgents = Array.from(new Set(safeCampaigns.filter(c => (c.status || "").toLowerCase() === "running").map(c => c.agent))).filter(Boolean).length;
   const successRate = totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0;
 
   const stats = [
@@ -124,16 +132,16 @@ export default function Dashboard() {
     },
   ];
 
-  const activityItems = calls.slice(0, 4).map(c => {
-    const isCompleted = c.status.toLowerCase() === "completed";
+  const activityItems = safeCalls.slice(0, 4).map(c => {
+    const isCompleted = (c?.status || "").toLowerCase() === "completed";
     const title = isCompleted ? "Call Completed" : "Call Attempt Failed";
     const description = isCompleted
-      ? `"${c.name || c.phone}" call completed successfully in campaign "${c.campaign}".`
-      : `Dialing "${c.phone}" in campaign "${c.campaign}" failed or was busy.`;
+      ? `"${c?.name || c?.phone || "Contact"}" call completed successfully in campaign "${c?.campaign || "Campaign"}".`
+      : `Dialing "${c?.phone || "Contact"}" in campaign "${c?.campaign || "Campaign"}" failed or was busy.`;
     return {
       title,
       description,
-      time: c.datetime || "Just now",
+      time: c?.datetime || "Just now",
       outerDotClassName: isCompleted ? "bg-emerald-100 dark:bg-emerald-500/20" : "bg-rose-100 dark:bg-rose-500/20",
       innerDotClassName: isCompleted ? "bg-emerald-500" : "bg-rose-500",
     };
