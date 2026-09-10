@@ -122,6 +122,8 @@ export interface ResponseLog {
   recording_url?: string;
   human_response?: string;
   creditsDeducted?: number;
+  outcome?: string;
+  agent_name?: string;
 }
 
 // ── Email Campaign Types ───────────────────────────────────────────────────
@@ -320,6 +322,27 @@ export const api = {
       { method: "POST" }
     ),
 
+  /** Pause a running or scheduled campaign, terminating ongoing calls. */
+  pauseCampaign: (campaignId: number | string) =>
+    request<{ message: string; campaign_id: number; status: string }>(
+      `/api/campaigns/${campaignId}/pause`,
+      { method: "POST" }
+    ),
+
+  /** Resume a paused campaign. */
+  resumeCampaign: (campaignId: number | string) =>
+    request<{ message: string; campaign_id: number; status: string }>(
+      `/api/campaigns/${campaignId}/resume`,
+      { method: "POST" }
+    ),
+
+  /** Stop a campaign entirely, terminating ongoing calls and cancelling remaining. */
+  stopCampaign: (campaignId: number | string) =>
+    request<{ message: string; campaign_id: number; status: string }>(
+      `/api/campaigns/${campaignId}/stop`,
+      { method: "POST" }
+    ),
+
   /** List all campaigns. */
   getCampaigns: (type?: string) => request<CampaignRow[]>(type ? `/api/campaigns?type=${type}` : "/api/campaigns"),
 
@@ -332,8 +355,25 @@ export const api = {
       `/api/campaigns/${campaignId}/contacts`
     ),
 
-  /** All completed/in-progress calls (Responses page). */
-  getCalls: () => request<ResponseLog[]>("/api/calls"),
+  /** Paginated calls list (Responses / Call Logs page). */
+  getCalls: (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    status?: string;
+    direction?: string;
+    campaign_id?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.page_size) qs.set("page_size", String(params.page_size));
+    if (params?.search) qs.set("search", params.search);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.direction) qs.set("direction", params.direction);
+    if (params?.campaign_id) qs.set("campaign_id", String(params.campaign_id));
+    const url = `/api/calls${qs.toString() ? `?${qs.toString()}` : ""}`;
+    return request<{ total: number; page: number; page_size: number; calls: ResponseLog[] }>(url);
+  },
 
   /** BUG-007: Live contact-status counts for the Live Journey panel. */
   getCampaignLive: (campaignId: number) =>

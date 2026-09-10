@@ -348,7 +348,7 @@ export default function WhatsAppPage() {
   // Generate 8-character Pairing Code for Linking with Phone Number
   const handleGeneratePairingCode = async () => {
     if (!pairingPhone.trim()) {
-      showToast("Please enter your phone number (e.g. +91 9885733334)", "error");
+      showToast("Please enter your phone number (e.g. +91 98765 43210)", "error");
       return;
     }
     setIsPairingLoading(true);
@@ -1094,7 +1094,7 @@ export default function WhatsAppPage() {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="+91 9885733334"
+                      placeholder="+91 98765 43210"
                       value={pairingPhone}
                       onChange={(e) => setPairingPhone(e.target.value)}
                       className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"

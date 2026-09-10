@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
-import { ChevronLeft, ChevronRight, Clock, Plus, Target, User, Bot, PhoneCall, Calendar as CalendarIcon, X, Save, CheckCircle, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Target, User, Bot, PhoneCall, Calendar as CalendarIcon, X, Save, CheckCircle, XCircle } from "lucide-react";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import DetailsDrawer from "@/components/shared/DetailsDrawer";
 import { api } from "@/lib/api";
@@ -23,15 +23,48 @@ interface CalEvent {
   time: string;
   type: EventType;
   contactOrCampaign: string;
+  phone?: string;
+  status?: string;
+  response?: string;
   agent?: string;
   notes: string;
   date?: string;
   campaignId?: string | number;
+  callId?: string | number;
 }
 
 // Helper to format Date to YYYY-MM-DD
 function toKey(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// Normalizes various date representations (YYYY-MM-DD, ISO string, etc.) to YYYY-MM-DD
+function normalizeDateKey(raw?: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "—" || trimmed.toLowerCase() === "none" || trimmed.toLowerCase() === "null") return null;
+
+  // 1. Direct YYYY-MM-DD match
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+
+  // 2. DD-MM-YYYY or DD/MM/YYYY match
+  const dmyMatch = trimmed.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+  if (dmyMatch) {
+    return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+  }
+
+  // 3. General JS Date parsing
+  try {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      return toKey(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+  } catch {}
+
+  return null;
 }
 
 export default function CalendarPage() {
@@ -65,8 +98,9 @@ export default function CalendarPage() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    Promise.all([api.getCampaigns(), api.getCalls()])
-      .then(([cData, callData]) => {
+    Promise.all([api.getCampaigns(), api.getCalls({ page_size: 500 })])
+      .then(([cData, callRes]) => {
+        const callData = callRes.calls;
         const events: Record<string, CalEvent[]> = {};
 
         const pushEvent = (dateKey: string, event: CalEvent) => {
@@ -123,21 +157,50 @@ export default function CalendarPage() {
           }
         });
 
-        // 2. Map Booked Appointments from Calls
+        // 2. Map Booked Appointments and Rescheduled Calls from Call Records
         callData.forEach(call => {
-          // A. If an appointment was booked
-          if (call.appointment_date) {
-            const dateKey = call.appointment_date;
+          let rawDate = call.appointment_date;
+          if (!rawDate && call.notes && call.notes.includes("Appointment:")) {
+            const m = call.notes.match(/Appointment:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/);
+            if (m) rawDate = m[1];
+          }
+
+          const dateKey = normalizeDateKey(rawDate);
+          const respLower = (call.response || "").toLowerCase();
+          const outcomeLower = (call.outcome || "").toLowerCase();
+          const isAppointment = Boolean(
+            outcomeLower.includes("appointment") ||
+            respLower.includes("appointment") ||
+            (rawDate && !respLower.includes("resched"))
+          );
+          const isRescheduled = Boolean(
+            outcomeLower.includes("resched") ||
+            respLower.includes("resched")
+          );
+
+          if (dateKey && (isAppointment || isRescheduled || call.appointment_time)) {
+            const isRescheduleType = isRescheduled && !isAppointment;
+            const eventType: EventType = isRescheduleType ? "followup" : "meeting";
+            const prefix = isRescheduleType ? "Callback" : "Appt";
+            const contactLabel = call.name || call.phone || "Booked Contact";
+            const timeLabel = call.appointment_time || "10:00 AM";
+
             pushEvent(dateKey, {
               id: `appt-${call.id}`,
-              title: `Appt: ${call.name}`,
-              time: call.appointment_time || "12:00 PM",
-              type: "meeting",
-              contactOrCampaign: call.name,
-              agent: "AI Agent",
-              notes: call.notes || "Booked appointment follow-up.",
+              title: `${prefix}: ${contactLabel}`,
+              time: timeLabel,
+              type: eventType,
+              contactOrCampaign: contactLabel,
+              phone: call.phone,
+              status: call.status,
+              response: call.response,
+              agent: call.agent_name || "AI Agent",
+              notes: call.notes && call.notes !== "—" 
+                ? call.notes 
+                : (isRescheduleType ? "Rescheduled follow-up callback." : "Confirmed booked appointment."),
               date: dateKey,
               campaignId: call.campaign_id,
+              callId: call.id,
             });
           }
         });
@@ -211,7 +274,7 @@ export default function CalendarPage() {
     switch (type) {
       case "campaign": return "primary";
       case "followup": return "warning";
-      case "meeting": return "neutral";
+      case "meeting": return "success";
       case "success": return "success";
       case "failed": return "error";
     }
@@ -220,8 +283,8 @@ export default function CalendarPage() {
   const getEventColors = (type: EventType) => {
     switch (type) {
       case "campaign": return "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30";
-      case "followup": return "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border-amber-200 dark:border-amber-500/30";
-      case "meeting": return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700";
+      case "followup": return "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border-amber-300 dark:border-amber-500/40";
+      case "meeting": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40";
       case "success": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30";
       case "failed": return "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300 border-rose-200 dark:border-rose-500/30";
     }
@@ -273,16 +336,6 @@ export default function CalendarPage() {
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               Manage your scheduled campaigns and follow-up calls.
             </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* BUG-003: Opens real modal instead of browser alert */}
-            <button 
-              onClick={() => setShowScheduleModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
-            >
-              <Plus className="h-4 w-4" />
-              Schedule Event
-            </button>
           </div>
         </div>
 
@@ -442,8 +495,20 @@ export default function CalendarPage() {
                   <span className="flex items-center gap-1.5 text-zinc-500 mb-1"><Bot className="h-3.5 w-3.5" /> Assigned Agent</span>
                   <p className="font-semibold dark:text-white">{selectedEvent.agent || "N/A"}</p>
                 </div>
+                {selectedEvent.phone && (
+                  <div>
+                    <span className="flex items-center gap-1.5 text-zinc-500 mb-1"><PhoneCall className="h-3.5 w-3.5" /> Phone</span>
+                    <p className="font-semibold dark:text-white">{selectedEvent.phone}</p>
+                  </div>
+                )}
+                {selectedEvent.response && (
+                  <div>
+                    <span className="flex items-center gap-1.5 text-zinc-500 mb-1"><CheckCircle className="h-3.5 w-3.5" /> Status</span>
+                    <p className="font-semibold dark:text-white">{selectedEvent.response}</p>
+                  </div>
+                )}
                 <div className="sm:col-span-2 mt-2">
-                  <span className="text-zinc-500">Notes</span>
+                  <span className="text-zinc-500">Notes / Details</span>
                   <p className="mt-1 font-medium text-zinc-700 dark:text-zinc-300">{selectedEvent.notes}</p>
                 </div>
               </div>
@@ -456,31 +521,43 @@ export default function CalendarPage() {
               >
                 Close
               </button>
-              <button 
-                onClick={() => {
-                  let campaignId = "";
-                  if (selectedEvent.campaignId) {
-                    campaignId = String(selectedEvent.campaignId);
-                  } else if (selectedEvent.id.startsWith("campaign-")) {
-                    campaignId = selectedEvent.id.replace("campaign-", "");
-                  } else {
-                    const match = selectedEvent.id.match(/\d+/);
-                    if (match) {
-                      campaignId = match[0];
+              {selectedEvent.callId ? (
+                <button 
+                  onClick={() => {
+                    router.push("/call-logs");
+                    setSelectedEvent(null);
+                  }}
+                  className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+                >
+                  View in Call Logs
+                </button>
+              ) : (
+                <button 
+                  onClick={() => {
+                    let campaignId = "";
+                    if (selectedEvent.campaignId) {
+                      campaignId = String(selectedEvent.campaignId);
+                    } else if (selectedEvent.id.startsWith("campaign-")) {
+                      campaignId = selectedEvent.id.replace("campaign-", "");
+                    } else {
+                      const match = selectedEvent.id.match(/\d+/);
+                      if (match) {
+                        campaignId = match[0];
+                      }
                     }
-                  }
 
-                  if (campaignId) {
-                    router.push(`/campaign/${campaignId}`);
-                  } else {
-                    router.push("/campaign");
-                  }
-                  setSelectedEvent(null);
-                }}
-                className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
-              >
-                View Campaign
-              </button>
+                    if (campaignId) {
+                      router.push(`/campaign/${campaignId}`);
+                    } else {
+                      router.push("/campaign");
+                    }
+                    setSelectedEvent(null);
+                  }}
+                  className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
+                >
+                  View Campaign
+                </button>
+              )}
             </div>
           </div>
         )}

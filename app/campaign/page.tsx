@@ -7,7 +7,7 @@ import DashboardShell from "@/components/DashboardShell";
 import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import DetailsDrawer from "@/components/shared/DetailsDrawer";
-import { Calendar, PhoneCall, CheckCircle2, FileText, PlayCircle } from "lucide-react";
+import { Calendar, PhoneCall, CheckCircle2, FileText, PlayCircle, Pause, Play, Square, Loader2 } from "lucide-react";
 import { api, CampaignRow, CampaignDetail } from "@/lib/api";
 
 const formatDateTime = (dateString: string | undefined | null) => {
@@ -31,15 +31,18 @@ const formatDateTime = (dateString: string | undefined | null) => {
 interface Campaign extends CampaignRow {}
 
 const getStatusBadge = (status: string) => {
+  const norm = (status || "").toLowerCase();
   const variantMap: Record<string, BadgeVariant> = {
-    Completed: "success",
-    Running: "info",
-    Scheduled: "warning",
-    Draft: "neutral",
-    Paused: "warning",
-    Failed: "error",
+    completed: "success",
+    running: "info",
+    scheduled: "warning",
+    draft: "neutral",
+    paused: "warning",
+    stopped: "error",
+    failed: "error",
+    incomplete: "warning",
   };
-  return <Badge variant={variantMap[status] || "neutral"}>{status}</Badge>;
+  return <Badge variant={variantMap[norm] || "neutral"}>{status}</Badge>;
 };
 
 export default function CampaignsPage() {
@@ -50,30 +53,31 @@ export default function CampaignsPage() {
   const [pendingCampaigns, setPendingCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [launchingId, setLaunchingId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
 
+  const loadCampaigns = () => {
+    Promise.all([
+      api.getCampaigns("normal"),
+      api.getCampaigns("pending")
+    ])
+    .then(([normalData, pendingData]) => {
+      setCampaigns(normalData ? (normalData as Campaign[]) : []);
+      setPendingCampaigns(pendingData ? (pendingData as Campaign[]) : []);
+    })
+    .catch(err => {
+      console.warn("Failed to load campaigns:", err);
+    })
+    .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
     if (!isLoggedIn) return;
-    const load = () => {
-      Promise.all([
-        api.getCampaigns("normal"),
-        api.getCampaigns("pending")
-      ])
-      .then(([normalData, pendingData]) => {
-        setCampaigns(normalData ? (normalData as Campaign[]) : []);
-        setPendingCampaigns(pendingData ? (pendingData as Campaign[]) : []);
-      })
-      .catch(err => {
-        console.warn("Failed to load campaigns:", err);
-      })
-      .finally(() => setLoading(false));
-    };
-
-    load();
-    const interval = setInterval(load, 10000);
+    loadCampaigns();
+    const interval = setInterval(loadCampaigns, 10000);
     return () => clearInterval(interval);
   }, [isLoggedIn]);
 
@@ -82,8 +86,7 @@ export default function CampaignsPage() {
       setLaunchingId(campaignId);
       const { total_contacts } = await api.launchCampaign(Number(campaignId));
       alert(`Campaign launched! Dialling ${total_contacts} contact(s).`);
-      // It will auto-refresh via interval, or we can force a refresh
-      window.location.reload();
+      loadCampaigns();
     } catch (err: any) {
       alert(err.message || "Failed to launch pending campaign");
     } finally {
@@ -91,9 +94,57 @@ export default function CampaignsPage() {
     }
   };
 
+  const handlePause = async (e: React.MouseEvent, campaignId: string) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to pause this campaign? Any ongoing calls will be immediately disconnected.")) {
+      return;
+    }
+    try {
+      setActionLoadingId(campaignId);
+      await api.pauseCampaign(campaignId);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: "Paused" } : c));
+      loadCampaigns();
+    } catch (err: any) {
+      alert(err.message || "Failed to pause campaign");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleResume = async (e: React.MouseEvent, campaignId: string) => {
+    e.stopPropagation();
+    try {
+      setActionLoadingId(campaignId);
+      await api.resumeCampaign(campaignId);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: "Running" } : c));
+      loadCampaigns();
+    } catch (err: any) {
+      alert(err.message || "Failed to resume campaign");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleStop = async (e: React.MouseEvent, campaignId: string) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to STOP this campaign entirely? All ongoing calls will be terminated, and all remaining pending calls will be cancelled.")) {
+      return;
+    }
+    try {
+      setActionLoadingId(campaignId);
+      await api.stopCampaign(campaignId);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: "Stopped" } : c));
+      loadCampaigns();
+    } catch (err: any) {
+      alert(err.message || "Failed to stop campaign");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   if (!isLoggedIn) return null;
 
-  const columns: Column<Campaign>[] = [
+  const baseColumns: Column<Campaign>[] = [
     { key: "name", label: "Campaign Name", sortable: true, render: (c) => <span className="font-semibold text-zinc-900 dark:text-white">{c.name}</span> },
     { key: "date", label: "Date", sortable: true, render: (c) => <span>{formatDateTime(c.date)}</span> },
     { key: "sheetName", label: "Data Source", sortable: true, render: (c) => <span className="text-xs text-zinc-500">{c.sheetName}</span> },
@@ -103,15 +154,103 @@ export default function CampaignsPage() {
     { key: "status", label: "Status", sortable: true, render: (c) => getStatusBadge(c.status) },
   ];
 
+  const activeColumns: Column<Campaign>[] = [
+    ...baseColumns,
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (c) => {
+        const isActionLoading = actionLoadingId === c.id;
+        if (c.status === "Running") {
+          return (
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => handlePause(e, c.id)}
+                disabled={isActionLoading}
+                title="Pause campaign and terminate ongoing calls"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
+                Pause
+              </button>
+              <button
+                onClick={(e) => handleStop(e, c.id)}
+                disabled={isActionLoading}
+                title="Stop campaign entirely"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                Stop
+              </button>
+            </div>
+          );
+        }
+        if (c.status === "Paused") {
+          return (
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => handleResume(e, c.id)}
+                disabled={isActionLoading}
+                title="Resume calling remaining contacts"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                Resume
+              </button>
+              <button
+                onClick={(e) => handleStop(e, c.id)}
+                disabled={isActionLoading}
+                title="Stop campaign entirely"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                Stop
+              </button>
+            </div>
+          );
+        }
+        if (c.status === "Scheduled" || c.status === "Draft" || c.status === "pending") {
+          return (
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => handleStop(e, c.id)}
+                disabled={isActionLoading}
+                title="Cancel/Stop scheduled campaign"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-400 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                Cancel
+              </button>
+            </div>
+          );
+        }
+        return <span className="text-xs text-zinc-400">—</span>;
+      }
+    }
+  ];
+
   // Stats
   const totalCampaigns = campaigns.length;
-  const running = campaigns.filter(c => c.status === "Running").length;
-  const scheduled = campaigns.filter(c => c.status === "Scheduled").length;
-  const completed = campaigns.filter(c => c.status === "Completed").length;
-  const draft = campaigns.filter(c => c.status === "Draft" || c.status === "Paused").length;
+  const running = campaigns.filter(c => (c.status || "").toLowerCase() === "running").length;
+  const scheduled = campaigns.filter(c => (c.status || "").toLowerCase() === "scheduled").length;
+  const completed = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "completed" || s === "incomplete" || s === "failed";
+  }).length;
+  const draft = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "draft" || s === "paused";
+  }).length;
 
-  const activeCampaignsData = campaigns.filter(c => c.status === "Running" || c.status === "Scheduled" || c.status === "Draft" || c.status === "Paused" || c.status === "pending");
-  const completedCampaignsData = campaigns.filter(c => c.status === "Completed");
+  const activeCampaignsData = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "running" || s === "scheduled" || s === "draft" || s === "paused" || s === "pending";
+  });
+  const completedCampaignsData = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "completed" || s === "stopped" || s === "incomplete" || s === "failed";
+  });
 
   if (loading) {
     return (
@@ -175,7 +314,7 @@ export default function CampaignsPage() {
           <div>
             <DataTable 
               data={activeCampaignsData}
-              columns={columns}
+              columns={activeColumns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
                 { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Draft", value: "Draft"}, {label: "Paused", value: "Paused"}, {label: "Failed", value: "Failed"}] },
@@ -198,7 +337,7 @@ export default function CampaignsPage() {
           <div>
             <DataTable 
               data={completedCampaignsData}
-              columns={columns}
+              columns={baseColumns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
                 { key: "agent", label: "Agent", options: Array.from(new Set(completedCampaignsData.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }

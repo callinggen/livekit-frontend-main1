@@ -9,7 +9,8 @@ import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import { 
   ArrowLeft, Calendar, User, FileText, CheckCircle2, 
   XCircle, HelpCircle, PhoneCall, Zap, Award, MessageSquare, Send,
-  Clock, Database, PlayCircle, X, Phone
+  Clock, Database, PlayCircle, X, Phone,
+  Pause, Play, Square, Loader2
 } from "lucide-react";
 import { api, CampaignDetail } from "@/lib/api";
 
@@ -176,6 +177,70 @@ export default function CampaignDetailPage() {
   const [calls, setCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedContact, setSelectedContact] = useState<any | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handlePause = async () => {
+    if (!campaign) return;
+    if (!confirm("Are you sure you want to pause this campaign? Any ongoing calls will be immediately disconnected.")) {
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await api.pauseCampaign(campaign.id);
+      setCampaign(prev => prev ? { ...prev, status: "Paused" } : null);
+      const [data, callsData] = await Promise.all([
+        api.getCampaign(Number(id)),
+        api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
+      ]);
+      setCampaign(data);
+      setCalls(callsData || []);
+    } catch (err: any) {
+      alert(err.message || "Failed to pause campaign");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResume = async () => {
+    if (!campaign) return;
+    try {
+      setActionLoading(true);
+      await api.resumeCampaign(campaign.id);
+      setCampaign(prev => prev ? { ...prev, status: "Running" } : null);
+      const [data, callsData] = await Promise.all([
+        api.getCampaign(Number(id)),
+        api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
+      ]);
+      setCampaign(data);
+      setCalls(callsData || []);
+    } catch (err: any) {
+      alert(err.message || "Failed to resume campaign");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleStop = async () => {
+    if (!campaign) return;
+    if (!confirm("Are you sure you want to STOP this campaign entirely? All ongoing calls will be terminated, and all remaining pending calls will be cancelled.")) {
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await api.stopCampaign(campaign.id);
+      setCampaign(prev => prev ? { ...prev, status: "Stopped" } : null);
+      const [data, callsData] = await Promise.all([
+        api.getCampaign(Number(id)),
+        api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
+      ]);
+      setCampaign(data);
+      setCalls(callsData || []);
+    } catch (err: any) {
+      alert(err.message || "Failed to stop campaign");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Enrich contacts with datetime and credits from matched call records
   const enrichedContacts = useMemo(() => {
@@ -213,7 +278,7 @@ export default function CampaignDetailPage() {
       try {
         const [data, callsData] = await Promise.all([
           api.getCampaign(Number(id)),
-          api.getCalls().catch(() => [])
+          api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
         ]);
         if (active) {
           setCampaign(data);
@@ -296,6 +361,7 @@ export default function CampaignDetailPage() {
       Scheduled: "warning",
       Draft: "neutral",
       Paused: "warning",
+      Stopped: "error",
       Failed: "error",
     };
     return <Badge variant={variantMap[status] || "neutral"}>{status}</Badge>;
@@ -455,11 +521,50 @@ export default function CampaignDetailPage() {
             </p>
           </div>
 
-          {/* Top Right Action: Send Message via WhatsApp */}
-          <div className="flex items-center gap-2 pl-12 sm:pl-0">
+          {/* Top Right Action Buttons */}
+          <div className="flex items-center gap-2 pl-12 sm:pl-0 flex-wrap">
+            {/* Pause Control */}
+            {campaign.status.toLowerCase() === "running" && (
+              <button
+                onClick={handlePause}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-3.5 py-2 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-900/50 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                title="Pause campaign and immediately disconnect ongoing calls"
+              >
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4 fill-current" />}
+                Pause Campaign
+              </button>
+            )}
+
+            {/* Resume Control */}
+            {campaign.status.toLowerCase() === "paused" && (
+              <button
+                onClick={handleResume}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-3.5 py-2 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                title="Resume calling remaining pending contacts"
+              >
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+                Resume Campaign
+              </button>
+            )}
+
+            {/* Stop Control */}
+            {["running", "paused", "scheduled", "pending"].includes(campaign.status.toLowerCase()) && (
+              <button
+                onClick={handleStop}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 dark:border-rose-700 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-3.5 py-2 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/50 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                title="Stop campaign entirely, terminate ongoing calls and cancel remaining"
+              >
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4 fill-current" />}
+                Stop Campaign
+              </button>
+            )}
+
             <button
               onClick={() => router.push(`/whatsapp/send?campaign_id=${campaign.id}`)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/30 transition cursor-pointer"
               title="Send WhatsApp follow-up to contacts of this campaign"
             >
               <MessageSquare className="h-4 w-4" />

@@ -36,10 +36,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    Promise.all([api.getCampaigns(), api.getCalls()])
-      .then(([cData, callData]) => {
+    Promise.all([api.getCampaigns(), api.getCalls({ page_size: 500 })])
+      .then(([cData, callRes]) => {
         setCampaigns(cData);
-        setCalls(callData);
+        setCalls(callRes.calls);
       })
       .catch((err) => console.warn("Failed to load dashboard data:", err))
       .finally(() => setLoading(false));

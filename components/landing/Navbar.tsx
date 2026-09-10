@@ -179,6 +179,15 @@ export default function Navbar() {
             </Link>
           ))}
           <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-3">
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                window.dispatchEvent(new Event("open-get-call-modal"));
+              }}
+              className="w-full py-2.5 rounded-xl bg-[#4F6BFF] text-white font-semibold text-sm shadow-md transition-all hover:bg-[#3d59ea]"
+            >
+              {t("getCall")}
+            </button>
             <Link
               href={isLoggedIn ? "/dashboard" : "/login"}
               className="text-center w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-semibold text-slate-800 dark:text-white"
