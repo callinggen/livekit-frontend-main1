@@ -46,7 +46,6 @@ import { useCredits } from "@/components/CreditsContext";
 import AddMaterialModal from "@/components/whatsapp/AddMaterialModal";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
-const INSTANCE_NAME = "callinggen_default";
 
 interface ContactRow {
   id: string | number;
@@ -124,6 +123,8 @@ function SendMessageContent() {
   const preselectedCampaignId = searchParams.get("campaign_id");
 
   const { isLoggedIn, user } = useAuth();
+  // Per-user WhatsApp instance name — isolates each account's session
+  const instanceName = user?.id ? `user_${user.id}` : "callinggen_default";
   const token = user?.token || (typeof window !== "undefined" ? localStorage.getItem("token") || "" : "");
   const { credits, refreshCredits } = useCredits();
 
@@ -226,7 +227,7 @@ function SendMessageContent() {
   const checkWhatsAppStatus = useCallback(async () => {
     setCheckingConnection(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${INSTANCE_NAME}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${instanceName}`);
       if (res.ok) {
         const data = await res.json();
         const state = data?.data?.instance?.state || data?.data?.state || "disconnected";

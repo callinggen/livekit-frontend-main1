@@ -54,7 +54,6 @@ import { useCredits } from "@/components/CreditsContext";
 import { useRouter } from "next/navigation";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
-const INSTANCE_NAME = "callinggen_default";
 
 interface MessageItem {
   id?: string | number;
@@ -145,6 +144,9 @@ export default function WhatsAppPage() {
   const { credits } = useCredits();
   const router = useRouter();
 
+  // Per-user WhatsApp instance name — isolates each account's session
+  const instanceName = user?.id ? `user_${user.id}` : "callinggen_default";
+
   // Navigation & Filter states
   const [activeNavTab, setActiveNavTab] = useState<"chats" | "calls" | "status" | "channels" | "communities" | "meta_ai">("chats");
   const [activeFilter, setActiveFilter] = useState<"All" | "Favorites" | "Clients" | "Genx" | "Unread" | "Groups">("All");
@@ -208,7 +210,7 @@ export default function WhatsAppPage() {
   // 1. Connection Status Checking
   const checkConnectionStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${INSTANCE_NAME}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${instanceName}`);
       if (!res.ok) return;
       const json = await res.json();
       const state = json?.data?.instance?.state || json?.data?.state || "disconnected";
@@ -228,7 +230,7 @@ export default function WhatsAppPage() {
     } catch {
       // Quiet fail
     }
-  }, [user?.name]);
+  }, [user?.name, instanceName]);
 
   // 2. Fetch Original QR Code from Backend API
   const fetchQRCode = useCallback(async () => {
@@ -236,7 +238,7 @@ export default function WhatsAppPage() {
     setIsQrExpired(false);
     setQrSecondsLeft(QR_TIMEOUT_SECONDS);
     try {
-      const res = await fetch(`${BASE_URL}/api/whatsapp/qr?instance_name=${INSTANCE_NAME}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/qr?instance_name=${instanceName}`);
       if (res.ok) {
         const json = await res.json();
         const data = json?.data || json;
@@ -250,7 +252,7 @@ export default function WhatsAppPage() {
     } finally {
       setIsQrLoading(false);
     }
-  }, []);
+  }, [instanceName]);
 
   // 3. QR Code Countdown Timer & Auto-Refresh Interval
   useEffect(() => {
@@ -317,7 +319,7 @@ export default function WhatsAppPage() {
     setCodeCopied(false);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/whatsapp/qr?instance_name=${INSTANCE_NAME}&number=${encodeURIComponent(cleanNumber)}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/qr?instance_name=${instanceName}&number=${encodeURIComponent(cleanNumber)}`);
       const json = await res.json();
       const data = json?.data || json;
       const code = data?.pairingCode || data?.qrcode?.pairingCode || null;
@@ -347,7 +349,7 @@ export default function WhatsAppPage() {
   // 6. Disconnect Instance (Logout)
   const handleDisconnect = async () => {
     try {
-      await fetch(`${BASE_URL}/api/whatsapp/logout?instance_name=${INSTANCE_NAME}`, {
+      await fetch(`${BASE_URL}/api/whatsapp/logout?instance_name=${instanceName}`, {
         method: "DELETE",
       });
       setConnectionState("disconnected");
@@ -369,7 +371,7 @@ export default function WhatsAppPage() {
   const fetchRealEvolutionChats = async () => {
     setIsRefreshingChats(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/whatsapp/chats?instance_name=${INSTANCE_NAME}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/chats?instance_name=${instanceName}`);
       if (!res.ok) {
         setIsRefreshingChats(false);
         return;
@@ -447,7 +449,7 @@ export default function WhatsAppPage() {
   const loadMessagesForChat = useCallback(async (remoteJid: string, callId: number) => {
     if (!remoteJid || connectionState !== "connected") return;
     try {
-      const res = await fetch(`${BASE_URL}/api/whatsapp/messages?instance_name=${INSTANCE_NAME}&remote_jid=${encodeURIComponent(remoteJid)}`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/messages?instance_name=${instanceName}&remote_jid=${encodeURIComponent(remoteJid)}`);
       if (!res.ok) return;
       const json = await res.json();
       const data = json?.data || json;
@@ -603,7 +605,7 @@ export default function WhatsAppPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            instance_name: INSTANCE_NAME,
+            instance_name: instanceName,
             number: cleanNumber,
             text: material.content || material.title,
           }),
@@ -613,7 +615,7 @@ export default function WhatsAppPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            instance_name: INSTANCE_NAME,
+            instance_name: instanceName,
             number: cleanNumber,
             media_url: material.file_url || material.file_path,
             media_type: material.type,
@@ -670,7 +672,7 @@ export default function WhatsAppPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            instance_name: INSTANCE_NAME,
+            instance_name: instanceName,
             number: cleanNumber,
             media_url: base64Data,
             media_type: mediaType,
@@ -718,7 +720,7 @@ export default function WhatsAppPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            instance_name: INSTANCE_NAME,
+            instance_name: instanceName,
             number: cleanNumber,
             text: textToSend,
           }),

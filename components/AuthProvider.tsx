@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
 export interface UserData {
+  id?: number;
   email: string;
   name: string;
   isFirstLogin: boolean;
@@ -158,6 +159,7 @@ export default function AuthProvider({
           const displayName = data.full_name || derivedName;
           
           const userData: UserData = { 
+            id: data.id,
             email, 
             name: displayName, 
             isFirstLogin: data.is_first_login,
