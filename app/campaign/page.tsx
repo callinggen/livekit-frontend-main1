@@ -31,16 +31,18 @@ const formatDateTime = (dateString: string | undefined | null) => {
 interface Campaign extends CampaignRow {}
 
 const getStatusBadge = (status: string) => {
+  const norm = (status || "").toLowerCase();
   const variantMap: Record<string, BadgeVariant> = {
-    Completed: "success",
-    Running: "info",
-    Scheduled: "warning",
-    Draft: "neutral",
-    Paused: "warning",
-    Stopped: "error",
-    Failed: "error",
+    completed: "success",
+    running: "info",
+    scheduled: "warning",
+    draft: "neutral",
+    paused: "warning",
+    stopped: "error",
+    failed: "error",
+    incomplete: "warning",
   };
-  return <Badge variant={variantMap[status] || "neutral"}>{status}</Badge>;
+  return <Badge variant={variantMap[norm] || "neutral"}>{status}</Badge>;
 };
 
 export default function CampaignsPage() {
@@ -230,13 +232,25 @@ export default function CampaignsPage() {
 
   // Stats
   const totalCampaigns = campaigns.length;
-  const running = campaigns.filter(c => c.status === "Running").length;
-  const scheduled = campaigns.filter(c => c.status === "Scheduled").length;
-  const completed = campaigns.filter(c => c.status === "Completed").length;
-  const draft = campaigns.filter(c => c.status === "Draft" || c.status === "Paused").length;
+  const running = campaigns.filter(c => (c.status || "").toLowerCase() === "running").length;
+  const scheduled = campaigns.filter(c => (c.status || "").toLowerCase() === "scheduled").length;
+  const completed = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "completed" || s === "incomplete" || s === "failed";
+  }).length;
+  const draft = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "draft" || s === "paused";
+  }).length;
 
-  const activeCampaignsData = campaigns.filter(c => c.status === "Running" || c.status === "Scheduled" || c.status === "Draft" || c.status === "Paused" || c.status === "pending");
-  const completedCampaignsData = campaigns.filter(c => c.status === "Completed" || c.status === "Stopped");
+  const activeCampaignsData = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "running" || s === "scheduled" || s === "draft" || s === "paused" || s === "pending";
+  });
+  const completedCampaignsData = campaigns.filter(c => {
+    const s = (c.status || "").toLowerCase();
+    return s === "completed" || s === "stopped" || s === "incomplete" || s === "failed";
+  });
 
   if (loading) {
     return (
