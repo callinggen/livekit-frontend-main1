@@ -100,7 +100,7 @@ export default function CalendarPage() {
 
     Promise.all([api.getCampaigns(), api.getCalls({ page_size: 500 })])
       .then(([cData, callRes]) => {
-        const callData = callRes.calls;
+        const callData = Array.isArray(callRes) ? callRes : (callRes?.calls || []);
         const events: Record<string, CalEvent[]> = {};
 
         const pushEvent = (dateKey: string, event: CalEvent) => {
@@ -205,26 +205,7 @@ export default function CalendarPage() {
           }
         });
 
-        // 3. Fallback dummy events if no backend events are loaded
-        const totalLoaded = Object.keys(events).length;
-        if (totalLoaded === 0) {
-          const y = today.getFullYear();
-          const m = today.getMonth();
-          const addDefault = (dayOffset: number, event: CalEvent) => {
-            const d = new Date(y, m, today.getDate() + dayOffset);
-            const key = toKey(d.getFullYear(), d.getMonth(), d.getDate());
-            event.date = key;
-            if (!events[key]) events[key] = [];
-            events[key].push(event);
-          };
-          addDefault(0, { id: "1", title: "Launch Q4 Campaign", time: "09:00 AM", type: "campaign", contactOrCampaign: "Q4 Outreach", agent: "Voice-A (Sales)", notes: "Ensure all contacts are verified before launch." });
-          addDefault(0, { id: "2", title: "Follow-up: High Priority Lead", time: "02:30 PM", type: "followup", contactOrCampaign: "Alice Johnson", agent: "Voice-B (Support)", notes: "Customer requested a callback regarding pricing." });
-          addDefault(2, { id: "3", title: "Review Weekly Metrics", time: "10:00 AM", type: "meeting", contactOrCampaign: "Internal Team", notes: "Review AI Agent success rates." });
-          addDefault(2, { id: "4", title: "Holiday Special Promo", time: "11:00 AM", type: "campaign", contactOrCampaign: "Holiday Special", agent: "Voice-C (Followup)", notes: "Targeting inactive users." });
-          addDefault(-3, { id: "5", title: "Client Demo", time: "01:00 PM", type: "meeting", contactOrCampaign: "Acme Corp", notes: "Demo the new real-time translation features." });
-          addDefault(5, { id: "6", title: "Callback: Tech Lead", time: "04:00 PM", type: "followup", contactOrCampaign: "Bob Smith", agent: "Voice-B (Support)", notes: "Discuss technical integration." });
-        }
-
+        // Set loaded events from actual campaigns and booked calls
         setDummyEvents(events);
       })
       .catch(err => {

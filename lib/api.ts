@@ -5,7 +5,6 @@
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://localhost:8000");
 
-
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface ApiContact {
@@ -38,6 +37,19 @@ export interface UserPhoneNumber {
   region: string;
   sip_trunk_id?: string;
   is_default: boolean;
+}
+
+export interface PaymentRecord {
+  id: number;
+  plan_name: string;
+  amount: number;
+  currency: string;
+  credits: number;
+  razorpay_order_id: string;
+  razorpay_payment_id?: string | null;
+  status: "pending" | "success" | "failed";
+  created_at: string;
+  updated_at?: string;
 }
 
 
@@ -227,6 +239,81 @@ export interface VerifiedSenderOption {
   domain: string;
   is_default: boolean;
   is_verified: boolean;
+  is_smtp?: boolean;
+  provider?: string;
+  mailbox_id?: number;
+}
+
+export interface UserMailbox {
+  id: number;
+  user_id: number;
+  provider: string;
+  sender_name: string;
+  sender_email: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_encryption: string;
+  username: string;
+  is_verified: boolean;
+  is_active: boolean;
+  is_default: boolean;
+  last_tested_at?: string | null;
+  error_message?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MailboxCreatePayload {
+  provider: string;
+  sender_name: string;
+  sender_email: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_encryption: string;
+  username: string;
+  password: string;
+  is_default?: boolean;
+  send_test_on_create?: boolean;
+}
+
+export interface MailboxTestPayload {
+  provider?: string;
+  sender_name: string;
+  sender_email: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_encryption: string;
+  username: string;
+  password: string;
+  recipient_email?: string;
+}
+
+export interface MailboxTestResult {
+  success: boolean;
+  message: string;
+  tested_at: string;
+}
+
+export interface EmailAIGeneratePayload {
+  prompt: string;
+  template_name?: string;
+  tone?: string;
+  category?: string;
+  action?: string;
+  current_subject?: string;
+  current_heading?: string;
+  current_body?: string;
+  current_cta_text?: string;
+  current_cta_link?: string;
+}
+
+export interface EmailAIGenerateResult {
+  subject: string;
+  heading: string;
+  body: string;
+  cta_text?: string;
+  cta_link?: string;
+  tone?: string;
 }
 
 export interface EmailCampaignDetail extends EmailCampaignRow {
@@ -293,7 +380,16 @@ export const api = {
   /** Get current user details. */
   getMe: () => request<any>("/api/auth/me"),
   /** Update user profile information. */
-  updateProfile: (data: { full_name?: string; company_name?: string; industry?: string; phone_number?: string }) =>
+  updateProfile: (data: {
+    full_name?: string;
+    company_name?: string;
+    industry?: string;
+    phone_number?: string;
+    agent_name?: string;
+    agent_language?: string;
+    agent_voice?: string;
+    agent_script?: string;
+  }) =>
     request<any>("/api/auth/profile", {
       method: "PUT",
       body: JSON.stringify(data),
@@ -356,14 +452,14 @@ export const api = {
     ),
 
   /** Paginated calls list (Responses / Call Logs page). */
-  getCalls: (params?: {
+  getCalls: async (params?: {
     page?: number;
     page_size?: number;
     search?: string;
     status?: string;
     direction?: string;
     campaign_id?: number;
-  }) => {
+  }): Promise<{ total: number; page: number; page_size: number; calls: ResponseLog[] }> => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
     if (params?.page_size) qs.set("page_size", String(params.page_size));
@@ -372,7 +468,21 @@ export const api = {
     if (params?.direction) qs.set("direction", params.direction);
     if (params?.campaign_id) qs.set("campaign_id", String(params.campaign_id));
     const url = `/api/calls${qs.toString() ? `?${qs.toString()}` : ""}`;
-    return request<{ total: number; page: number; page_size: number; calls: ResponseLog[] }>(url);
+    const raw: any = await request<any>(url);
+    if (Array.isArray(raw)) {
+      return {
+        total: raw.length,
+        page: params?.page || 1,
+        page_size: params?.page_size || raw.length,
+        calls: raw,
+      };
+    }
+    return {
+      total: raw?.total ?? (raw?.calls?.length || 0),
+      page: raw?.page ?? 1,
+      page_size: raw?.page_size ?? 50,
+      calls: Array.isArray(raw?.calls) ? raw.calls : [],
+    };
   },
 
   /** BUG-007: Live contact-status counts for the Live Journey panel. */
@@ -401,10 +511,10 @@ export const api = {
       }
     ),
 
-  /** Generate an AI report over a date range. */
-  generateReport: (startDate: string, endDate: string) =>
-    request<{ report: string; stats: any; id: number }>(
-      `/api/reports/generate?start_date=${startDate}&end_date=${endDate}`
+  /** Generate an AI report over a date or date range. */
+  generateReport: (startDate: string, endDate?: string) =>
+    request<{ report: string; stats: any; id: number; credits_deducted?: number; remaining_credits?: number }>(
+      `/api/reports/generate?start_date=${startDate}&end_date=${endDate || startDate}`
     ),
 
   /** Get all generated reports. */
@@ -418,6 +528,12 @@ export const api = {
     request<{ id: number; title: string; start_date: string; end_date: string; content: string; stats: any; generated_at: string }>(
       `/api/reports/${id}`
     ),
+
+  /** Delete a report by ID. */
+  deleteReport: (id: number) =>
+    request<{ message: string }>(`/api/reports/${id}`, {
+      method: "DELETE",
+    }),
 
   /** Get available calendar booking slots. */
   getCalendarSlots: () =>
@@ -504,6 +620,13 @@ export const api = {
       method: "DELETE",
     }),
 
+  /** AI Email Assistant: Generate or refine marketing email content. */
+  generateEmailWithAI: (payload: EmailAIGeneratePayload) =>
+    request<EmailAIGenerateResult>("/api/email-campaigns/ai-generate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   // ── Custom Sending Domains endpoints ───────────────────────────────────────
 
   /** List all custom sending domains for the user. */
@@ -536,13 +659,50 @@ export const api = {
   getVerifiedSenders: () =>
     request<VerifiedSenderOption[]>("/api/custom-domains/verified-senders"),
 
+  // ── Connected Mailboxes (Custom SMTP - Method 2) ───────────────────────────
+
+  /** List all connected SMTP mailboxes for the authenticated user. */
+  getMailboxes: () => request<UserMailbox[]>("/api/smtp-mailboxes"),
+
+  /** Connect and save a new SMTP mailbox (tests credentials first). */
+  createMailbox: (payload: MailboxCreatePayload) =>
+    request<UserMailbox>("/api/smtp-mailboxes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Test SMTP connection and deliver a verification email without saving. */
+  testMailbox: (payload: MailboxTestPayload) =>
+    request<MailboxTestResult>("/api/smtp-mailboxes/test", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Re-test an existing mailbox by ID. */
+  testExistingMailbox: (id: number) =>
+    request<MailboxTestResult>(`/api/smtp-mailboxes/${id}/test`, {
+      method: "POST",
+    }),
+
+  /** Set a mailbox as the default sending account. */
+  setDefaultMailbox: (id: number) =>
+    request<{ message: string }>(`/api/smtp-mailboxes/${id}/set-default`, {
+      method: "POST",
+    }),
+
+  /** Disconnect and remove an SMTP mailbox. */
+  deleteMailbox: (id: number) =>
+    request<{ message: string }>(`/api/smtp-mailboxes/${id}`, {
+      method: "DELETE",
+    }),
+
   /** Create a Razorpay payment order. */
-  createPaymentOrder: (planName: string) =>
+  createPaymentOrder: (planName: string, customCredits?: number) =>
     request<{ razorpay_order_id: string; amount: number; currency: string; key_id: string; plan_name: string }>(
       "/api/payments/create-order",
       {
         method: "POST",
-        body: JSON.stringify({ plan_name: planName }),
+        body: JSON.stringify({ plan_name: planName, custom_credits: customCredits }),
       }
     ),
 
@@ -552,6 +712,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /** Fetch current user's payment & credit purchase history. */
+  getPaymentHistory: () => request<PaymentRecord[]>("/api/payments/history"),
 };
 
 

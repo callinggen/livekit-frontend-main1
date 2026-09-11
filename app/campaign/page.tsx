@@ -1,48 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
 import DataTable, { Column } from "@/components/shared/DataTable";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
-import DetailsDrawer from "@/components/shared/DetailsDrawer";
-import { Calendar, PhoneCall, CheckCircle2, FileText, PlayCircle, Pause, Play, Square, Loader2 } from "lucide-react";
-import { api, CampaignRow, CampaignDetail } from "@/lib/api";
+import { 
+  PlayCircle, CheckCircle2, Clock, AlertCircle, FileText, 
+  Calendar, Pause, Play, Square, Loader2 
+} from "lucide-react";
+import { api, CampaignRow } from "@/lib/api";
 
 const formatDateTime = (dateString: string | undefined | null) => {
   if (!dateString) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString.trim())) {
     return dateString;
   }
-  try {
-    const cleanStr = dateString.replace(" UTC", "");
-    const d = new Date(cleanStr);
-    if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true
-    });
-  } catch {
-    return dateString;
-  }
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(date);
 };
 
 interface Campaign extends CampaignRow {}
 
 const getStatusBadge = (status: string) => {
   const norm = (status || "").toLowerCase();
-  const variantMap: Record<string, BadgeVariant> = {
-    completed: "success",
-    running: "info",
-    scheduled: "warning",
-    draft: "neutral",
-    paused: "warning",
-    stopped: "error",
-    failed: "error",
-    incomplete: "warning",
-  };
-  return <Badge variant={variantMap[norm] || "neutral"}>{status}</Badge>;
+  if (norm === "completed" || norm === "finished") {
+    return <Badge variant="success">Completed</Badge>;
+  }
+  if (norm === "running" || norm === "in_progress") {
+    return <Badge variant="info">Running</Badge>;
+  }
+  if (norm === "scheduled" || norm === "pending") {
+    return <Badge variant="warning">Scheduled</Badge>;
+  }
+  if (norm === "paused") {
+    return <Badge variant="warning">Paused</Badge>;
+  }
+  if (norm === "failed") {
+    return <Badge variant="error">Failed</Badge>;
+  }
+  if (norm === "incomplete") {
+    return <Badge variant="error">Incomplete</Badge>;
+  }
+  if (norm === "stopped") {
+    return <Badge variant="neutral">Stopped</Badge>;
+  }
+  return <Badge variant="neutral">{status || "Draft"}</Badge>;
 };
 
 export default function CampaignsPage() {
@@ -96,9 +109,7 @@ export default function CampaignsPage() {
 
   const handlePause = async (e: React.MouseEvent, campaignId: string) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to pause this campaign? Any ongoing calls will be immediately disconnected.")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to pause this campaign? Any active calls will be terminated immediately.")) return;
     try {
       setActionLoadingId(campaignId);
       await api.pauseCampaign(campaignId);
@@ -127,9 +138,7 @@ export default function CampaignsPage() {
 
   const handleStop = async (e: React.MouseEvent, campaignId: string) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to STOP this campaign entirely? All ongoing calls will be terminated, and all remaining pending calls will be cancelled.")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to stop this campaign? Any active calls will be terminated and remaining calls will NOT be placed.")) return;
     try {
       setActionLoadingId(campaignId);
       await api.stopCampaign(campaignId);
@@ -149,7 +158,7 @@ export default function CampaignsPage() {
     { key: "date", label: "Date", sortable: true, render: (c) => <span>{formatDateTime(c.date)}</span> },
     { key: "sheetName", label: "Data Source", sortable: true, render: (c) => <span className="text-xs text-zinc-500">{c.sheetName}</span> },
     { key: "totalCalls", label: "Total Calls", sortable: true, render: (c) => <span className="font-mono">{c.totalCalls}</span> },
-    { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">${Number(c.creditsUsed || 0).toFixed(2)}</span> },
+    { key: "creditsUsed", label: "Credits", sortable: true, render: (c) => <span className="font-mono">{Number(c.creditsUsed || 0)}</span> },
     { key: "agent", label: "AI Agent", sortable: true },
     { key: "status", label: "Status", sortable: true, render: (c) => getStatusBadge(c.status) },
   ];
@@ -162,7 +171,8 @@ export default function CampaignsPage() {
       sortable: false,
       render: (c) => {
         const isActionLoading = actionLoadingId === c.id;
-        if (c.status === "Running") {
+        const normStatus = (c.status || "").toLowerCase();
+        if (normStatus === "running" || normStatus === "in_progress") {
           return (
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <button
@@ -171,56 +181,41 @@ export default function CampaignsPage() {
                 title="Pause campaign and terminate ongoing calls"
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Pause className="w-3 h-3" />}
                 Pause
               </button>
               <button
                 onClick={(e) => handleStop(e, c.id)}
                 disabled={isActionLoading}
-                title="Stop campaign entirely"
+                title="Stop campaign permanently"
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
               >
-                <Square className="w-3.5 h-3.5 fill-current" />
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3" />}
                 Stop
               </button>
             </div>
           );
         }
-        if (c.status === "Paused") {
+        if (normStatus === "paused") {
           return (
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={(e) => handleResume(e, c.id)}
                 disabled={isActionLoading}
-                title="Resume calling remaining contacts"
+                title="Resume campaign execution"
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                 Resume
               </button>
               <button
                 onClick={(e) => handleStop(e, c.id)}
                 disabled={isActionLoading}
-                title="Stop campaign entirely"
+                title="Stop campaign permanently"
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
               >
-                <Square className="w-3.5 h-3.5 fill-current" />
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3" />}
                 Stop
-              </button>
-            </div>
-          );
-        }
-        if (c.status === "Scheduled" || c.status === "Draft" || c.status === "pending") {
-          return (
-            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={(e) => handleStop(e, c.id)}
-                disabled={isActionLoading}
-                title="Cancel/Stop scheduled campaign"
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-400 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                <Square className="w-3.5 h-3.5 fill-current" />
-                Cancel
               </button>
             </div>
           );
@@ -230,27 +225,25 @@ export default function CampaignsPage() {
     }
   ];
 
+  const isCompletedCampaign = (status: string) => {
+    const s = (status || "").toLowerCase();
+    return ["completed", "failed", "incomplete", "stopped", "finished"].includes(s);
+  };
+
+  const isActiveCampaign = (status: string) => {
+    const s = (status || "").toLowerCase();
+    return ["running", "scheduled", "draft", "paused", "pending", "in_progress"].includes(s);
+  };
+
   // Stats
   const totalCampaigns = campaigns.length;
-  const running = campaigns.filter(c => (c.status || "").toLowerCase() === "running").length;
-  const scheduled = campaigns.filter(c => (c.status || "").toLowerCase() === "scheduled").length;
-  const completed = campaigns.filter(c => {
-    const s = (c.status || "").toLowerCase();
-    return s === "completed" || s === "incomplete" || s === "failed";
-  }).length;
-  const draft = campaigns.filter(c => {
-    const s = (c.status || "").toLowerCase();
-    return s === "draft" || s === "paused";
-  }).length;
+  const running = campaigns.filter(c => (c.status || "").toLowerCase() === "running" || (c.status || "").toLowerCase() === "in_progress").length;
+  const scheduled = campaigns.filter(c => ["scheduled", "pending"].includes((c.status || "").toLowerCase())).length;
+  const completed = campaigns.filter(c => isCompletedCampaign(c.status)).length;
+  const draft = campaigns.filter(c => ["draft", "paused"].includes((c.status || "").toLowerCase())).length;
 
-  const activeCampaignsData = campaigns.filter(c => {
-    const s = (c.status || "").toLowerCase();
-    return s === "running" || s === "scheduled" || s === "draft" || s === "paused" || s === "pending";
-  });
-  const completedCampaignsData = campaigns.filter(c => {
-    const s = (c.status || "").toLowerCase();
-    return s === "completed" || s === "stopped" || s === "incomplete" || s === "failed";
-  });
+  const activeCampaignsData = campaigns.filter(c => isActiveCampaign(c.status));
+  const completedCampaignsData = campaigns.filter(c => !isActiveCampaign(c.status));
 
   if (loading) {
     return (
@@ -340,6 +333,7 @@ export default function CampaignsPage() {
               columns={baseColumns}
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
+                { key: "status", label: "Status", options: [{label: "Completed", value: "Completed"}, {label: "Incomplete", value: "Incomplete"}, {label: "Failed", value: "Failed"}, {label: "Stopped", value: "Stopped"}] },
                 { key: "agent", label: "Agent", options: Array.from(new Set(completedCampaignsData.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
               ]}
               exportFileName="completed_campaigns_export.xlsx"

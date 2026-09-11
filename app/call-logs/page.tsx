@@ -33,7 +33,6 @@ export default function CallLogsPage() {
   const [searchInput, setSearchInput] = useState("");   // debounced
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDirection, setFilterDirection] = useState("All");
-  // These two are client-only (no server-side support)
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterResponse, setFilterResponse] = useState("All");
   const [filterAgent, setFilterAgent] = useState("All");
@@ -83,7 +82,8 @@ export default function CallLogsPage() {
         status: (r.status || "COMPLETED").toUpperCase(),
         humanResponse: r.human_response || "",
         aiClass: r.summary || "Pending",
-        agent: r.campaign || r.agent_name || "System Agent",
+        agent: r.agent_name || "Sales Agent",
+        campaign: r.campaign || "General",
         category: (r.category || "UNCATEGORIZED").toUpperCase(),
         sentiment: r.sentiment || "Neutral",
         transcript: r.transcript || [],
@@ -198,7 +198,11 @@ export default function CallLogsPage() {
       return;
     }
 
-    const headers = ["Call ID", "Name", "Phone", "Direction", "Duration", "AI Classification", "Response", "Status", "Human Response", "Category", "Date & Time", "Campaign", "Credits Deducted", "Sentiment", "Recording URL"];
+    const headers = [
+      "Call ID", "Name", "Phone", "Direction", "Duration", "Credits",
+      "AI Classification", "Response", "Status", "Human Response",
+      "Category", "Date & Time", "Campaign", "Agent", "Sentiment", "Recording URL"
+    ];
     const escapeCSV = (val: any) => {
       if (val === null || val === undefined) return '""';
       const str = String(val).replace(/"/g, '""');
@@ -209,9 +213,9 @@ export default function CallLogsPage() {
       headers.map((h) => escapeCSV(h)).join(","),
       ...rowsToExport.map((r) => [
         escapeCSV(r.id), escapeCSV(r.name), escapeCSV(r.phone), escapeCSV(r.type),
-        escapeCSV(r.duration), escapeCSV(r.aiClass), escapeCSV(r.response), escapeCSV(r.status),
+        escapeCSV(r.duration), escapeCSV(r.credits ?? 0), escapeCSV(r.aiClass), escapeCSV(r.response), escapeCSV(r.status),
         escapeCSV(r.humanResponse || "Not Called"), escapeCSV(r.category), escapeCSV(r.datetime),
-        escapeCSV(r.agent), escapeCSV(r.credits ?? 0), escapeCSV(r.sentiment || "Neutral"), escapeCSV(r.recording_url || ""),
+        escapeCSV(r.campaign || "General"), escapeCSV(r.agent || "Sales Agent"), escapeCSV(r.sentiment || "Neutral"), escapeCSV(r.recording_url || ""),
       ].join(",")),
     ];
 
@@ -220,7 +224,7 @@ export default function CallLogsPage() {
     const link = document.createElement("a");
     const dateStr = new Date().toISOString().split("T")[0];
     link.setAttribute("href", url);
-    link.setAttribute("download", `call_logs_page${page}_${dateStr}.csv`);
+    link.setAttribute("download", `call_logs_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -248,55 +252,36 @@ export default function CallLogsPage() {
           <div>
             <h1 className="text-2xl font-bold">All Call Logs</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              A comprehensive view of all inbound and outbound calls.
-              {!loading && total > 0 && (
-                <span className="ml-1 font-medium text-foreground">
-                  Showing {pageStart}–{pageEnd} of {total.toLocaleString()} calls
-                </span>
-              )}
+              Real-time inbound and outbound call logs, transcripts, and AI analysis.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            {selectedRows.length > 0 && (
-              <div className="flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200 bg-primary/10 px-4 py-2 rounded-full border border-primary/20">
-                <span className="text-sm font-medium"><span className="text-primary font-bold">{selectedRows.length}</span> selected</span>
-                <div className="w-px h-4 bg-border" />
-                <button onClick={() => setSelectedRows([])} className="flex items-center gap-1.5 text-muted-foreground text-sm font-medium hover:text-foreground transition-all">
-                  <X className="w-4 h-4" /> Clear
-                </button>
-              </div>
-            )}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                setRefreshing(true);
-                fetchCalls(page, search, filterStatus, filterDirection);
-              }}
-              disabled={loading}
-              className="flex items-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition-all disabled:opacity-50"
+              onClick={() => { setRefreshing(true); fetchCalls(page, search, filterStatus, filterDirection); }}
+              disabled={loading || refreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50 cursor-pointer"
+              title="Refresh current page"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
             </button>
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 mb-4 bg-card p-2 rounded-xl border border-border/50 shadow-sm overflow-x-auto w-full flex-wrap">
-          {/* Search */}
-          <div className="relative min-w-[200px] shrink-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        {/* Filter Toolbar */}
+        <div className="flex flex-wrap items-center gap-3 mb-4 pb-2 border-b border-border/50">
+          <div className="relative min-w-[200px] flex-1 max-w-sm">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search name or phone…"
+              placeholder="Search by name, phone, AI class, campaign…"
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-background placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
 
-          <div className="w-px h-6 bg-border shrink-0" />
-
-          {/* Server-side filters */}
-          <div className="flex gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 overflow-x-auto py-1">
             {[
               {
                 val: filterDirection, set: (v: string) => { setFilterDirection(v); setPage(1); },
@@ -316,7 +301,7 @@ export default function CallLogsPage() {
               },
               {
                 val: filterAgent, set: setFilterAgent,
-                options: uniqueAgents, label: "Campaign"
+                options: uniqueAgents, label: "Agent"
               },
             ].map((f) => (
               <div key={f.label} className="relative group shrink-0">
@@ -364,6 +349,7 @@ export default function CallLogsPage() {
                     { key: "phone", label: "Phone" },
                     { key: "type", label: "Direction" },
                     { key: "duration", label: "Duration" },
+                    { key: "credits", label: "Credits" },
                     { key: "aiClass", label: "AI Classification" },
                     { key: "response", label: "Response" },
                     { key: "status", label: "Status" },
@@ -371,7 +357,8 @@ export default function CallLogsPage() {
                     { key: "category", label: "Category" },
                     { key: null, label: "Recording / Script" },
                     { key: "datetime", label: "Date & Time" },
-                    { key: "agent", label: "Campaign" },
+                    { key: "campaign", label: "Campaign" },
+                    { key: "agent", label: "Agent" },
                   ].map((col, idx) => (
                     <th
                       key={idx}
@@ -387,7 +374,7 @@ export default function CallLogsPage() {
               <tbody className="divide-y divide-border/50">
                 {loading ? (
                   <tr>
-                    <td colSpan={13} className="text-center py-16 text-muted-foreground">
+                    <td colSpan={15} className="text-center py-16 text-muted-foreground">
                       <div className="flex items-center justify-center gap-3">
                         <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         <span className="text-base">Loading call logs…</span>
@@ -396,7 +383,7 @@ export default function CallLogsPage() {
                   </tr>
                 ) : processedData.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="text-center py-16 text-muted-foreground">
+                    <td colSpan={15} className="text-center py-16 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <PhoneCall className="w-10 h-10 opacity-30" />
                         <p className="text-base font-medium">No call logs found</p>
@@ -432,6 +419,7 @@ export default function CallLogsPage() {
                           <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(row.type, "type")}`}>{row.type}</span>
                         </td>
                         <td className="px-3 py-3 text-foreground/80 font-medium whitespace-nowrap">{row.duration}</td>
+                        <td className="px-3 py-3 font-semibold text-violet-600 dark:text-violet-400 whitespace-nowrap">{row.credits ?? 0}</td>
                         <td className="px-3 py-3 text-foreground/80 whitespace-nowrap max-w-[180px] truncate" title={row.aiClass}>{row.aiClass}</td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(row.response, "response")}`}>{row.response}</span>
@@ -474,7 +462,8 @@ export default function CallLogsPage() {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-muted-foreground text-xs whitespace-nowrap">{row.datetime}</td>
-                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap flex items-center gap-1.5"><User className="w-3 h-3" /> {row.agent}</td>
+                        <td className="px-3 py-3 font-medium text-foreground text-xs whitespace-nowrap">{row.campaign}</td>
+                        <td className="px-3 py-3 text-muted-foreground text-xs whitespace-nowrap flex items-center gap-1.5"><User className="w-3 h-3" /> {row.agent}</td>
                       </tr>
                     );
                   })
@@ -580,7 +569,7 @@ export default function CallLogsPage() {
 
                 <div className="h-full w-px bg-border hidden md:block mx-2" />
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 text-sm">
                   <div>
                     <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Status</p>
                     <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getPillColor(selectedCall.status, "status")}`}>{selectedCall.status}</span>
@@ -591,7 +580,11 @@ export default function CallLogsPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Campaign</p>
-                    <p className="font-semibold text-foreground truncate max-w-[120px]">{selectedCall.agent}</p>
+                    <p className="font-semibold text-foreground truncate max-w-[120px]" title={selectedCall.campaign}>{selectedCall.campaign}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Agent</p>
+                    <p className="font-semibold text-foreground truncate max-w-[120px]" title={selectedCall.agent}>{selectedCall.agent}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider mb-1">Credits</p>
@@ -600,41 +593,47 @@ export default function CallLogsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => { setData((prev) => prev.filter((c) => c.id !== selectedCall.id)); setSelectedCall(null); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-lg text-sm font-medium transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" /> Delete
-                </button>
-                <div className="w-px h-6 bg-border mx-1" />
-                <button onClick={() => setSelectedCall(null)} className="p-1.5 hover:bg-accent rounded-lg transition-colors text-muted-foreground">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+              <button
+                onClick={() => setSelectedCall(null)}
+                className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors self-end md:self-auto cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Modal Body */}
             <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto bg-muted/10">
               {/* Transcript */}
               <div className="flex flex-col h-full">
-                <h4 className="font-semibold flex items-center gap-2 mb-3"><FileText className="w-4 h-4 text-primary" /> Call Transcript</h4>
+                <h4 className="font-semibold flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-primary" /> Call Transcript
+                </h4>
                 <div className="bg-background border border-border/50 rounded-xl p-5 flex-1 min-h-[300px] overflow-y-auto space-y-6 text-sm shadow-sm">
                   {!selectedCall.transcript || selectedCall.transcript.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-muted-foreground italic">No transcript available.</div>
+                    <div className="h-full flex items-center justify-center text-muted-foreground italic">
+                      No transcript available.
+                    </div>
                   ) : (
                     selectedCall.transcript.map((msg: any, i: number) => {
-                      const isAgent = msg.speaker.toLowerCase() === "assistant" || msg.speaker.toLowerCase() === "agent";
+                      const speaker = (msg.speaker || msg.sender || msg.role || "").toLowerCase();
+                      const isAgent = speaker === "assistant" || speaker === "agent" || speaker === "ai agent" || speaker === "bot";
+                      const text = msg.text || msg.message || msg.content || "";
                       return (
                         <div key={i} className="flex gap-4">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ${isAgent ? "bg-primary/20 text-primary" : "bg-secondary text-secondary-foreground"}`}>
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ${
+                              isAgent
+                                ? "bg-primary/20 text-primary"
+                                : "bg-secondary text-secondary-foreground"
+                            }`}
+                          >
                             {isAgent ? "A" : "C"}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-medium text-foreground">{isAgent ? "Agent" : "Customer"}</p>
                             </div>
-                            <p className="text-muted-foreground leading-relaxed">{msg.text}</p>
+                            <p className="text-muted-foreground leading-relaxed">{text}</p>
                           </div>
                         </div>
                       );
@@ -646,7 +645,9 @@ export default function CallLogsPage() {
               {/* Player & Insights */}
               <div className="flex flex-col gap-6 h-full">
                 <div className="flex flex-col">
-                  <h4 className="font-semibold flex items-center gap-2 mb-3"><PlayCircle className="w-4 h-4 text-primary" /> Recording</h4>
+                  <h4 className="font-semibold flex items-center gap-2 mb-3">
+                    <PlayCircle className="w-4 h-4 text-primary" /> Recording
+                  </h4>
                   <div className="bg-background border border-border/50 rounded-xl p-6 shadow-sm flex flex-col items-center justify-center min-h-[140px]">
                     {!selectedCall.recording_url ? (
                       <div className="text-muted-foreground italic">No recording available for this call.</div>
