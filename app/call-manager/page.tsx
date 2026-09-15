@@ -63,11 +63,16 @@ export default function CallManagerPage() {
       googleSheetUrl: "",
       singleContactName: "",
       singleContactPhone: "",
+      singleContactEmail: "",
       outboundPhoneNumber: "",
       selectionType: "all",
       startRow: 1,
       endRow: 1,
       whatsappAutomation: {
+        enabled: false,
+        rules: [],
+      },
+      emailAutomation: {
         enabled: false,
         rules: [],
       },
@@ -300,6 +305,13 @@ export default function CallManagerPage() {
           newErrors.singleContactPhone = "Please enter a valid 10-digit phone number (e.g. 9876543210).";
         }
       }
+      // Non-mandatory email validation: only validate format if provided
+      if (formData.singleContactEmail?.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.singleContactEmail.trim())) {
+          newErrors.singleContactEmail = "Please enter a valid email address.";
+        }
+      }
     } else if (!fileUploaded || contacts.length === 0) {
       newErrors.upload = "Please upload a contact list.";
     }
@@ -366,7 +378,9 @@ export default function CallManagerPage() {
       contactList = [{
         name: formData.singleContactName!.trim(),
         phone: formData.singleContactPhone!.trim(),
-        metadata_fields: {},
+        metadata_fields: formData.singleContactEmail?.trim()
+          ? { email: formData.singleContactEmail.trim() }
+          : {},
         original_row: 1
       }];
     } else {
@@ -418,6 +432,7 @@ export default function CallManagerPage() {
         start_row: startRow,
         end_row: endRow,
         whatsapp_automation: formData.whatsappAutomation,
+        email_automation: formData.emailAutomation,
         contacts: contactList,
         upload_source: formData.uploadSource,
         sheet_name: isSingle

@@ -3,6 +3,7 @@ import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock, Globe, Pho
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
 import WhatsAppAutomationConfigSection from "./WhatsAppAutomationConfigSection";
+import EmailAutomationConfigSection from "./EmailAutomationConfigSection";
 import { CampaignFormData, UploadSourceType } from "./types";
 import { api, UserPhoneNumber } from "@/lib/api";
 
@@ -303,6 +304,8 @@ export default function CampaignForm({
               onChangeSingleName={(name) => onChange({ singleContactName: name })}
               singleContactPhone={formData.singleContactPhone}
               onChangeSinglePhone={(phone) => onChange({ singleContactPhone: phone })}
+              singleContactEmail={formData.singleContactEmail}
+              onChangeSingleEmail={(email) => onChange({ singleContactEmail: email })}
               errors={errors}
               onGoogleSheetLoaded={onGoogleSheetLoaded}
               disabled={disabled}
@@ -447,6 +450,13 @@ export default function CampaignForm({
           <WhatsAppAutomationConfigSection
             value={formData.whatsappAutomation}
             onChange={(whatsappAutomation) => onChange({ whatsappAutomation })}
+            disabled={disabled}
+          />
+
+          {/* Email Automation Section (Post-call automated email follow-ups) */}
+          <EmailAutomationConfigSection
+            value={formData.emailAutomation}
+            onChange={(emailAutomation) => onChange({ emailAutomation })}
             disabled={disabled}
           />
           </div>

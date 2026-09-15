@@ -25,6 +25,7 @@ export interface CampaignCreatePayload {
   start_row?: number;
   end_row?: number;
   whatsapp_automation?: any;
+  email_automation?: any;
   contacts: ApiContact[];
   upload_source?: string;
   sheet_name?: string;
