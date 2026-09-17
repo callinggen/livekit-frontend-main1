@@ -102,13 +102,29 @@ export default function MaterialBasePage() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const getAuthToken = () => {
+    if (user?.token) return `Bearer ${user.token}`;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.token) return `Bearer ${parsed.token}`;
+        }
+      } catch {}
+      const fallback = localStorage.getItem("token");
+      if (fallback) return `Bearer ${fallback}`;
+    }
+    return "";
+  };
+
   // Fetch materials
   const fetchMaterials = async () => {
     try {
       setLoading(true);
       const res = await fetch(`${BASE_URL}/api/whatsapp/materials`, {
         headers: {
-          Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
+          Authorization: getAuthToken(),
         },
       });
       if (res.ok) {
@@ -211,7 +227,7 @@ export default function MaterialBasePage() {
 
     try {
       setIsSubmitting(true);
-      const authToken = token || localStorage.getItem("token") || "";
+      const authToken = getAuthToken();
 
       if (editingMaterial) {
         // Update existing text material
@@ -219,7 +235,7 @@ export default function MaterialBasePage() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
+            Authorization: authToken,
           },
           body: JSON.stringify({
             title: formTitle.trim(),
@@ -229,8 +245,8 @@ export default function MaterialBasePage() {
         });
 
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.detail || "Failed to update material");
+          const err = await res.json().catch(() => null);
+          throw new Error(err?.detail || err?.message || "Failed to update material");
         }
 
         showToast("Material updated successfully");
@@ -247,7 +263,7 @@ export default function MaterialBasePage() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
+              Authorization: authToken,
             },
             body: JSON.stringify({
               title: formTitle.trim(),
@@ -257,8 +273,8 @@ export default function MaterialBasePage() {
           });
 
           if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || "Failed to create text template");
+            const err = await res.json().catch(() => null);
+            throw new Error(err?.detail || err?.message || "Failed to create text template");
           }
 
           showToast("Text template created successfully");
@@ -279,14 +295,14 @@ export default function MaterialBasePage() {
           const res = await fetch(`${BASE_URL}/api/whatsapp/materials/upload`, {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${authToken}`,
+              Authorization: authToken,
             },
             body: formData,
           });
 
           if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || "Failed to upload file");
+            const err = await res.json().catch(() => null);
+            throw new Error(err?.detail || err?.message || "Failed to upload file");
           }
 
           showToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} uploaded successfully`);
@@ -306,11 +322,11 @@ export default function MaterialBasePage() {
   // Handle Delete
   const handleDelete = async (id: number) => {
     try {
-      const authToken = token || localStorage.getItem("token") || "";
+      const authToken = getAuthToken();
       const res = await fetch(`${BASE_URL}/api/whatsapp/materials/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          Authorization: authToken,
         },
       });
       if (res.ok) {

@@ -114,6 +114,22 @@ export default function AddMaterialModal({
     }
   };
 
+  const getAuthToken = () => {
+    if (user?.token) return `Bearer ${user.token}`;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.token) return `Bearer ${parsed.token}`;
+        }
+      } catch {}
+      const fallback = localStorage.getItem("token");
+      if (fallback) return `Bearer ${fallback}`;
+    }
+    return "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -135,7 +151,7 @@ export default function AddMaterialModal({
 
     try {
       setIsSubmitting(true);
-      const authToken = `Bearer ${token || localStorage.getItem("token") || ""}`;
+      const authToken = getAuthToken();
 
       if (modalType === "text") {
         if (editingMaterial) {
@@ -151,7 +167,10 @@ export default function AddMaterialModal({
               tags: formTags.trim() || undefined,
             }),
           });
-          if (!res.ok) throw new Error(await res.text());
+          if (!res.ok) {
+            const errData = await res.json().catch(() => null);
+            throw new Error(errData?.detail || errData?.message || (await res.text().catch(() => "Failed to update material")));
+          }
           const data = await res.json();
           onSuccess(data);
         } else {
@@ -168,7 +187,10 @@ export default function AddMaterialModal({
               save_to_base: saveToBase,
             }),
           });
-          if (!res.ok) throw new Error(await res.text());
+          if (!res.ok) {
+            const errData = await res.json().catch(() => null);
+            throw new Error(errData?.detail || errData?.message || (await res.text().catch(() => "Failed to create material")));
+          }
           const data = await res.json();
           onSuccess(data?.material || data);
         }
@@ -194,8 +216,9 @@ export default function AddMaterialModal({
         });
 
         if (!res.ok) {
-          const errData = await res.json().catch(() => ({ detail: "Upload failed" }));
-          throw new Error(errData.detail || "Failed to upload file");
+          const errData = await res.json().catch(() => null);
+          const detail = errData?.detail || errData?.message || (await res.text().catch(() => "Upload failed"));
+          throw new Error(detail || "Failed to upload file");
         }
 
         const data = await res.json();
