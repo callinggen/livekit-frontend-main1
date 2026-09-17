@@ -1,7 +1,8 @@
-import React, { useRef, useState } from "react";
-import { Upload, ChevronDown, CheckCircle2, Phone, Link2, FileSpreadsheet } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
+import { Upload, ChevronDown, CheckCircle2, Phone, Link2, FileSpreadsheet, BookUser, RefreshCw, ExternalLink } from "lucide-react";
 import Papa from "papaparse";
 import { UploadSourceType, Contact } from "./types";
+import { api } from "@/lib/api";
 
 interface UploadSourceProps {
   sourceType: UploadSourceType;
@@ -19,6 +20,13 @@ interface UploadSourceProps {
   onChangeSinglePhone?: (phone: string) => void;
   singleContactEmail?: string;
   onChangeSingleEmail?: (email: string) => void;
+  saveToContactBook?: boolean;
+  onChangeSaveToContactBook?: (save: boolean) => void;
+  contactBookTag?: string;
+  onChangeContactBookTag?: (tag: string) => void;
+  selectedContactBookTag?: string;
+  onChangeSelectedContactBookTag?: (tag: string) => void;
+  onLoadFromContactBook?: (tag?: string) => void;
   errors?: Record<string, string>;
   onGoogleSheetLoaded?: (contacts: Contact[], sheetId: string) => void;
   disabled?: boolean;
@@ -28,6 +36,7 @@ const sourceOptions: { value: UploadSourceType; label: string; icon: React.React
   { value: "excel", label: "Excel File", icon: <FileSpreadsheet className="h-4 w-4" /> },
   { value: "csv", label: "CSV File", icon: <FileSpreadsheet className="h-4 w-4" /> },
   { value: "google_sheet", label: "Google Sheet Link", icon: <Link2 className="h-4 w-4" /> },
+  { value: "contacts_book", label: "Contact Book / Saved Lists", icon: <BookUser className="h-4 w-4" /> },
   { value: "single", label: "Single Contact", icon: <Phone className="h-4 w-4" /> },
 ];
 
@@ -47,6 +56,13 @@ export default function UploadSource({
   onChangeSinglePhone,
   singleContactEmail,
   onChangeSingleEmail,
+  saveToContactBook,
+  onChangeSaveToContactBook,
+  contactBookTag,
+  onChangeContactBookTag,
+  selectedContactBookTag,
+  onChangeSelectedContactBookTag,
+  onLoadFromContactBook,
   errors,
   onGoogleSheetLoaded,
   disabled = false,
@@ -155,6 +171,25 @@ export default function UploadSource({
       onFileUpload(e.target.files[0]);
     }
   };
+
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [listSummaries, setListSummaries] = useState<any[]>([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+
+  useEffect(() => {
+    if (sourceType === "contacts_book") {
+      setLoadingTags(true);
+      Promise.all([
+        api.getSavedContactTags().catch(() => []),
+        api.getContactListsSummary().catch(() => []),
+      ])
+        .then(([tags, summaries]) => {
+          setAvailableTags(tags || []);
+          setListSummaries(summaries || []);
+        })
+        .finally(() => setLoadingTags(false));
+    }
+  }, [sourceType]);
 
   const currentOption = sourceOptions.find((opt) => opt.value === sourceType) || sourceOptions[0];
 
@@ -290,6 +325,80 @@ export default function UploadSource({
         </div>
       )}
 
+      {sourceType === "contacts_book" && (
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-800/40">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100 flex items-center gap-1.5">
+              <BookUser className="h-4 w-4 text-violet-500" />
+              Load from Contacts Book
+            </p>
+            <a
+              href="/contacts"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
+            >
+              <span>Manage Contacts Book</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+            <div className="flex-1">
+              <select
+                value={selectedContactBookTag || "all"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChangeSelectedContactBookTag?.(val);
+                }}
+                disabled={disabled || loadingTags}
+                className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm transition focus:border-violet-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <option value="all">📂 All Saved Contacts</option>
+                {listSummaries.length > 0
+                  ? listSummaries.map((l) => (
+                      <option key={l.tag} value={l.tag}>
+                        🏷️ {l.tag} ({l.total_contacts} contacts · {l.valid_phones} phones)
+                      </option>
+                    ))
+                  : availableTags.map((t) => (
+                      <option key={t} value={t}>
+                        🏷️ {t}
+                      </option>
+                    ))}
+              </select>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onLoadFromContactBook?.(selectedContactBookTag)}
+              disabled={disabled}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Load Contacts</span>
+            </button>
+          </div>
+
+          {fileUploaded && totalContacts !== undefined && totalContacts > 0 ? (
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5 text-xs text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span>
+                Successfully loaded <strong>{totalContacts}</strong> contacts from Contact Book{" "}
+                {selectedContactBookTag && selectedContactBookTag !== "all" ? `(tag: "${selectedContactBookTag}")` : "(All Contacts)"}.
+              </span>
+            </div>
+          ) : (
+            <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+              Select a tag/group or load all contacts from your permanent Contact Book into this campaign.
+            </p>
+          )}
+
+          {errors?.upload && <p className="mt-1.5 text-xs font-medium text-red-500">{errors.upload}</p>}
+        </div>
+      )}
+
       {sourceType === "single" && (
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800/50">
           <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
@@ -339,6 +448,43 @@ export default function UploadSource({
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Auto-Save to Contact Book Toggle (Available for Excel, CSV, Google Sheet, and Single Contact) */}
+      {sourceType !== "contacts_book" && (
+        <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-3.5 transition-all dark:border-violet-900/30 dark:bg-violet-950/20">
+          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={saveToContactBook || false}
+              onChange={(e) => onChangeSaveToContactBook?.(e.target.checked)}
+              disabled={disabled}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500 dark:border-zinc-600 dark:bg-zinc-800"
+            />
+            <div className="flex-1">
+              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                <BookUser className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                Save imported contacts to Contact Book
+              </span>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Automatically saves these contacts to your address book for future campaigns and auto-recalls.
+              </p>
+            </div>
+          </label>
+
+          {saveToContactBook && (
+            <div className="mt-2.5 pl-6">
+              <input
+                type="text"
+                value={contactBookTag || ""}
+                onChange={(e) => onChangeContactBookTag?.(e.target.value)}
+                disabled={disabled}
+                placeholder="Optional Tag / List Name (e.g. Summer Outreach, Tax Leads)"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 transition focus:border-violet-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

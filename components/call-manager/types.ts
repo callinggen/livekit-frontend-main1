@@ -10,7 +10,7 @@ export interface Contact {
   metadata_fields?: Record<string, string>;
 }
 
-export type UploadSourceType = "excel" | "csv" | "google_sheet" | "single";
+export type UploadSourceType = "excel" | "csv" | "google_sheet" | "single" | "contacts_book";
 
 export interface WhatsAppAutomationRule {
   id: string;
@@ -79,6 +79,9 @@ export interface CampaignFormData {
   endRow?: number;
   whatsappAutomation?: WhatsAppAutomationConfig;
   emailAutomation?: EmailAutomationConfig;
+  saveToContactBook?: boolean;
+  contactBookTag?: string;
+  selectedContactBookTag?: string;
 }
 
 
