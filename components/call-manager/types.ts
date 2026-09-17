@@ -10,7 +10,7 @@ export interface Contact {
   metadata_fields?: Record<string, string>;
 }
 
-export type UploadSourceType = "excel" | "csv" | "google_sheet" | "single";
+export type UploadSourceType = "excel" | "csv" | "google_sheet" | "single" | "contacts_book";
 
 export interface WhatsAppAutomationRule {
   id: string;
@@ -45,6 +45,23 @@ export interface WhatsAppAutomationConfig {
   rules: WhatsAppAutomationRule[];
 }
 
+export interface EmailAutomationRule {
+  id: string;
+  call_type_filters: string[];
+  ai_class_filters: string[];
+  response_filters: string[];
+  status_filters: string[];
+  template_id: string;
+  custom_subject: string;
+  custom_body: string;
+  enabled: boolean;
+}
+
+export interface EmailAutomationConfig {
+  enabled: boolean;
+  rules: EmailAutomationRule[];
+}
+
 export interface CampaignFormData {
   campaignTitle: string;
   agent: string;
@@ -55,11 +72,16 @@ export interface CampaignFormData {
   googleSheetUrl?: string;
   singleContactName?: string;
   singleContactPhone?: string;
+  singleContactEmail?: string;
   outboundPhoneNumber?: string;
   selectionType: "all" | "range";
   startRow?: number;
   endRow?: number;
   whatsappAutomation?: WhatsAppAutomationConfig;
+  emailAutomation?: EmailAutomationConfig;
+  saveToContactBook?: boolean;
+  contactBookTag?: string;
+  selectedContactBookTag?: string;
 }
 
 

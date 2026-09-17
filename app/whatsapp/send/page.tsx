@@ -38,7 +38,9 @@ import {
   CalendarClock,
   Eye,
   ExternalLink,
+  BookUser,
 } from "lucide-react";
+
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { useAuth } from "@/components/AuthProvider";
@@ -121,6 +123,8 @@ function SendMessageContent() {
   const router = useRouter();
   const preselectedMaterialId = searchParams.get("useMaterial");
   const preselectedCampaignId = searchParams.get("campaign_id");
+  const preselectedTag = searchParams.get("tag");
+  const preselectedSource = searchParams.get("source");
 
   const { isLoggedIn, user } = useAuth();
   // Per-user WhatsApp instance name — isolates each account's session
@@ -132,11 +136,20 @@ function SendMessageContent() {
   const [connectionState, setConnectionState] = useState<"checking" | "connected" | "disconnected">("checking");
   const [checkingConnection, setCheckingConnection] = useState(false);
 
-  // Mode: Campaign vs Upload
-  const [sourceMode, setSourceMode] = useState<"campaign" | "upload">(
-    preselectedCampaignId ? "campaign" : "campaign"
+  // Mode: Campaign vs Contact Book vs Upload
+  const [sourceMode, setSourceMode] = useState<"campaign" | "contacts_book" | "upload">(
+    preselectedSource === "contacts_book" || preselectedTag
+      ? "contacts_book"
+      : preselectedCampaignId
+      ? "campaign"
+      : "campaign"
   );
   const [uploadSubMode, setUploadSubMode] = useState<"file" | "sheet">("file");
+
+  // Contact Book Lists state
+  const [contactLists, setContactLists] = useState<any[]>([]);
+  const [selectedContactListTag, setSelectedContactListTag] = useState<string>(preselectedTag || "");
+  const [loadingContactLists, setLoadingContactLists] = useState(false);
 
   // Google Sheets state
   const [googleSheetUrl, setGoogleSheetUrl] = useState("");
@@ -326,7 +339,80 @@ function SendMessageContent() {
     fetchMaterials();
   }, [authToken, preselectedMaterialId]);
 
-  // 3. Load contacts when Campaign changes
+  // 3. Fetch Contact Book Lists
+  useEffect(() => {
+    const fetchContactLists = async () => {
+      try {
+        setLoadingContactLists(true);
+        const res = await fetch(`${BASE_URL}/api/contacts-book/lists`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : [];
+          setContactLists(list);
+          if (preselectedTag && list.some((l: any) => l.tag === preselectedTag)) {
+            setSelectedContactListTag(preselectedTag);
+            setSourceMode("contacts_book");
+          } else if (list.length > 0 && !selectedContactListTag) {
+            setSelectedContactListTag(list[0].tag);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load contact lists:", err);
+      } finally {
+        setLoadingContactLists(false);
+      }
+    };
+
+    fetchContactLists();
+  }, [authToken, preselectedTag]);
+
+  // 4. Load contacts when Contact Book List changes
+  useEffect(() => {
+    if (sourceMode !== "contacts_book" || !selectedContactListTag) return;
+
+    const fetchListContacts = async () => {
+      try {
+        setLoadingContacts(true);
+        const res = await fetch(
+          `${BASE_URL}/api/contacts-book/all?tag=${encodeURIComponent(selectedContactListTag)}`,
+          {
+            headers: { Authorization: `Bearer ${authToken}` },
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const rawList = Array.isArray(data) ? data : [];
+          const parsedContacts: ContactRow[] = rawList.map((c: any, idx: number) => {
+            const { formatted, isValid } = normalizePhone(c.phone);
+            return {
+              id: c.id || `cb_${idx + 1}`,
+              name: c.name || `Contact ${idx + 1}`,
+              phone: c.phone,
+              formatted_phone: formatted,
+              is_valid_phone: isValid,
+              call_type: "Contact Book",
+              ai_classification: c.tag || "Saved Contact",
+              response: "-",
+              status: isValid ? "valid" : "invalid",
+            };
+          });
+          setContacts(parsedContacts);
+          const validIds = new Set(parsedContacts.filter((c) => c.is_valid_phone).map((c) => c.id));
+          setSelectedContactIds(validIds);
+        }
+      } catch (err) {
+        console.error("Failed to load contact list contacts:", err);
+      } finally {
+        setLoadingContacts(false);
+      }
+    };
+
+    fetchListContacts();
+  }, [sourceMode, selectedContactListTag, authToken]);
+
+  // 5. Load contacts when Campaign changes
   useEffect(() => {
     if (sourceMode !== "campaign" || !selectedCampaignId) return;
 
@@ -356,7 +442,7 @@ function SendMessageContent() {
     fetchCampaignContacts();
   }, [selectedCampaignId, sourceMode, authToken]);
 
-  // 4. Handle CSV / Excel file upload
+  // 6. Handle CSV / Excel file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1021,30 +1107,56 @@ function SendMessageContent() {
                 </div>
               </div>
 
-              {/* Source Mode Switcher */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              {/* Source Mode Switcher (3-Column Grid) */}
+              <div className="mt-4 grid grid-cols-3 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setSourceMode("campaign")}
-                  className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition ${
+                  className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition ${
                     sourceMode === "campaign"
                       ? "border-violet-600 bg-violet-50/50 dark:border-violet-500 dark:bg-violet-950/30 ring-1 ring-violet-600/30"
                       : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
                   }`}
                 >
                   <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
                       sourceMode === "campaign"
                         ? "bg-violet-600 text-white"
                         : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                     }`}
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-xs font-bold text-zinc-900 dark:text-white truncate">Campaign</h4>
                     <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
-                      From call campaign
+                      Call campaign
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSourceMode("contacts_book")}
+                  className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition ${
+                    sourceMode === "contacts_book"
+                      ? "border-violet-600 bg-violet-50/50 dark:border-violet-500 dark:bg-violet-950/30 ring-1 ring-violet-600/30"
+                      : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
+                  }`}
+                >
+                  <div
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                      sourceMode === "contacts_book"
+                        ? "bg-violet-600 text-white"
+                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    }`}
+                  >
+                    <BookUser className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-zinc-900 dark:text-white truncate">Contact Book</h4>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
+                      Saved lists
                     </p>
                   </div>
                 </button>
@@ -1052,25 +1164,25 @@ function SendMessageContent() {
                 <button
                   type="button"
                   onClick={() => setSourceMode("upload")}
-                  className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition ${
+                  className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition ${
                     sourceMode === "upload"
                       ? "border-violet-600 bg-violet-50/50 dark:border-violet-500 dark:bg-violet-950/30 ring-1 ring-violet-600/30"
                       : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
                   }`}
                 >
                   <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
                       sourceMode === "upload"
                         ? "bg-violet-600 text-white"
                         : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                     }`}
                   >
-                    <Upload className="h-4 w-4" />
+                    <Upload className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-xs font-bold text-zinc-900 dark:text-white truncate">File / Sheets</h4>
                     <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
-                      Excel, CSV or Google
+                      Excel / CSV
                     </p>
                   </div>
                 </button>
@@ -1078,7 +1190,7 @@ function SendMessageContent() {
 
               {/* Sub Mode Content */}
               <div className="mt-4">
-                {sourceMode === "campaign" ? (
+                {sourceMode === "campaign" && (
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                       Select Campaign
@@ -1103,7 +1215,45 @@ function SendMessageContent() {
                       <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                     </div>
                   </div>
-                ) : (
+                )}
+
+                {sourceMode === "contacts_book" && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                        Select Contact Book List
+                      </label>
+                      <Link
+                        href="/contacts"
+                        target="_blank"
+                        className="text-[11px] font-semibold text-violet-600 hover:underline flex items-center gap-1"
+                      >
+                        Manage Lists <ExternalLink className="h-2.5 w-2.5" />
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={selectedContactListTag}
+                        onChange={(e) => setSelectedContactListTag(e.target.value)}
+                        disabled={loadingContactLists}
+                        className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs text-zinc-900 font-medium focus:border-violet-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 cursor-pointer"
+                      >
+                        {contactLists.length === 0 ? (
+                          <option value="">No contact lists found in Contact Book</option>
+                        ) : (
+                          contactLists.map((l: any) => (
+                            <option key={l.tag} value={l.tag}>
+                              {l.tag} ({l.total_contacts} contacts · {l.valid_phones} phones)
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    </div>
+                  </div>
+                )}
+
+                {sourceMode === "upload" && (
                   <div className="space-y-3">
                     {/* Upload Sub Mode Tabs */}
                     <div className="flex gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">

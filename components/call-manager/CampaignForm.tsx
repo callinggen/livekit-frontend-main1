@@ -34,6 +34,7 @@ interface CampaignFormProps {
   fileSize?: string;
   totalContacts?: number;
   onGoogleSheetLoaded?: (contacts: any[], sheetId: string) => void;
+  onLoadFromContactBook?: (tag?: string) => void;
   disabled?: boolean;
   agents?: { id: number; name: string; language: string; voice: string; script: string }[];
 }
@@ -73,6 +74,7 @@ export default function CampaignForm({
   fileSize,
   totalContacts,
   onGoogleSheetLoaded,
+  onLoadFromContactBook,
   disabled = false,
   agents = [],
 }: CampaignFormProps) {
@@ -303,6 +305,15 @@ export default function CampaignForm({
               onChangeSingleName={(name) => onChange({ singleContactName: name })}
               singleContactPhone={formData.singleContactPhone}
               onChangeSinglePhone={(phone) => onChange({ singleContactPhone: phone })}
+              singleContactEmail={formData.singleContactEmail}
+              onChangeSingleEmail={(email) => onChange({ singleContactEmail: email })}
+              saveToContactBook={formData.saveToContactBook}
+              onChangeSaveToContactBook={(save) => onChange({ saveToContactBook: save })}
+              contactBookTag={formData.contactBookTag}
+              onChangeContactBookTag={(tag) => onChange({ contactBookTag: tag })}
+              selectedContactBookTag={formData.selectedContactBookTag}
+              onChangeSelectedContactBookTag={(tag) => onChange({ selectedContactBookTag: tag })}
+              onLoadFromContactBook={onLoadFromContactBook}
               errors={errors}
               onGoogleSheetLoaded={onGoogleSheetLoaded}
               disabled={disabled}
