@@ -595,6 +595,18 @@ export const api = {
       method: "DELETE",
     }),
 
+  // ── Email Automation (post-call trigger) ────────────────────────────────────
+
+  /** Get the predefined email automation templates. */
+  getEmailAutomationTemplates: () =>
+    request<{ templates: any[] }>("/api/email/automation/templates"),
+
+  /** Check if the user has a working email connection (Resend key or SMTP mailbox). */
+  getEmailAutomationConnectionStatus: () =>
+    request<{ connected: boolean; method: string | null; resend_configured: boolean; smtp_configured: boolean }>(
+      "/api/email/automation/connection-status"
+    ),
+
   // ── Email Marketing Template endpoints ─────────────────────────────────────
 
   /** List all marketing templates with optional category & search filter. */

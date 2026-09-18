@@ -454,7 +454,9 @@ export default function CallManagerPage() {
       contactList = [{
         name: formData.singleContactName!.trim(),
         phone: formData.singleContactPhone!.trim(),
-        metadata_fields: {},
+        metadata_fields: formData.singleContactEmail?.trim()
+          ? { email: formData.singleContactEmail.trim() }
+          : {},
         original_row: 1
       }];
     } else {

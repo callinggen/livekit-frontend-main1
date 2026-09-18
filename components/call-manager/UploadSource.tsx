@@ -122,12 +122,20 @@ export default function UploadSource({
             const nameKey = rowKeys.find(k => k.toLowerCase().includes("name")) || rowKeys[0];
             const phoneKey = rowKeys.find(k => k.toLowerCase().includes("phone")) || rowKeys[1];
             
+            const metadata_fields: Record<string, string> = {};
+            rowKeys.forEach(key => {
+              if (key !== nameKey && key !== phoneKey) {
+                metadata_fields[key.trim()] = String(row[key]);
+              }
+            });
+
             return {
               id: Date.now() + index,
               name: row[nameKey] || "Unknown",
               phone: row[phoneKey] || "Unknown",
               status: "pending",
-              response: "—"
+              response: "—",
+              metadata_fields
             };
           });
           
@@ -422,6 +430,22 @@ export default function UploadSource({
                 }`}
               />
               {errors?.singleContactPhone && <p className="mt-1 text-[10px] font-medium text-red-500">{errors.singleContactPhone}</p>}
+            </div>
+            <div>
+              <input
+                type="email"
+                value={singleContactEmail || ""}
+                onChange={(e) => onChangeSingleEmail?.(e.target.value)}
+                disabled={disabled}
+                placeholder="Email Address (Optional — for testing Email Automation)"
+                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm transition focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-900 ${
+                  errors?.singleContactEmail ? 'border-red-400' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
+                }`}
+              />
+              {errors?.singleContactEmail && <p className="mt-1 text-[10px] font-medium text-red-500">{errors.singleContactEmail}</p>}
+              <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                Optional: Enter an email to receive post-call automation emails during test calls.
+              </p>
             </div>
           </div>
         </div>
