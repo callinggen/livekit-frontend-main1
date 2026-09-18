@@ -196,6 +196,12 @@ export default function WhatsAppPage() {
   const [isMetaAiLoading, setIsMetaAiLoading] = useState(false);
   const [isRefreshingChats, setIsRefreshingChats] = useState(false);
 
+  // Automation toggles & Summary Modal
+  const [autoSummary, setAutoSummary] = useState(true);
+  const [autoCalendar, setAutoCalendar] = useState(true);
+  const [isAiActive, setIsAiActive] = useState<boolean>(true);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -207,8 +213,24 @@ export default function WhatsAppPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Check AI Webhook / Assistant Health Status
+  const checkAiStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/whatsapp/webhook`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsAiActive(data.status === "active");
+      } else {
+        setIsAiActive(false);
+      }
+    } catch {
+      setIsAiActive(false);
+    }
+  }, []);
+
   // 1. Connection Status Checking
   const checkConnectionStatus = useCallback(async () => {
+    checkAiStatus();
     try {
       const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${instanceName}`);
       if (!res.ok) return;
@@ -851,21 +873,56 @@ export default function WhatsAppPage() {
           </Link>
         </div>
 
-        {connectionState === "connected" && (
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800">
-              <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse"></span>
-              Connected: {connectedPhone || "Active"}
+        <div className="flex items-center gap-3">
+          {/* AI Assistant Status Badge */}
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              isAiActive && connectionState === "connected"
+                ? "bg-violet-50 text-violet-700 border-violet-200 shadow-xs dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800/50"
+                : isAiActive
+                ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800/50"
+                : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"
+            }`}
+            title={
+              isAiActive && connectionState === "connected"
+                ? "AI Assistant is active and listening for customer messages"
+                : isAiActive
+                ? "AI Assistant backend is ready (connect WhatsApp number to activate)"
+                : "AI Assistant webhook is currently offline"
+            }
+          >
+            <span className="relative flex h-2 w-2">
+              {isAiActive && connectionState === "connected" ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-600"></span>
+                </>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-400 dark:bg-zinc-500"></span>
+              )}
             </span>
-            <button
-              onClick={() => setShowLogoutConfirmModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-100 transition cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Disconnect
-            </button>
+            <Bot className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              AI: {isAiActive && connectionState === "connected" ? "Active" : isAiActive ? "Ready" : "Offline"}
+            </span>
           </div>
-        )}
+
+          {connectionState === "connected" && (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800">
+                <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse"></span>
+                Connected: {connectedPhone || "Active"}
+              </span>
+              <button
+                onClick={() => setShowLogoutConfirmModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-100 transition cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Disconnect
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════════
@@ -1450,6 +1507,20 @@ export default function WhatsAppPage() {
                   </div>
 
                   <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                    {connectionState === "connected" && isAiActive && (
+                      <span className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50 mr-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        AI Auto-Reply Active
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => setShowSummaryModal(true)}
+                      className="px-3 py-1.5 mr-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#4F46E5] dark:text-indigo-400" />
+                      Call Summary
+                    </button>
                     <button
                       onClick={() => router.push("/whatsapp/materials")}
                       className="p-2 hover:bg-zinc-200/80 dark:hover:bg-zinc-700 rounded-full transition cursor-pointer"
@@ -1986,6 +2057,57 @@ export default function WhatsAppPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── CALL SUMMARY MODAL (NEW AI FEATURE) ── */}
+      {showSummaryModal && activeChat && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#111B21] w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                Call Summary • {activeChat.name}
+              </h3>
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+                <p className="font-bold text-[10px] uppercase text-slate-400 mb-1">AI Overview</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200">{activeChat.summary || "No summary available for this chat yet."}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xs">
+                  <p className="text-[9px] uppercase font-bold text-slate-400">Category</p>
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{activeChat.category || "N/A"}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xs">
+                  <p className="text-[9px] uppercase font-bold text-slate-400">Lead Score</p>
+                  <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{activeChat.lead_score || "N/A"}{activeChat.lead_score ? " / 100" : ""}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xs">
+                  <p className="text-[9px] uppercase font-bold text-slate-400">Outcome</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">{activeChat.notes || "None"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-md cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
