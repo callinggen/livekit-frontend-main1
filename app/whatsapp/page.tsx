@@ -109,6 +109,7 @@ export default function WhatsAppPage() {
   // Automation toggles
   const [autoSummary, setAutoSummary] = useState(true);
   const [autoCalendar, setAutoCalendar] = useState(true);
+  const [isAiActive, setIsAiActive] = useState<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
@@ -116,8 +117,24 @@ export default function WhatsAppPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Check AI Webhook / Assistant Health Status
+  const checkAiStatus = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/whatsapp/webhook`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsAiActive(data.status === "active");
+      } else {
+        setIsAiActive(false);
+      }
+    } catch {
+      setIsAiActive(false);
+    }
+  };
+
   // Check Connection Status on Mount
   const checkConnectionStatus = async () => {
+    checkAiStatus();
     try {
       const res = await fetch(`${BASE_URL}/whatsapp/status?instance_name=${INSTANCE_NAME}`);
       if (!res.ok) return;
@@ -524,8 +541,41 @@ export default function WhatsAppPage() {
             </span>
           </div>
 
-          {/* Connection Controls */}
+          {/* Connection Controls & AI Status */}
           <div className="flex items-center gap-3">
+            {/* AI Assistant Status Badge */}
+            <div
+              className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                isAiActive && connectionState === "connected"
+                  ? "bg-violet-50 text-violet-700 border-violet-200 shadow-xs"
+                  : isAiActive
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                  : "bg-slate-100 text-slate-500 border-slate-200"
+              }`}
+              title={
+                isAiActive && connectionState === "connected"
+                  ? "AI Assistant is active and listening for customer messages"
+                  : isAiActive
+                  ? "AI Assistant backend is ready (connect WhatsApp number to activate)"
+                  : "AI Assistant webhook is currently offline"
+              }
+            >
+              <span className="relative flex h-2 w-2">
+                {isAiActive && connectionState === "connected" ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-600"></span>
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+                )}
+              </span>
+              <Bot className="w-3.5 h-3.5 text-violet-600" />
+              <span>
+                AI Assistant: {isAiActive && connectionState === "connected" ? "Active" : isAiActive ? "Ready" : "Offline"}
+              </span>
+            </div>
+
             {connectionState === "connected" ? (
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
@@ -721,6 +771,13 @@ export default function WhatsAppPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {connectionState === "connected" && isAiActive && (
+                      <span className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        AI Auto-Reply Active
+                      </span>
+                    )}
+
                     <button
                       onClick={() => setShowSummaryModal(true)}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5"
