@@ -266,8 +266,20 @@ export default function EmailAutomationConfigSection({
   const [connectionStatus, setConnectionStatus] = useState<{
     connected: boolean;
     method: string | null;
+    smtp_configured?: boolean;
+    default_sender?: string;
+    default_sender_name?: string;
+    mailboxes?: Array<{
+      id: number;
+      email: string;
+      display_name?: string;
+      provider?: string;
+      is_default?: boolean;
+    }>;
+    message?: string;
   } | null>(null);
   const [loadingConnection, setLoadingConnection] = useState(true);
+  const [showConnectWarningModal, setShowConnectWarningModal] = useState(false);
   const [previewRuleIdx, setPreviewRuleIdx] = useState<number | null>(null);
   const [editingBodyIdx, setEditingBodyIdx] = useState<number | null>(null);
 
@@ -297,10 +309,13 @@ export default function EmailAutomationConfigSection({
 
   const isConnected = connectionStatus?.connected ?? false;
   const isEnabled = value.enabled;
-  const isToggleAllowed = isConnected && !disabled;
 
   const handleToggleEnabled = () => {
-    if (!isToggleAllowed) return;
+    if (disabled) return;
+    if (!isConnected && !isEnabled) {
+      setShowConnectWarningModal(true);
+      return;
+    }
     const nextEnabled = !isEnabled;
     let nextRules = value.rules || [];
     if (nextEnabled && nextRules.length === 0) {
@@ -360,7 +375,7 @@ export default function EmailAutomationConfigSection({
               </span>
             </h3>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-              Automatically send personalized email templates to contacts based on call outcome.
+              Automatically send personalized email follow-ups to contacts based on live call outcome.
             </p>
           </div>
         </div>
@@ -388,15 +403,15 @@ export default function EmailAutomationConfigSection({
           <button
             type="button"
             onClick={handleToggleEnabled}
-            disabled={!isToggleAllowed}
+            disabled={disabled}
             title={
               !isConnected
-                ? "Connect an email account in Email Settings first"
+                ? "Click to connect your SMTP email account first"
                 : undefined
             }
             className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              !isToggleAllowed
-                ? "opacity-40 cursor-not-allowed bg-zinc-200 dark:bg-zinc-700"
+              !isConnected
+                ? "opacity-60 cursor-pointer bg-zinc-200 dark:bg-zinc-700"
                 : isEnabled
                 ? "cursor-pointer bg-blue-600"
                 : "cursor-pointer bg-zinc-200 dark:bg-zinc-700"
@@ -413,35 +428,39 @@ export default function EmailAutomationConfigSection({
 
       {/* ── Not connected banner ─────────────────────────────────────────── */}
       {!loadingConnection && !isConnected && (
-        <div className="flex items-center gap-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3">
-          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-amber-800 dark:text-amber-300">
-              No email account connected
-            </p>
-            <p className="text-[11px] text-amber-600 dark:text-amber-400">
-              Connect Resend or an SMTP mailbox in Email Settings to enable automation.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <p className="text-[12px] font-semibold text-amber-800 dark:text-amber-300">
+                No verified SMTP mailbox connected
+              </p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                Connect your SMTP mailbox (Gmail, Outlook, Zoho, or Custom SMTP) to send automated emails directly from your own email.
+              </p>
+            </div>
           </div>
           <a
             href="/email-campaign"
-            className="flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold shadow-xs transition shrink-0 whitespace-nowrap self-start sm:self-auto"
           >
-            Go to Email Settings
-            <ExternalLink className="w-3 h-3" />
+            Connect SMTP Mailbox
+            <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
       )}
 
       {/* ── Connected badge ──────────────────────────────────────────────── */}
-      {!loadingConnection && isConnected && !isEnabled && (
-        <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 px-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Email connected via{" "}
-          <span className="font-semibold text-zinc-700 dark:text-zinc-300 capitalize">
-            {connectionStatus?.method || "resend"}
-          </span>{" "}
-          — toggle ON to enable automation
+      {!loadingConnection && isConnected && (
+        <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-300 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 rounded-xl px-3 py-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <span>
+            Sending emails via connected mailbox:{" "}
+            <strong className="text-blue-700 dark:text-blue-300 font-semibold">
+              {connectionStatus?.default_sender || "Your Connected SMTP Mailbox"}
+            </strong>
+            {connectionStatus?.default_sender_name ? ` (${connectionStatus.default_sender_name})` : ""}
+          </span>
         </div>
       )}
 
@@ -783,7 +802,49 @@ export default function EmailAutomationConfigSection({
       {!isEnabled && isConnected && (
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-50/80 dark:bg-zinc-800/40 border border-dashed border-zinc-200 dark:border-zinc-700/50 text-xs text-zinc-400">
           <Zap className="w-3.5 h-3.5" />
-          Email Automation is disabled. Toggle ON to configure post-call email rules.
+          Email Automation is ready. Toggle ON to configure post-call email rules dispatched directly from your mailbox.
+        </div>
+      )}
+
+      {/* SMTP Mailbox Not Connected Warning Modal */}
+      {showConnectWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 shrink-0">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+                  SMTP Mailbox Connection Required
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Connect your mailbox to activate automated emails
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+              To send automated follow-up emails directly from your own email account, you need to connect and verify your SMTP mailbox (Gmail, Microsoft 365, Zoho, or Custom SMTP).
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowConnectWarningModal(false)}
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 transition"
+              >
+                Dismiss
+              </button>
+              <a
+                href="/email-campaign"
+                className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-xs"
+              >
+                Connect SMTP Mailbox Now
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
         </div>
       )}
     </div>
