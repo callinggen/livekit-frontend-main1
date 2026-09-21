@@ -269,13 +269,17 @@ export default function WhatsAppAutomationConfigSection({
       if (res.ok) {
         const json = await res.json();
         const st = (json?.data?.status || "").toLowerCase();
-        const phone = json?.data?.connected_phone;
-        const hasPhone = Boolean(phone && phone !== "Unknown" && phone !== "null");
-        const isConn = st === "open" || st === "connected" || (hasPhone && (st === "connecting" || st === "open"));
+        // Strictly consider connected only when Baileys socket state is "open" or "connected"
+        const isConn = st === "open" || st === "connected";
+        let rawPhone = json?.data?.connected_phone;
+        if (rawPhone && typeof rawPhone === "string") {
+          rawPhone = rawPhone.replace("@s.whatsapp.net", "").trim();
+        }
+        const formattedPhone = rawPhone ? (rawPhone.startsWith("+") ? rawPhone : `+${rawPhone}`) : null;
         setWhatsappStatus({
           connected: isConn,
-          status: st || "disconnected",
-          connected_phone: phone,
+          status: isConn ? "open" : (st || "disconnected"),
+          connected_phone: isConn ? formattedPhone : null,
           instance_name: json?.data?.instance_name || instanceName,
         });
       } else {
