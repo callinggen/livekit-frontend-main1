@@ -283,9 +283,12 @@ export default function CallManagerPage() {
         phone: item.phone,
         status: "pending",
         response: "—",
-        metadata_fields: item.metadata_fields
-          ? Object.fromEntries(Object.entries(item.metadata_fields).map(([k, v]) => [k, String(v)]))
-          : item.email ? { email: item.email } : {},
+        metadata_fields: {
+          ...(item.metadata_fields
+            ? Object.fromEntries(Object.entries(item.metadata_fields).map(([k, v]) => [k, String(v)]))
+            : {}),
+          ...(item.email ? { email: item.email } : {}),
+        },
       }));
 
       setContacts(mapped);

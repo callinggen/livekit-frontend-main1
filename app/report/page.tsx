@@ -291,6 +291,20 @@ export default function ReportPage() {
           marginX + 3,
           y
         );
+        y += 4.5;
+        if (
+          (pdfStats.whatsapp_messages_sent ?? 0) > 0 ||
+          (pdfStats.email_marketing_sent ?? 0) > 0 ||
+          (pdfStats.post_call_email_automations_active ?? 0) > 0 ||
+          (pdfStats.post_call_whatsapp_automations_active ?? 0) > 0
+        ) {
+          doc.text(
+            `WhatsApp: ${pdfStats.whatsapp_messages_sent ?? 0} sent  |  Marketing Emails: ${pdfStats.email_marketing_sent ?? 0} sent  |  Active Automations: ${(pdfStats.post_call_email_automations_active ?? 0) + (pdfStats.post_call_whatsapp_automations_active ?? 0)}`,
+            marginX + 3,
+            y
+          );
+          y += 4.5;
+        }
         y += 3;
 
         // Draw Box Border
@@ -723,6 +737,54 @@ export default function ReportPage() {
                     </div>
                   </div>
 
+                  {/* Omnichannel Performance (WhatsApp & Email Marketing) */}
+                  {((stats.whatsapp_messages_sent ?? 0) > 0 ||
+                    (stats.email_marketing_sent ?? 0) > 0 ||
+                    (stats.post_call_email_automations_active ?? 0) > 0 ||
+                    (stats.post_call_whatsapp_automations_active ?? 0) > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-left">
+                      <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-50/50 p-2.5 dark:border-emerald-500/30 dark:bg-emerald-950/20">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                          WA
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">WhatsApp Follow-ups</span>
+                          <p className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {stats.whatsapp_messages_sent ?? 0} sent
+                            {(stats.whatsapp_messages_failed ?? 0) > 0 && (
+                              <span className="text-rose-500 font-normal ml-1">({stats.whatsapp_messages_failed} failed)</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 rounded-lg border border-indigo-500/20 bg-indigo-50/50 p-2.5 dark:border-indigo-500/30 dark:bg-indigo-950/20">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs">
+                          EM
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Email Marketing Studio</span>
+                          <p className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {stats.email_marketing_sent ?? 0} sent
+                            <span className="text-zinc-400 font-normal ml-1">({stats.email_marketing_campaigns ?? 0} blasts)</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 rounded-lg border border-purple-500/20 bg-purple-50/50 p-2.5 dark:border-purple-500/30 dark:bg-purple-950/20">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-xs">
+                          ⚡
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Post-Call Automations</span>
+                          <p className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {stats.post_call_email_automations_active ?? 0} Email · {stats.post_call_whatsapp_automations_active ?? 0} WhatsApp
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {(stats.campaign_names?.length > 0 || stats.agent_names?.length > 0) && (
                     <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-zinc-500">
                       {stats.campaign_names?.length > 0 && (
@@ -974,6 +1036,54 @@ export default function ReportPage() {
                       <p className="font-bold text-base text-indigo-600 dark:text-indigo-400 mt-0.5">{selectedReportModal.stats.credits_consumed ?? 1}</p>
                     </div>
                   </div>
+
+                  {/* Omnichannel Performance (WhatsApp & Email Marketing) */}
+                  {((selectedReportModal.stats.whatsapp_messages_sent ?? 0) > 0 ||
+                    (selectedReportModal.stats.email_marketing_sent ?? 0) > 0 ||
+                    (selectedReportModal.stats.post_call_email_automations_active ?? 0) > 0 ||
+                    (selectedReportModal.stats.post_call_whatsapp_automations_active ?? 0) > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-left">
+                      <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-50/50 p-2.5 dark:border-emerald-500/30 dark:bg-emerald-950/20">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                          WA
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">WhatsApp Follow-ups</span>
+                          <p className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {selectedReportModal.stats.whatsapp_messages_sent ?? 0} sent
+                            {(selectedReportModal.stats.whatsapp_messages_failed ?? 0) > 0 && (
+                              <span className="text-rose-500 font-normal ml-1">({selectedReportModal.stats.whatsapp_messages_failed} failed)</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 rounded-lg border border-indigo-500/20 bg-indigo-50/50 p-2.5 dark:border-indigo-500/30 dark:bg-indigo-950/20">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs">
+                          EM
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Email Marketing Studio</span>
+                          <p className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {selectedReportModal.stats.email_marketing_sent ?? 0} sent
+                            <span className="text-zinc-400 font-normal ml-1">({selectedReportModal.stats.email_marketing_campaigns ?? 0} blasts)</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 rounded-lg border border-purple-500/20 bg-purple-50/50 p-2.5 dark:border-purple-500/30 dark:bg-purple-950/20">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-xs">
+                          ⚡
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Post-Call Automations</span>
+                          <p className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {selectedReportModal.stats.post_call_email_automations_active ?? 0} Email · {selectedReportModal.stats.post_call_whatsapp_automations_active ?? 0} WhatsApp
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {(selectedReportModal.stats.campaign_names?.length > 0 || selectedReportModal.stats.agent_names?.length > 0) && (
                     <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-zinc-500">

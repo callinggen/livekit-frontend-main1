@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { WhatsAppAutomationConfig, WhatsAppAutomationRule } from "./types";
 import AddMaterialModal, { MaterialItem } from "@/components/whatsapp/AddMaterialModal";
+import { useAuth } from "@/components/AuthProvider";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://localhost:8000");
 
@@ -214,6 +215,9 @@ export default function WhatsAppAutomationConfigSection({
   onChange,
   disabled = false,
 }: Props) {
+  const { user } = useAuth();
+  const instanceName = user?.id ? `user_${user.id}` : "callinggen_default";
+
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
 
@@ -259,18 +263,20 @@ export default function WhatsAppAutomationConfigSection({
           token = localStorage.getItem("token") || null;
         }
       }
-      const res = await fetch(`${BASE_URL}/api/whatsapp/info`, {
+      const res = await fetch(`${BASE_URL}/api/whatsapp/info?instance_name=${encodeURIComponent(instanceName)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
         const json = await res.json();
-        const st = json?.data?.status;
-        const isConn = st === "open" || st === "connected";
+        const st = (json?.data?.status || "").toLowerCase();
+        const phone = json?.data?.connected_phone;
+        const hasPhone = Boolean(phone && phone !== "Unknown" && phone !== "null");
+        const isConn = st === "open" || st === "connected" || (hasPhone && (st === "connecting" || st === "open"));
         setWhatsappStatus({
           connected: isConn,
           status: st || "disconnected",
-          connected_phone: json?.data?.connected_phone,
-          instance_name: json?.data?.instance_name,
+          connected_phone: phone,
+          instance_name: json?.data?.instance_name || instanceName,
         });
       } else {
         setWhatsappStatus({ connected: false, status: "disconnected" });
@@ -316,7 +322,7 @@ export default function WhatsAppAutomationConfigSection({
   useEffect(() => {
     loadWhatsAppStatus();
     loadMaterials();
-  }, []);
+  }, [instanceName]);
 
   const isConnected = whatsappStatus?.connected ?? false;
   const isEnabled = value.enabled;
