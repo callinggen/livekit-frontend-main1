@@ -89,15 +89,26 @@ export default function ChangePasswordPage() {
         updateToken(data.access_token, false, data.is_admin);
         router.push("/dashboard");
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to change password");
+        // Safely parse error — server may return HTML on 500
+        let detail = "Failed to change password. Please try again.";
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            detail = errorData.detail || detail;
+          } catch {
+            // ignore parse error
+          }
+        }
+        setError(detail);
       }
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+      setError(err.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
+
 
 
 
@@ -203,8 +214,13 @@ export default function ChangePasswordPage() {
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Save Password <ArrowRight className="h-4 w-4" /></>}
             </button>
-          </form>
-        </div>
+            </form>
+            <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              <Link href="/login" className="text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 font-medium transition-colors">
+                Back to Login
+              </Link>
+            </p>
+          </div>
       </div>
     </div>
   );
