@@ -27,6 +27,9 @@ import {
   CheckSquare,
   Square,
   MessageSquare,
+  AlertCircle,
+  AlertTriangle,
+  Lock,
 } from "lucide-react";
 import { WhatsAppAutomationConfig, WhatsAppAutomationRule } from "./types";
 import AddMaterialModal, { MaterialItem } from "@/components/whatsapp/AddMaterialModal";
@@ -214,6 +217,16 @@ export default function WhatsAppAutomationConfigSection({
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
 
+  // WhatsApp Connection State
+  const [whatsappStatus, setWhatsappStatus] = useState<{
+    connected: boolean;
+    status: string;
+    connected_phone?: string;
+    instance_name?: string;
+  } | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [showConnectWarningModal, setShowConnectWarningModal] = useState(false);
+
   // Multi-select Material Base Picker Modal state
   const [showMultiSelectPicker, setShowMultiSelectPicker] = useState(false);
   const [activeRuleIdxForPicker, setActiveRuleIdxForPicker] = useState<number | null>(null);
@@ -228,6 +241,46 @@ export default function WhatsAppAutomationConfigSection({
   // Track which rule is actively editing its message text vs in "Done" saved view
   const [editingMessageRuleIdx, setEditingMessageRuleIdx] = useState<number | null>(null);
   const [ruleSavedNotice, setRuleSavedNotice] = useState<number | null>(null);
+
+  // Check WhatsApp connection status
+  const loadWhatsAppStatus = async () => {
+    try {
+      setLoadingStatus(true);
+      let token: string | null = null;
+      if (typeof window !== "undefined") {
+        const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
+        if (stored) {
+          try {
+            token = JSON.parse(stored)?.token || null;
+          } catch {
+            token = localStorage.getItem("token") || null;
+          }
+        } else {
+          token = localStorage.getItem("token") || null;
+        }
+      }
+      const res = await fetch(`${BASE_URL}/api/whatsapp/info`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const st = json?.data?.status;
+        const isConn = st === "open" || st === "connected";
+        setWhatsappStatus({
+          connected: isConn,
+          status: st || "disconnected",
+          connected_phone: json?.data?.connected_phone,
+          instance_name: json?.data?.instance_name,
+        });
+      } else {
+        setWhatsappStatus({ connected: false, status: "disconnected" });
+      }
+    } catch {
+      setWhatsappStatus({ connected: false, status: "disconnected" });
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
 
   // Fetch Material Base items
   const loadMaterials = async () => {
@@ -261,12 +314,19 @@ export default function WhatsAppAutomationConfigSection({
   };
 
   useEffect(() => {
+    loadWhatsAppStatus();
     loadMaterials();
   }, []);
 
+  const isConnected = whatsappStatus?.connected ?? false;
   const isEnabled = value.enabled;
 
   const handleToggleEnabled = () => {
+    if (disabled) return;
+    if (!isConnected && !isEnabled) {
+      setShowConnectWarningModal(true);
+      return;
+    }
     const nextEnabled = !isEnabled;
     let nextRules = value.rules || [];
     if (nextEnabled && nextRules.length === 0) {
@@ -515,15 +575,33 @@ export default function WhatsAppAutomationConfigSection({
 
         {/* Toggle Switch */}
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold tracking-wider ${isEnabled ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>
-            {isEnabled ? "ON" : "OFF"}
-          </span>
+          {loadingStatus ? (
+            <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+          ) : !isConnected ? (
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-full border border-amber-200/60 dark:border-amber-800/40">
+              <Lock className="w-3 h-3" />
+              Connect WhatsApp first
+            </div>
+          ) : (
+            <span
+              className={`text-xs font-bold tracking-wider ${
+                isEnabled ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"
+              }`}
+            >
+              {isEnabled ? "ON" : "OFF"}
+            </span>
+          )}
           <button
             type="button"
             onClick={handleToggleEnabled}
             disabled={disabled}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              isEnabled ? "bg-emerald-600" : "bg-zinc-200 dark:bg-zinc-700"
+            title={!isConnected ? "Click to connect WhatsApp first" : undefined}
+            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              !isConnected
+                ? "opacity-60 cursor-pointer bg-zinc-200 dark:bg-zinc-700"
+                : isEnabled
+                ? "cursor-pointer bg-emerald-600"
+                : "cursor-pointer bg-zinc-200 dark:bg-zinc-700"
             }`}
           >
             <span
@@ -534,6 +612,38 @@ export default function WhatsAppAutomationConfigSection({
           </button>
         </div>
       </div>
+
+      {/* ── Not connected banner ─────────────────────────────────────────── */}
+      {!loadingStatus && !isConnected && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <p className="text-[12px] font-semibold text-amber-800 dark:text-amber-300">
+                WhatsApp instance is not connected
+              </p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                Connect your WhatsApp account to activate automated post-call messaging and template dispatch.
+              </p>
+            </div>
+          </div>
+          <a
+            href="/whatsapp"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold shadow-xs transition shrink-0 whitespace-nowrap self-start sm:self-auto"
+          >
+            Connect WhatsApp
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      )}
+
+      {/* ── Connected badge ──────────────────────────────────────────────── */}
+      {!loadingStatus && isConnected && !isEnabled && (
+        <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 px-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          WhatsApp connected{whatsappStatus?.connected_phone ? ` (${whatsappStatus.connected_phone})` : ""} — toggle ON to enable automation
+        </div>
+      )}
 
       {/* When ON: Rule Builder */}
       {isEnabled && (
@@ -1070,6 +1180,48 @@ export default function WhatsAppAutomationConfigSection({
         onSuccess={handleMaterialCreated}
         initialType="document"
       />
+
+      {/* WhatsApp Not Connected Warning Modal */}
+      {showConnectWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 shrink-0">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+                  WhatsApp Connection Required
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Connect WhatsApp to activate automated messages
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+              To send automated WhatsApp follow-ups to contacts after calls, you must first link your WhatsApp instance by scanning the QR code in WhatsApp settings.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowConnectWarningModal(false)}
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 transition"
+              >
+                Dismiss
+              </button>
+              <a
+                href="/whatsapp"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-xs"
+              >
+                Connect WhatsApp Now
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
