@@ -25,6 +25,9 @@ export interface CampaignCreatePayload {
   start_row?: number;
   end_row?: number;
   whatsapp_automation?: any;
+  email_automation?: any;
+  save_to_contacts_book?: boolean;
+  contact_book_tag?: string;
   contacts: ApiContact[];
   upload_source?: string;
   sheet_name?: string;
@@ -592,6 +595,18 @@ export const api = {
       method: "DELETE",
     }),
 
+  // ── Email Automation (post-call trigger) ────────────────────────────────────
+
+  /** Get the predefined email automation templates. */
+  getEmailAutomationTemplates: () =>
+    request<{ templates: any[] }>("/api/email/automation/templates"),
+
+  /** Check if the user has a working email connection (Resend key or SMTP mailbox). */
+  getEmailAutomationConnectionStatus: () =>
+    request<{ connected: boolean; method: string | null; resend_configured: boolean; smtp_configured: boolean }>(
+      "/api/email/automation/connection-status"
+    ),
+
   // ── Email Marketing Template endpoints ─────────────────────────────────────
 
   /** List all marketing templates with optional category & search filter. */
@@ -715,7 +730,192 @@ export const api = {
 
   /** Fetch current user's payment & credit purchase history. */
   getPaymentHistory: () => request<PaymentRecord[]>("/api/payments/history"),
+
+  // ── Contacts Book (Address Book) Endpoints ─────────────────────────────────
+
+  /** List saved contacts with search, tag filtering, pagination, and sorting. */
+  getSavedContacts: (params?: {
+    q?: string;
+    tag?: string;
+    source?: string;
+    page?: number;
+    page_size?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }) => {
+    const sp = new URLSearchParams();
+    if (params?.q) sp.set("q", params.q);
+    if (params?.tag) sp.set("tag", params.tag);
+    if (params?.source) sp.set("source", params.source);
+    if (params?.page) sp.set("page", String(params.page));
+    if (params?.page_size) sp.set("page_size", String(params.page_size));
+    if (params?.sort_by) sp.set("sort_by", params.sort_by);
+    if (params?.sort_order) sp.set("sort_order", params.sort_order);
+    const qs = sp.toString();
+    return request<SavedContactListResponse>(`/api/contacts-book${qs ? `?${qs}` : ""}`);
+  },
+
+  /** Get all contacts (or all for a tag) for direct campaign dialing. */
+  getAllSavedContacts: (tag?: string) => {
+    const qs = tag ? `?tag=${encodeURIComponent(tag)}` : "";
+    return request<SavedContactItem[]>(`/api/contacts-book/all${qs}`);
+  },
+
+  /** Aggregate stats for Contact Book dashboard cards. */
+  getSavedContactStats: () => request<SavedContactStats>("/api/contacts-book/stats"),
+
+  /** Unique tag list across saved contacts. */
+  getSavedContactTags: () => request<string[]>("/api/contacts-book/tags"),
+
+  /** Add or upsert a single saved contact. */
+  createSavedContact: (data: {
+    name: string;
+    phone: string;
+    email?: string;
+    source?: string;
+    tag?: string;
+    notes?: string;
+    metadata_fields?: Record<string, any>;
+  }) =>
+    request<SavedContactItem>("/api/contacts-book", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  /** Bulk upload contacts with deduplication. */
+  batchCreateSavedContacts: (payload: {
+    contacts: Array<{
+      name: string;
+      phone: string;
+      email?: string;
+      source?: string;
+      tag?: string;
+      notes?: string;
+      metadata_fields?: Record<string, any>;
+    }>;
+    default_tag?: string;
+    source?: string;
+  }) =>
+    request<{ success: boolean; total_processed: number; added: number; updated: number; tag?: string }>(
+      "/api/contacts-book/batch",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    ),
+
+  /** Update an existing saved contact. */
+  updateSavedContact: (
+    id: number,
+    data: Partial<{
+      name: string;
+      phone: string;
+      email?: string;
+      source?: string;
+      tag?: string;
+      notes?: string;
+      metadata_fields?: Record<string, any>;
+    }>
+  ) =>
+    request<SavedContactItem>(`/api/contacts-book/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  /** Delete a single saved contact. */
+  deleteSavedContact: (id: number) =>
+    request<{ success: boolean; deleted_id: number }>(`/api/contacts-book/${id}`, {
+      method: "DELETE",
+    }),
+
+  /** Bulk delete saved contacts by IDs. */
+  batchDeleteSavedContacts: (contact_ids: number[]) =>
+    request<{ success: boolean; deleted_count: number }>("/api/contacts-book/batch/delete", {
+      method: "DELETE",
+      body: JSON.stringify({ contact_ids }),
+    }),
+
+  /** Get list-wise summary stats for card views. */
+  getContactListsSummary: () =>
+    request<SavedContactListSummary[]>("/api/contacts-book/lists"),
+
+  /** Rename a contact list / tag. */
+  renameContactList: (oldTag: string, newTag: string) =>
+    request<{ success: boolean; old_tag: string; new_tag: string; updated_count: number }>(
+      "/api/contacts-book/lists/rename",
+      {
+        method: "PUT",
+        body: JSON.stringify({ old_tag: oldTag, new_tag: newTag }),
+      }
+    ),
+
+  /** Delete an entire contact list / tag. */
+  deleteContactList: (tagName: string) =>
+    request<{ success: boolean; tag: string; deleted_count: number }>(
+      `/api/contacts-book/lists/${encodeURIComponent(tagName)}`,
+      {
+        method: "DELETE",
+      }
+    ),
+
+  /** Auto-sync or refresh a contact list from its linked Google Sheet. */
+  syncContactList: (tagName: string, googleSheetUrl?: string) =>
+    request<{ success: boolean; tag: string; added: number; updated: number; total_contacts: number; last_synced_at?: string }>(
+      `/api/contacts-book/lists/${encodeURIComponent(tagName)}/sync`,
+      {
+        method: "POST",
+        body: JSON.stringify({ google_sheet_url: googleSheetUrl }),
+      }
+    ),
 };
+
+// ── Contact Book Interfaces ──────────────────────────────────────────────────
+
+export interface SavedContactListSummary {
+  tag: string;
+  total_contacts: number;
+  valid_phones: number;
+  with_email: number;
+  sources: string[];
+  source_url?: string | null;
+  is_google_sheet?: boolean;
+  last_synced_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+
+export interface SavedContactItem {
+  id: number;
+  user_id: number;
+  name: string;
+  phone: string;
+  email?: string | null;
+  source?: string | null;
+  tag?: string | null;
+  metadata_fields?: Record<string, any> | null;
+  notes?: string | null;
+  call_count: number;
+  last_called_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedContactStats {
+  total_contacts: number;
+  valid_phones: number;
+  with_email: number;
+  total_tags: number;
+  recent_added_this_week: number;
+}
+
+export interface SavedContactListResponse {
+  items: SavedContactItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
 
 
 

@@ -24,6 +24,7 @@ import {
   CreditCard,
   Settings,
   MessageSquare,
+  BookUser,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Calendar", icon: CalendarDays, href: "/calendar" },
   { label: "Call Manager", icon: PhoneCall, href: "/call-manager" },
+  { label: "Contact Book", icon: BookUser, href: "/contacts" },
   { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
   { label: "Email Marketing", icon: Mail, href: "/email-campaign" },

@@ -71,6 +71,13 @@ export default function CallManagerPage() {
         enabled: false,
         rules: [],
       },
+      emailAutomation: {
+        enabled: false,
+        rules: [],
+      },
+      saveToContactBook: false,
+      contactBookTag: "",
+      selectedContactBookTag: "all",
     };
   });
 
@@ -86,6 +93,39 @@ export default function CallManagerPage() {
   const [launching, setLaunching] = useState(false);
   const [showPreLaunchModal, setShowPreLaunchModal] = useState(false);
   const [showExhaustedModal, setShowExhaustedModal] = useState(false);
+
+  // Preload contacts from Contact Book if user navigated with selected contacts
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("call_manager_preloaded_contacts");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mapped: Contact[] = parsed.map((item: any, idx: number) => ({
+            id: item.id || Date.now() + idx,
+            name: item.name || "Unknown",
+            phone: item.phone,
+            status: "pending",
+            response: "—",
+            metadata_fields: item.metadata_fields || (item.email ? { email: item.email } : {}),
+          }));
+          setContacts(mapped);
+          setFileUploaded(true);
+          setFileName(`Contact Book (${mapped.length} Selected)`);
+          setFileSize(`${mapped.length} contacts`);
+          setFormData((prev) => ({
+            ...prev,
+            uploadSource: "contacts_book",
+            startRow: 1,
+            endRow: mapped.length,
+          }));
+          sessionStorage.removeItem("call_manager_preloaded_contacts");
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load preloaded contacts:", e);
+    }
+  }, []);
 
   // Agent State
   const [fetchedAgents, setFetchedAgents] = useState<{ id: number; name: string; language: string; voice: string; script: string }[]>([]);
@@ -230,6 +270,46 @@ export default function CallManagerPage() {
     });
   };
 
+  const handleLoadFromContactBook = async (tag?: string) => {
+    try {
+      const saved = await api.getAllSavedContacts(tag === "all" ? undefined : tag);
+      if (!saved || saved.length === 0) {
+        alert(tag && tag !== "all" ? `No contacts found under tag "${tag}".` : "Your Contact Book is currently empty.");
+        return;
+      }
+      const mapped: Contact[] = saved.map((item, idx) => ({
+        id: item.id || Date.now() + idx,
+        name: item.name || "Unknown",
+        phone: item.phone,
+        status: "pending",
+        response: "—",
+        metadata_fields: {
+          ...(item.metadata_fields
+            ? Object.fromEntries(Object.entries(item.metadata_fields).map(([k, v]) => [k, String(v)]))
+            : {}),
+          ...(item.email ? { email: item.email } : {}),
+        },
+      }));
+
+      setContacts(mapped);
+      setFileUploaded(true);
+      setFileName(tag && tag !== "all" ? `Contact Book (${tag})` : "Contact Book (All Contacts)");
+      setFileSize(`${mapped.length} contacts`);
+      setFormData((prev) => ({
+        ...prev,
+        startRow: 1,
+        endRow: mapped.length,
+      }));
+      setErrors((prev) => {
+        const e = { ...prev };
+        delete e.upload;
+        return e;
+      });
+    } catch (err: any) {
+      alert("Failed to load contacts from Contact Book: " + (err?.message || err));
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
     try {
       const parsed = await parseFileToContacts(file);
@@ -300,6 +380,17 @@ export default function CallManagerPage() {
           newErrors.singleContactPhone = "Please enter a valid 10-digit phone number (e.g. 9876543210).";
         }
       }
+      // Non-mandatory email validation: only validate format if provided
+      if (formData.singleContactEmail?.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.singleContactEmail.trim())) {
+          newErrors.singleContactEmail = "Please enter a valid email address.";
+        }
+      }
+    } else if (formData.uploadSource === "contacts_book") {
+      if (!fileUploaded || contacts.length === 0) {
+        newErrors.upload = "Please click 'Load Contacts' from your Contact Book.";
+      }
     } else if (!fileUploaded || contacts.length === 0) {
       newErrors.upload = "Please upload a contact list.";
     }
@@ -366,7 +457,9 @@ export default function CallManagerPage() {
       contactList = [{
         name: formData.singleContactName!.trim(),
         phone: formData.singleContactPhone!.trim(),
-        metadata_fields: {},
+        metadata_fields: formData.singleContactEmail?.trim()
+          ? { email: formData.singleContactEmail.trim() }
+          : {},
         original_row: 1
       }];
     } else {
@@ -418,10 +511,15 @@ export default function CallManagerPage() {
         start_row: startRow,
         end_row: endRow,
         whatsapp_automation: formData.whatsappAutomation,
+        email_automation: formData.emailAutomation,
+        save_to_contacts_book: formData.saveToContactBook,
+        contact_book_tag: formData.contactBookTag,
         contacts: contactList,
         upload_source: formData.uploadSource,
         sheet_name: isSingle
           ? "Single Call Input"
+          : formData.uploadSource === "contacts_book"
+          ? fileName || "Contact Book"
           : formData.uploadSource === "google_sheet"
           ? "Google Sheet"
           : fileName || "File Upload",
@@ -507,6 +605,7 @@ export default function CallManagerPage() {
             fileSize={fileSize}
             totalContacts={contacts.length}
             onGoogleSheetLoaded={handleGoogleSheetLoaded}
+            onLoadFromContactBook={handleLoadFromContactBook}
             disabled={isFormDisabled}
           />
         </div>

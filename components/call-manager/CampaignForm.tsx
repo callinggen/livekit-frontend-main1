@@ -3,6 +3,7 @@ import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock, Globe, Pho
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
 import WhatsAppAutomationConfigSection from "./WhatsAppAutomationConfigSection";
+import EmailAutomationConfigSection from "./EmailAutomationConfigSection";
 import { CampaignFormData, UploadSourceType } from "./types";
 import { api, UserPhoneNumber } from "@/lib/api";
 
@@ -34,6 +35,7 @@ interface CampaignFormProps {
   fileSize?: string;
   totalContacts?: number;
   onGoogleSheetLoaded?: (contacts: any[], sheetId: string) => void;
+  onLoadFromContactBook?: (tag?: string) => void;
   disabled?: boolean;
   agents?: { id: number; name: string; language: string; voice: string; script: string }[];
 }
@@ -73,6 +75,7 @@ export default function CampaignForm({
   fileSize,
   totalContacts,
   onGoogleSheetLoaded,
+  onLoadFromContactBook,
   disabled = false,
   agents = [],
 }: CampaignFormProps) {
@@ -303,6 +306,15 @@ export default function CampaignForm({
               onChangeSingleName={(name) => onChange({ singleContactName: name })}
               singleContactPhone={formData.singleContactPhone}
               onChangeSinglePhone={(phone) => onChange({ singleContactPhone: phone })}
+              singleContactEmail={formData.singleContactEmail}
+              onChangeSingleEmail={(email) => onChange({ singleContactEmail: email })}
+              saveToContactBook={formData.saveToContactBook}
+              onChangeSaveToContactBook={(save) => onChange({ saveToContactBook: save })}
+              contactBookTag={formData.contactBookTag}
+              onChangeContactBookTag={(tag) => onChange({ contactBookTag: tag })}
+              selectedContactBookTag={formData.selectedContactBookTag}
+              onChangeSelectedContactBookTag={(tag) => onChange({ selectedContactBookTag: tag })}
+              onLoadFromContactBook={onLoadFromContactBook}
               errors={errors}
               onGoogleSheetLoaded={onGoogleSheetLoaded}
               disabled={disabled}
@@ -447,6 +459,13 @@ export default function CampaignForm({
           <WhatsAppAutomationConfigSection
             value={formData.whatsappAutomation}
             onChange={(whatsappAutomation) => onChange({ whatsappAutomation })}
+            disabled={disabled}
+          />
+
+          {/* Email Automation Section (Post-call automated email follow-ups) */}
+          <EmailAutomationConfigSection
+            value={formData.emailAutomation}
+            onChange={(emailAutomation) => onChange({ emailAutomation })}
             disabled={disabled}
           />
           </div>
