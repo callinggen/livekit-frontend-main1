@@ -55,6 +55,9 @@ import {
   Sliders,
   Sparkle,
   Link2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from "lucide-react";
 import {
   api,
@@ -79,6 +82,7 @@ export interface EmailBrandingOptions {
   logoUrl: string;
   headerTitle: string;
   headerSubtitle: string;
+  headerAlign?: "left" | "center" | "right";
   socialLinks: {
     linkedin?: string;
     twitter?: string;
@@ -214,24 +218,38 @@ function formatEmailDocumentHtml(
     socialIcons.push(`<a href="${social.website}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #6366f1; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">🌐</a>`);
   }
 
-  // Header HTML builder
+  // Header HTML builder with alignment
+  const headerAlign = branding?.headerAlign || "center";
+  const alignStyle =
+    headerAlign === "left"
+      ? "text-align: left;"
+      : headerAlign === "right"
+      ? "text-align: right;"
+      : "text-align: center;";
+  const marginStyle =
+    headerAlign === "left"
+      ? "margin: 0;"
+      : headerAlign === "right"
+      ? "margin: 0 0 0 auto;"
+      : "margin: 0 auto;";
+
   let headerHtml = "";
   if (headerType === "logo" && logoUrl) {
     headerHtml = `
     <tr>
-      <td style="background-color: #ffffff; padding: 22px 24px 18px 24px; text-align: center; border-bottom: 2px solid #6366f1;">
-        <img src="${logoUrl}" alt="${headerTitle}" style="max-height: 54px; max-width: 240px; width: auto; height: auto; object-fit: contain; margin: 0 auto; display: block; border: 0;" />
-        ${headerSubtitle ? `<div style="font-size: 10px; color: #6366f1; margin-top: 6px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;">${headerSubtitle}</div>` : ""}
+      <td style="background-color: #ffffff; padding: 22px 24px 18px 24px; ${alignStyle} border-bottom: 2px solid #6366f1;">
+        <img src="${logoUrl}" alt="${headerTitle}" style="max-height: 54px; max-width: 240px; width: auto; height: auto; object-fit: contain; ${marginStyle} display: inline-block; border: 0;" />
+        ${headerSubtitle ? `<div style="font-size: 11px; color: #6366f1; margin-top: 6px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;">${headerSubtitle}</div>` : ""}
       </td>
     </tr>`;
   } else if (headerType === "text" && headerTitle) {
     headerHtml = `
     <tr>
-      <td style="background-color: #ffffff; padding: 20px 24px 16px 24px; text-align: center; border-bottom: 2px solid #6366f1;">
+      <td style="background-color: #ffffff; padding: 20px 24px 16px 24px; ${alignStyle} border-bottom: 2px solid #6366f1;">
         <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
           ${headerTitle}
         </div>
-        ${headerSubtitle ? `<div style="font-size: 10px; color: #6366f1; margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;">${headerSubtitle}</div>` : ""}
+        ${headerSubtitle ? `<div style="font-size: 11px; color: #6366f1; margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;">${headerSubtitle}</div>` : ""}
       </td>
     </tr>`;
   }
@@ -374,6 +392,7 @@ function NewEmailCampaignContent() {
     logoUrl: "",
     headerTitle: user?.company_name || "GenX Reality",
     headerSubtitle: "",
+    headerAlign: "center",
     socialLinks: {
       website: "https://genxreality.com",
       linkedin: "https://linkedin.com",
@@ -453,6 +472,11 @@ function NewEmailCampaignContent() {
       // ignore
     }
   }, [user]);
+
+  // Guarded Editor Change to avoid infinite render loops
+  const handleHtmlChange = (content: string) => {
+    setHtmlBody((prev) => (prev === content ? prev : content));
+  };
 
   // Save branding updates to localStorage
   const updateBranding = (updates: Partial<EmailBrandingOptions>) => {
@@ -1711,23 +1735,87 @@ function NewEmailCampaignContent() {
               </div>
             )}
 
-            {/* INLINE DRAWER: Edit Social Links & Brand Footer (Direct in Editor) */}
+            {/* INLINE DRAWER: Edit Header Alignment, Under-Logo Text, Social Links & Footer Brand */}
             {showSocialDrawer && (
-              <div className="p-3 bg-zinc-50 dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5">
+              <div className="p-3.5 bg-zinc-50 dark:bg-zinc-900/80 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150 shadow-xs">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900 dark:text-white">
-                    <Share2 className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>Editable Social Profile Links &amp; Footer Brand</span>
+                    <Palette className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>Header Alignment, Logo Subtitle &amp; Social Links</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowSocialDrawer(false)}
-                    className="text-zinc-400 hover:text-zinc-600 text-xs font-bold cursor-pointer"
+                    className="text-xs font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 cursor-pointer"
                   >
                     Done ✓
                   </button>
                 </div>
 
+                {/* 1. Header Alignment & Text Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-white dark:bg-zinc-800/80 p-2.5 rounded-xl border border-zinc-200/80 dark:border-zinc-700">
+                  {/* Alignment Selector */}
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-bold text-zinc-700 dark:text-zinc-300 block">
+                      Header / Logo Align
+                    </label>
+                    <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-700 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-600">
+                      {[
+                        { id: "left", label: "Left", icon: AlignLeft },
+                        { id: "center", label: "Center", icon: AlignCenter },
+                        { id: "right", label: "Right", icon: AlignRight },
+                      ].map((al) => {
+                        const Icon = al.icon;
+                        const active = (branding.headerAlign || "center") === al.id;
+                        return (
+                          <button
+                            key={al.id}
+                            type="button"
+                            onClick={() => updateBranding({ headerAlign: al.id as any })}
+                            className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-[11px] font-semibold transition cursor-pointer ${
+                              active
+                                ? "bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-xs"
+                                : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                            }`}
+                          >
+                            <Icon className="h-3 w-3" />
+                            <span>{al.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Header Title */}
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-bold text-zinc-700 dark:text-zinc-300 block">
+                      Brand / Header Title
+                    </label>
+                    <input
+                      type="text"
+                      value={branding.headerTitle}
+                      onChange={(e) => updateBranding({ headerTitle: e.target.value })}
+                      placeholder="e.g. GenX Reality"
+                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-600 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  {/* Under-Logo Text / Subtitle */}
+                  <div className="space-y-1">
+                    <label className="text-[10.5px] font-bold text-zinc-700 dark:text-zinc-300 block">
+                      Text Under Logo / Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={branding.headerSubtitle}
+                      onChange={(e) => updateBranding({ headerSubtitle: e.target.value })}
+                      placeholder="e.g. AI Voice Calling & Automation Platform"
+                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-600 dark:text-white font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Social Links & Footer Section */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div className="space-y-0.5">
                     <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
@@ -1831,15 +1919,17 @@ function NewEmailCampaignContent() {
             )}
 
             {/* Rich Editor */}
-            <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-              <ReactQuill
-                theme="snow"
-                value={htmlBody}
-                onChange={setHtmlBody}
-                className="studio-editor bg-white dark:bg-[#0A0D14] text-zinc-900 dark:text-white min-h-[220px]"
-                placeholder="Write your email body here..."
-              />
-            </div>
+            {!showFullscreenStudio && (
+              <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <ReactQuill
+                  theme="snow"
+                  value={htmlBody}
+                  onChange={handleHtmlChange}
+                  className="studio-editor bg-white dark:bg-[#0A0D14] text-zinc-900 dark:text-white min-h-[220px]"
+                  placeholder="Write your email body here..."
+                />
+              </div>
+            )}
 
             {/* Bottom Block Insertion Tray */}
             <div className="bg-zinc-50/70 dark:bg-zinc-900/50 rounded-xl p-2.5 border border-zinc-200/70 dark:border-zinc-800 space-y-1.5">
@@ -2171,21 +2261,85 @@ function NewEmailCampaignContent() {
 
                   {/* Social Links Drawer in Studio Modal */}
                   {showSocialDrawer && (
-                    <div className="p-3 bg-zinc-50 dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5">
+                    <div className="p-3.5 bg-zinc-50 dark:bg-zinc-900/80 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150 shadow-xs">
+                      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900 dark:text-white">
-                          <Share2 className="h-3.5 w-3.5 text-indigo-600" />
-                          <span>Editable Social Profile Links &amp; Footer Brand</span>
+                          <Palette className="h-3.5 w-3.5 text-indigo-600" />
+                          <span>Header Alignment, Logo Subtitle &amp; Social Links</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => setShowSocialDrawer(false)}
-                          className="text-zinc-400 hover:text-zinc-600 text-xs font-bold cursor-pointer"
+                          className="text-xs font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 cursor-pointer"
                         >
                           Done ✓
                         </button>
                       </div>
 
+                      {/* 1. Header Alignment & Text Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-white dark:bg-zinc-800/80 p-2.5 rounded-xl border border-zinc-200/80 dark:border-zinc-700">
+                        {/* Alignment Selector */}
+                        <div className="space-y-1">
+                          <label className="text-[10.5px] font-bold text-zinc-700 dark:text-zinc-300 block">
+                            Header / Logo Align
+                          </label>
+                          <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-700 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-600">
+                            {[
+                              { id: "left", label: "Left", icon: AlignLeft },
+                              { id: "center", label: "Center", icon: AlignCenter },
+                              { id: "right", label: "Right", icon: AlignRight },
+                            ].map((al) => {
+                              const Icon = al.icon;
+                              const active = (branding.headerAlign || "center") === al.id;
+                              return (
+                                <button
+                                  key={al.id}
+                                  type="button"
+                                  onClick={() => updateBranding({ headerAlign: al.id as any })}
+                                  className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-[11px] font-semibold transition cursor-pointer ${
+                                    active
+                                      ? "bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-xs"
+                                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                                  }`}
+                                >
+                                  <Icon className="h-3 w-3" />
+                                  <span>{al.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Header Title */}
+                        <div className="space-y-1">
+                          <label className="text-[10.5px] font-bold text-zinc-700 dark:text-zinc-300 block">
+                            Brand / Header Title
+                          </label>
+                          <input
+                            type="text"
+                            value={branding.headerTitle}
+                            onChange={(e) => updateBranding({ headerTitle: e.target.value })}
+                            placeholder="e.g. GenX Reality"
+                            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-600 dark:text-white font-medium"
+                          />
+                        </div>
+
+                        {/* Under-Logo Text / Subtitle */}
+                        <div className="space-y-1">
+                          <label className="text-[10.5px] font-bold text-zinc-700 dark:text-zinc-300 block">
+                            Text Under Logo / Subtitle
+                          </label>
+                          <input
+                            type="text"
+                            value={branding.headerSubtitle}
+                            onChange={(e) => updateBranding({ headerSubtitle: e.target.value })}
+                            placeholder="e.g. AI Voice Calling & Automation Platform"
+                            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-600 dark:text-white font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 2. Social Links & Footer Section */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         <div className="space-y-0.5">
                           <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
@@ -2293,7 +2447,7 @@ function NewEmailCampaignContent() {
                     <ReactQuill
                       theme="snow"
                       value={htmlBody}
-                      onChange={setHtmlBody}
+                      onChange={handleHtmlChange}
                       className="studio-editor bg-white dark:bg-[#0A0D14] text-zinc-900 dark:text-white min-h-[300px]"
                       placeholder="Write your email body here..."
                     />
