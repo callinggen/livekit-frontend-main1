@@ -50,7 +50,11 @@ import {
   Plus,
   Check,
   Trash2,
+  Maximize2,
+  Palette,
+  Sliders,
   Sparkle,
+  Link2,
 } from "lucide-react";
 import {
   api,
@@ -61,7 +65,7 @@ import {
   EmailAIGeneratePayload,
 } from "@/lib/api";
 
-// ── Plain text token resolver (for Subject, Headings, and Header strings) ──
+// ── Plain text token resolver ──
 function resolveTextTokens(text: string): string {
   if (!text) return "";
   return text
@@ -70,17 +74,166 @@ function resolveTextTokens(text: string): string {
     .replace(/\{\{email\}\}/gi, "{{client@email.com}}");
 }
 
-// ── Full HTML Document Formatter (Fluid Scalable for Real-time Preview) ──
+export interface EmailBrandingOptions {
+  headerType: "logo" | "text" | "none";
+  logoUrl: string;
+  headerTitle: string;
+  headerSubtitle: string;
+  socialLinks: {
+    linkedin?: string;
+    twitter?: string;
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+    website?: string;
+    whatsapp?: string;
+  };
+  showSocial: boolean;
+  companyFooter: string;
+}
+
+// ── Client-side Image Optimizer (Target 20KB - 100KB for fast inbox delivery) ──
+function compressImageToSizeRange(
+  file: File,
+  minKB = 20,
+  maxKB = 100
+): Promise<{ dataUrl: string; sizeKB: number; originalKB: number; statusMsg: string }> {
+  return new Promise((resolve) => {
+    const originalKB = Math.round(file.size / 1024);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        // Scale down if image is very large
+        const MAX_DIM = 900;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          const rawKB = Math.round(((e.target?.result as string).length * 0.75) / 1024);
+          resolve({
+            dataUrl: e.target?.result as string,
+            sizeKB: rawKB,
+            originalKB,
+            statusMsg: `${rawKB} KB`,
+          });
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Adjust quality to target 20KB - 95KB
+        let quality = 0.85;
+        let dataUrl = canvas.toDataURL("image/jpeg", quality);
+        let sizeKB = Math.round((dataUrl.length * 3) / 4 / 1024);
+
+        if (sizeKB > maxKB) {
+          quality = 0.65;
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+          sizeKB = Math.round((dataUrl.length * 3) / 4 / 1024);
+        }
+        if (sizeKB > maxKB) {
+          quality = 0.45;
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+          sizeKB = Math.round((dataUrl.length * 3) / 4 / 1024);
+        }
+
+        let statusMsg = "";
+        if (sizeKB >= minKB && sizeKB <= maxKB) {
+          statusMsg = `✅ ${sizeKB} KB (Optimized 20KB–100KB for email)`;
+        } else if (sizeKB < minKB) {
+          statusMsg = `ℹ️ ${sizeKB} KB (Ultra lightweight)`;
+        } else {
+          statusMsg = `⚡ ${sizeKB} KB (Compressed from ${originalKB} KB)`;
+        }
+
+        resolve({ dataUrl, sizeKB, originalKB, statusMsg });
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Full HTML Document Formatter ──
 function formatEmailDocumentHtml(
   bodyHtml: string,
   title?: string,
-  subtitle: string = "AI VOICE CALLING & AUTOMATION PLATFORM"
+  branding?: Partial<EmailBrandingOptions>
 ): string {
   if (!bodyHtml) return "";
   const resolved = resolveTextTokens(bodyHtml);
 
   if (resolved.includes("<!DOCTYPE") || resolved.includes("<html")) {
     return resolved;
+  }
+
+  const headerType = branding?.headerType ?? (branding?.logoUrl ? "logo" : "text");
+  const logoUrl = branding?.logoUrl ?? "";
+  const headerTitle = branding?.headerTitle || "Company Name";
+  const headerSubtitle = branding?.headerSubtitle || "";
+  const showSocial = branding?.showSocial ?? true;
+  const companyFooter = branding?.companyFooter || branding?.headerTitle || "Your Company";
+  const social = branding?.socialLinks || {};
+
+  // Build social buttons
+  const socialIcons: string[] = [];
+  if (social.linkedin) {
+    socialIcons.push(`<a href="${social.linkedin}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #0077b5; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">in</a>`);
+  }
+  if (social.twitter) {
+    socialIcons.push(`<a href="${social.twitter}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #000000; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">𝕏</a>`);
+  }
+  if (social.instagram) {
+    socialIcons.push(`<a href="${social.instagram}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #e1306c; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">📸</a>`);
+  }
+  if (social.facebook) {
+    socialIcons.push(`<a href="${social.facebook}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #1877f2; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">f</a>`);
+  }
+  if (social.youtube) {
+    socialIcons.push(`<a href="${social.youtube}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #ff0000; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">▶</a>`);
+  }
+  if (social.whatsapp) {
+    socialIcons.push(`<a href="${social.whatsapp}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #25d366; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">💬</a>`);
+  }
+  if (social.website) {
+    socialIcons.push(`<a href="${social.website}" target="_blank" style="display: inline-block; margin: 0 4px; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; background: #6366f1; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: bold; text-align: center;">🌐</a>`);
+  }
+
+  // Header HTML builder
+  let headerHtml = "";
+  if (headerType === "logo" && logoUrl) {
+    headerHtml = `
+    <tr>
+      <td style="background-color: #ffffff; padding: 22px 24px 18px 24px; text-align: center; border-bottom: 2px solid #6366f1;">
+        <img src="${logoUrl}" alt="${headerTitle}" style="max-height: 54px; max-width: 240px; width: auto; height: auto; object-fit: contain; margin: 0 auto; display: block; border: 0;" />
+        ${headerSubtitle ? `<div style="font-size: 10px; color: #6366f1; margin-top: 6px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;">${headerSubtitle}</div>` : ""}
+      </td>
+    </tr>`;
+  } else if (headerType === "text" && headerTitle) {
+    headerHtml = `
+    <tr>
+      <td style="background-color: #ffffff; padding: 20px 24px 16px 24px; text-align: center; border-bottom: 2px solid #6366f1;">
+        <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
+          ${headerTitle}
+        </div>
+        ${headerSubtitle ? `<div style="font-size: 10px; color: #6366f1; margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;">${headerSubtitle}</div>` : ""}
+      </td>
+    </tr>`;
   }
 
   return `<!DOCTYPE html>
@@ -95,24 +248,25 @@ function formatEmailDocumentHtml(
     img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; max-width: 100%; height: auto; }
     body {
       margin: 0;
-      padding: 10px 8px;
+      padding: 14px 8px;
       background-color: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       color: #334155;
       -webkit-font-smoothing: antialiased;
-      line-height: 1.5;
+      line-height: 1.55;
+      word-break: break-word;
     }
-    p { margin: 0 0 10px 0; }
-    ul { margin: 0 0 10px 0; padding-left: 20px; }
-    li { margin-bottom: 4px; }
-    h1, h2, h3 { color: #0f172a; margin: 0 0 10px 0; font-weight: 700; }
-    h1 { font-size: 18px; }
+    p { margin: 0 0 12px 0; }
+    ul { margin: 0 0 12px 0; padding-left: 22px; }
+    li { margin-bottom: 5px; }
+    h1, h2, h3 { color: #0f172a; margin: 0 0 12px 0; font-weight: 700; }
+    h1 { font-size: 19px; }
     h2 { font-size: 16px; }
     a { color: #6366f1; }
     .email-btn {
       background-color: #6366f1;
       color: #ffffff !important;
-      padding: 10px 24px;
+      padding: 11px 26px;
       text-decoration: none;
       border-radius: 8px;
       font-weight: 600;
@@ -122,36 +276,26 @@ function formatEmailDocumentHtml(
   </style>
 </head>
 <body>
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; max-width: 560px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px -2px rgba(15, 23, 42, 0.06); text-align: left;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06); text-align: left;">
+    ${headerHtml}
     <tr>
-      <td style="background-color: #ffffff; padding: 16px 20px 12px 20px; text-align: center; border-bottom: 2px solid #6366f1;">
-        <div style="font-size: 21px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
-          Calling<span style="color: #6366f1;">Gen</span>
-        </div>
-        <div style="font-size: 9.5px; color: #6366f1; margin-top: 2px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;">
-          ${subtitle}
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 18px 20px 14px 20px; font-size: 13.5px; color: #334155; line-height: 1.55;">
-        ${title ? `<h2 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0 0 12px 0;">${title}</h2>` : ""}
+      <td style="padding: 22px 24px 16px 24px; font-size: 14px; color: #334155; line-height: 1.6;">
+        ${title ? `<h2 style="color: #0f172a; font-size: 17px; font-weight: 700; margin: 0 0 14px 0;">${title}</h2>` : ""}
         ${resolved}
       </td>
     </tr>
     <tr>
-      <td style="background-color: #faf5ff; padding: 14px 20px; border-top: 1px solid #f1f5f9; text-align: center;">
-        <div style="margin-bottom: 8px;">
-          <a href="https://linkedin.com" style="display: inline-block; margin: 0 4px; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #0077b5; color: #ffffff; text-decoration: none; font-size: 11px; font-weight: bold; text-align: center;">in</a>
-          <a href="https://x.com" style="display: inline-block; margin: 0 4px; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #000000; color: #ffffff; text-decoration: none; font-size: 11px; font-weight: bold; text-align: center;">𝕏</a>
-          <a href="https://facebook.com" style="display: inline-block; margin: 0 4px; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #1877f2; color: #ffffff; text-decoration: none; font-size: 11px; font-weight: bold; text-align: center;">f</a>
-          <a href="https://youtube.com" style="display: inline-block; margin: 0 4px; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #ff0000; color: #ffffff; text-decoration: none; font-size: 11px; font-weight: bold; text-align: center;">▶</a>
-        </div>
-        <p style="margin: 0 0 3px 0; font-size: 11px; color: #64748b;">
-          &copy; 2026 CallingGen Inc. All rights reserved.
+      <td style="background-color: #f8fafc; padding: 18px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
+        ${
+          showSocial && socialIcons.length > 0
+            ? `<div style="margin-bottom: 12px;">${socialIcons.join("")}</div>`
+            : ""
+        }
+        <p style="margin: 0 0 4px 0; font-size: 11.5px; color: #64748b; font-weight: 500;">
+          &copy; ${new Date().getFullYear()} ${companyFooter}. All rights reserved.
         </p>
         <p style="margin: 0; font-size: 10.5px; color: #94a3b8;">
-          Sent via <a href="https://callinggen.in" style="color: #6366f1; text-decoration: none; font-weight: 600;">CallingGen</a> &bull; <a href="#" style="color: #94a3b8; text-decoration: underline;">Unsubscribe</a>
+          You received this email as a registered client &bull; <a href="#" style="color: #94a3b8; text-decoration: underline;">Unsubscribe</a>
         </p>
       </td>
     </tr>
@@ -160,7 +304,7 @@ function formatEmailDocumentHtml(
 </html>`;
 }
 
-// ── CSV parser ───────────────────────────────────────────────────────────────
+// ── CSV parser ──
 function parseCSV(text: string): EmailContactItem[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
@@ -185,6 +329,8 @@ function NewEmailCampaignContent() {
   const searchParams = useSearchParams();
   const { isLoggedIn, user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const editorImageRef = useRef<HTMLInputElement>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   // Template query param & library picker
   const templateIdParam = searchParams.get("template_id");
@@ -207,7 +353,7 @@ function NewEmailCampaignContent() {
   const [selectedTone, setSelectedTone] = useState("Professional");
   const [selectedLength, setSelectedLength] = useState("Medium");
 
-  // Campaign Setup Card Expansion State (Open by default so users can fill immediately)
+  // Campaign Setup Card Expansion State
   const [setupExpanded, setSetupExpanded] = useState(true);
 
   // Form state
@@ -219,25 +365,60 @@ function NewEmailCampaignContent() {
   const [replyTo, setReplyTo] = useState("");
   const [htmlBody, setHtmlBody] = useState(DEFAULT_TEMPLATE);
   const [scheduleMode, setScheduleMode] = useState<"now" | "later">("now");
-  const [scheduleDate, setScheduleDate] = useState("2026-09-12");
+  const [scheduleDate, setScheduleDate] = useState("2026-09-22");
   const [scheduleTime, setScheduleTime] = useState("10:00");
+
+  // Branding & Logo Settings State (Persisted in localStorage)
+  const [branding, setBranding] = useState<EmailBrandingOptions>({
+    headerType: "text",
+    logoUrl: "",
+    headerTitle: user?.company_name || "GenX Reality",
+    headerSubtitle: "",
+    socialLinks: {
+      website: "https://genxreality.com",
+      linkedin: "https://linkedin.com",
+      twitter: "https://x.com",
+      instagram: "https://instagram.com",
+      facebook: "https://facebook.com",
+      youtube: "https://youtube.com",
+    },
+    showSocial: true,
+    companyFooter: user?.company_name || "GenX Reality",
+  });
+
+  // Drawer / Accordion toggles inside left editor pane
+  const [showBrandDrawer, setShowBrandDrawer] = useState(false);
+  const [showSocialDrawer, setShowSocialDrawer] = useState(false);
+
+  // Modal Dialog States
+  const [showImageUploadModal, setShowImageUploadModal] = useState(false);
+  const [showButtonModal, setShowButtonModal] = useState(false);
+  const [buttonModalText, setButtonModalText] = useState("Learn More & Get Started →");
+  const [buttonModalUrl, setButtonModalUrl] = useState("https://genxreality.com");
+  const [buttonModalColor, setButtonModalColor] = useState("#6366f1");
+  const [showFullscreenStudio, setShowFullscreenStudio] = useState(false);
+
+  // Image Upload Inserter Modal State
+  const [imageModalUrl, setImageModalUrl] = useState("");
+  const [imageModalAlt, setImageModalAlt] = useState("");
+  const [imageModalAlign, setImageModalAlign] = useState<"center" | "left" | "right">("center");
+  const [imageModalWidth, setImageModalWidth] = useState<"100%" | "75%" | "50%" | "300px">("100%");
+  const [imageModalLink, setImageModalLink] = useState("");
+  const [imageSizeStatus, setImageSizeStatus] = useState("");
 
   // Contact Book Lists state
   const [contactLists, setContactLists] = useState<any[]>([]);
   const [selectedContactListTag, setSelectedContactListTag] = useState(tagParam || "");
   const [loadingContactLists, setLoadingContactLists] = useState(false);
 
-  // Tab State inside Expanded Campaign Setup: "recipients" | "sender" | "schedule"
+  // Tab State inside Expanded Campaign Setup
   const [activeSetupTab, setActiveSetupTab] = useState<"recipients" | "sender" | "schedule">("recipients");
 
-  // Contacts
-  const [contacts, setContacts] = useState<EmailContactItem[]>([
-    { name: "John Doe", email: "john@example.com" },
-    { name: "Sarah Smith", email: "sarah@acme.com" },
-  ]);
+  // Contacts - Start clean with NO default mock contacts
+  const [contacts, setContacts] = useState<EmailContactItem[]>([]);
   const [manualName, setManualName] = useState("");
   const [manualEmail, setManualEmail] = useState("");
-  const [csvUploadedName, setCsvUploadedName] = useState("2 contacts • CSV uploaded");
+  const [csvUploadedName, setCsvUploadedName] = useState("");
 
   // Preview viewport mode: "desktop" | "mobile"
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "mobile">("desktop");
@@ -251,6 +432,40 @@ function NewEmailCampaignContent() {
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
+
+  // Load saved branding from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedBranding =
+        localStorage.getItem("genx_email_branding") ||
+        localStorage.getItem("callinggen_email_branding");
+      if (savedBranding) {
+        const parsed = JSON.parse(savedBranding);
+        setBranding((prev) => ({ ...prev, ...parsed }));
+      } else if (user?.company_name) {
+        setBranding((prev) => ({
+          ...prev,
+          headerTitle: user.company_name || prev.headerTitle,
+          companyFooter: user.company_name || prev.companyFooter,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  // Save branding updates to localStorage
+  const updateBranding = (updates: Partial<EmailBrandingOptions>) => {
+    setBranding((prev) => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem("genx_email_branding", JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Load templates, senders & contact lists
   useEffect(() => {
@@ -290,7 +505,7 @@ function NewEmailCampaignContent() {
       } else {
         setCsvError(`No valid email addresses found in "${tag}".`);
       }
-    } catch (err) {
+    } catch {
       setCsvError("Failed to load contacts from Contact Book list.");
     } finally {
       setLoadingContactLists(false);
@@ -355,7 +570,7 @@ function NewEmailCampaignContent() {
     setTimeout(() => setAiSuccessBadge(false), 5000);
   };
 
-  // ── Inline AI Generation Handler ──────────────────────────────────────────
+  // ── Inline AI Generation Handler ──
   const handleInlineAIGenerate = async (customPrompt?: string, actionType: string = "generate") => {
     const promptToUse = customPrompt || aiPrompt;
     if (!promptToUse.trim()) return;
@@ -383,7 +598,7 @@ function NewEmailCampaignContent() {
     }
   };
 
-  // ── CSV Upload ──────────────────────────────────────────────────────────────
+  // ── CSV Upload ──
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -407,7 +622,62 @@ function NewEmailCampaignContent() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  // ── Manual add ─────────────────────────────────────────────────────────────
+  // ── Logo Upload Handler with 20KB-100KB Optimizer ──
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await compressImageToSizeRange(file, 20, 100);
+      updateBranding({
+        headerType: "logo",
+        logoUrl: res.dataUrl,
+      });
+    } catch (err) {
+      console.warn("Logo processing failed:", err);
+    }
+    if (logoFileRef.current) logoFileRef.current.value = "";
+  };
+
+  // ── Editor Image Upload Handler with 20KB-100KB Optimizer ──
+  const handleEditorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await compressImageToSizeRange(file, 20, 100);
+      setImageModalUrl(res.dataUrl);
+      setImageModalAlt(file.name.replace(/\.[^/.]+$/, ""));
+      setImageSizeStatus(res.statusMsg);
+      setShowImageUploadModal(true);
+    } catch (err) {
+      console.warn("Image processing failed:", err);
+    }
+    if (editorImageRef.current) editorImageRef.current.value = "";
+  };
+
+  const handleConfirmInsertImage = () => {
+    if (!imageModalUrl.trim()) return;
+    const alignStyle =
+      imageModalAlign === "center"
+        ? "text-align: center; margin: 16px auto;"
+        : imageModalAlign === "right"
+        ? "text-align: right; margin: 16px 0;"
+        : "text-align: left; margin: 16px 0;";
+
+    const imgTag = `<img src="${imageModalUrl.trim()}" alt="${imageModalAlt || "Image"}" style="max-width: ${imageModalWidth}; width: auto; height: auto; border-radius: 8px; display: inline-block;" />`;
+    const wrapped = imageModalLink.trim()
+      ? `<a href="${imageModalLink.trim()}" target="_blank">${imgTag}</a>`
+      : imgTag;
+
+    const blockHtml = `<p style="${alignStyle}">${wrapped}</p>`;
+    setHtmlBody((prev) => prev + blockHtml);
+    setShowImageUploadModal(false);
+    setImageModalUrl("");
+    setImageModalAlt("");
+    setImageModalLink("");
+    setImageSizeStatus("");
+  };
+
+  // ── Manual add ──
   const addManual = () => {
     if (!manualName.trim() || !manualEmail.trim()) return;
     if (!manualEmail.includes("@")) {
@@ -429,10 +699,20 @@ function NewEmailCampaignContent() {
   const removeContact = (email: string) => {
     const updated = contacts.filter((c) => c.email !== email);
     setContacts(updated);
-    setCsvUploadedName(`${updated.length.toLocaleString()} contacts`);
+    setCsvUploadedName(updated.length > 0 ? `${updated.length.toLocaleString()} contacts` : "");
   };
 
-  // ── Insert Pre-styled HTML Block into Editor ────────────────────────────────
+  // ── Insert Custom Button Handler ──
+  const handleInsertCustomButton = () => {
+    const url = buttonModalUrl.trim() || branding.socialLinks.website || "#";
+    const text = buttonModalText.trim() || "Learn More & Get Started →";
+    const color = buttonModalColor || "#6366f1";
+    const blockHtml = `<p style="text-align: center; margin: 18px 0;"><a href="${url}" target="_blank" class="email-btn" style="background-color: ${color}; color: #ffffff !important; padding: 11px 26px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">${text}</a></p>`;
+    setHtmlBody((prev) => prev + blockHtml);
+    setShowButtonModal(false);
+  };
+
+  // ── Insert Pre-styled HTML Block into Editor ──
   const insertBlock = (blockType: string) => {
     let blockHtml = "";
     switch (blockType) {
@@ -440,22 +720,22 @@ function NewEmailCampaignContent() {
         blockHtml = `<p>Write your paragraph message here with personalized value for {{name}}.</p>`;
         break;
       case "image":
-        blockHtml = `<p style="text-align: center;"><img src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80" alt="Promotional Banner" style="border-radius: 8px; max-width: 100%;" /></p>`;
-        break;
+        editorImageRef.current?.click();
+        return;
       case "button":
-        blockHtml = `<p style="text-align: center; margin: 16px 0;"><a href="https://callinggen.in" target="_blank" class="email-btn" style="background-color: #6366f1; color: #ffffff !important; padding: 10px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Learn More &amp; Get Started &rarr;</a></p>`;
-        break;
+        setShowButtonModal(true);
+        return;
       case "divider":
-        blockHtml = `<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 18px 0;" />`;
+        blockHtml = `<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />`;
         break;
       case "heading":
-        blockHtml = `<h2 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 14px 0 6px 0;">Special Announcement</h2>`;
+        blockHtml = `<h2 style="color: #0f172a; font-size: 17px; font-weight: 700; margin: 16px 0 8px 0;">Special Announcement</h2>`;
         break;
       case "social":
-        blockHtml = `<div style="text-align: center; margin: 16px 0;"><p style="font-size: 11.5px; color: #64748b; margin-bottom: 6px;">Follow our official channels:</p><a href="https://linkedin.com" style="margin: 0 5px; color: #6366f1; font-weight: 600;">LinkedIn</a> &bull; <a href="https://x.com" style="margin: 0 5px; color: #6366f1; font-weight: 600;">Twitter/X</a> &bull; <a href="https://youtube.com" style="margin: 0 5px; color: #6366f1; font-weight: 600;">YouTube</a></div>`;
-        break;
+        setShowSocialDrawer(true);
+        return;
       case "signature":
-        blockHtml = `<p style="margin-top: 16px;">Best regards,<br><strong>${fromName || "Sai Sathwik"}</strong><br><span style="color: #64748b; font-size: 11.5px;">The {{company}} Team</span></p>`;
+        blockHtml = `<p style="margin-top: 20px;">Best regards,<br><strong>${fromName || branding.headerTitle || "The Team"}</strong><br><span style="color: #64748b; font-size: 12px;">The {{company}} Team</span></p>`;
         break;
       default:
         break;
@@ -465,9 +745,9 @@ function NewEmailCampaignContent() {
     }
   };
 
-  // ── Open in New Tab ────────────────────────────────────────────────────────
+  // ── Open in New Tab ──
   const handleOpenInNewTab = () => {
-    const formattedHtml = formatEmailDocumentHtml(htmlBody, subject);
+    const formattedHtml = formatEmailDocumentHtml(htmlBody, subject, branding);
     const win = window.open("", "_blank");
     if (win) {
       win.document.write(formattedHtml);
@@ -475,13 +755,13 @@ function NewEmailCampaignContent() {
     }
   };
 
-  // ── Handle Save Draft ──────────────────────────────────────────────────────
+  // ── Handle Save Draft ──
   const handleSaveDraft = () => {
     setDraftSaved(true);
     setTimeout(() => setDraftSaved(false), 3000);
   };
 
-  // ── Submit & Launch Campaign ────────────────────────────────────────────────
+  // ── Submit & Launch Campaign ──
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError("");
@@ -513,20 +793,20 @@ function NewEmailCampaignContent() {
 
     setSubmitting(true);
     try {
-      // 1. Create the campaign
+      const finalHtml = formatEmailDocumentHtml(htmlBody, subject, branding);
+
       const { campaign_id } = await api.createEmailCampaign({
         name: name.trim(),
         subject: subject.trim(),
         from_name: fromName.trim() || undefined,
         from_email: fromEmail ? fromEmail.trim() : undefined,
         reply_to: replyTo.trim() || undefined,
-        html_body: htmlBody,
+        html_body: finalHtml,
         schedule_date: scheduleMode === "later" ? scheduleDate : undefined,
         schedule_time: scheduleMode === "later" ? scheduleTime : undefined,
         contacts,
       });
 
-      // 2. If "Send immediately", launch right now
       if (scheduleMode === "now") {
         await api.launchEmailCampaign(campaign_id);
       }
@@ -542,6 +822,22 @@ function NewEmailCampaignContent() {
   return (
     <DashboardShell title="Email Marketing Studio">
       <div className="flex flex-col gap-3.5 max-w-[1760px] mx-auto w-full px-1 sm:px-2 py-0.5">
+
+        {/* Hidden inputs for uploading images with 20KB-100KB validation */}
+        <input
+          type="file"
+          ref={editorImageRef}
+          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+          onChange={handleEditorImageUpload}
+          className="hidden"
+        />
+        <input
+          type="file"
+          ref={logoFileRef}
+          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+          onChange={handleLogoUpload}
+          className="hidden"
+        />
 
         {/* ══════════════════════════════════════════════════════════════════════
             1. TOP NAVBAR / STUDIO HEADER
@@ -570,6 +866,7 @@ function NewEmailCampaignContent() {
 
           {/* Right: Templates, AI Assistant, Save Draft, Send Now */}
           <div className="flex items-center gap-2">
+
             {/* Template Library Dropdown */}
             <div className="relative">
               <button
@@ -665,7 +962,7 @@ function NewEmailCampaignContent() {
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════════
-            2. TOP INTERACTIVE CARD: CAMPAIGN SETUP (Directly Fillable)
+            2. TOP INTERACTIVE CARD: CAMPAIGN SETUP
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="bg-white dark:bg-[#0E131F] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm overflow-hidden transition-all">
           
@@ -697,7 +994,7 @@ function NewEmailCampaignContent() {
             </button>
           </div>
 
-          {/* 3 Summary Interactive Tiles (Clicking immediately switches & opens the section to fill) */}
+          {/* 3 Summary Interactive Tiles */}
           <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-100 dark:divide-zinc-800 p-1.5 bg-zinc-50/20 dark:bg-zinc-900/10">
             
             {/* 1. Recipients Tile */}
@@ -725,11 +1022,19 @@ function NewEmailCampaignContent() {
                   <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Fill / Edit &rarr;</span>
                 </div>
                 <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-                  {contacts.length > 0 ? `${contacts.length.toLocaleString()} contacts` : "0 contacts"}
+                  {contacts.length > 0 ? `${contacts.length.toLocaleString()} contacts` : "0 contacts added"}
                 </div>
-                <div className="text-[10.5px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium truncate">
-                  <CheckCircle2 className="h-3 w-3 shrink-0" />
-                  <span>{csvUploadedName}</span>
+                <div className={`text-[10.5px] flex items-center gap-1 font-medium truncate ${
+                  contacts.length > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"
+                }`}>
+                  {contacts.length > 0 ? (
+                    <>
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      <span>{csvUploadedName || `${contacts.length} recipients ready`}</span>
+                    </>
+                  ) : (
+                    <span>Click to add contacts or upload CSV</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -759,10 +1064,10 @@ function NewEmailCampaignContent() {
                   <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Fill / Edit &rarr;</span>
                 </div>
                 <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-                  {fromName || user?.company_name || "Sai Sathwik"} &lt;{fromEmail || "info@callinggen.in"}&gt;
+                  {fromName || branding.headerTitle || "GenX Reality"} &lt;{fromEmail || "noreply@genxreality.com"}&gt;
                 </div>
                 <div className="text-[10.5px] text-zinc-500 dark:text-zinc-400 truncate">
-                  Reply-to: {replyTo || "support@callinggen.in"}
+                  Reply-to: {replyTo || "support@genxreality.com"}
                 </div>
               </div>
             </div>
@@ -811,10 +1116,10 @@ function NewEmailCampaignContent() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                      Add & Manage Recipients ({contacts.length} added)
+                      Add &amp; Manage Recipients ({contacts.length} added)
                     </span>
                     <span className="text-[11px] text-zinc-400">
-                      Upload CSV or add contacts one by one
+                      Upload CSV, pick from Contact Book, or enter email addresses
                     </span>
                   </div>
 
@@ -890,30 +1195,30 @@ function NewEmailCampaignContent() {
 
                   {/* Contacts Table */}
                   {contacts.length > 0 ? (
-                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden max-h-36 overflow-y-auto bg-white dark:bg-zinc-900">
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden max-h-40 overflow-y-auto bg-white dark:bg-zinc-900">
                       <table className="w-full text-xs">
                         <thead className="bg-zinc-50 dark:bg-zinc-800/70 sticky top-0">
                           <tr>
-                            <th className="px-3 py-1 text-left font-semibold text-zinc-500">#</th>
-                            <th className="px-3 py-1 text-left font-semibold text-zinc-500">Name</th>
-                            <th className="px-3 py-1 text-left font-semibold text-zinc-500">Email</th>
-                            <th className="px-3 py-1 text-right font-semibold text-zinc-500">Action</th>
+                            <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">#</th>
+                            <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">Name</th>
+                            <th className="px-3 py-1.5 text-left font-semibold text-zinc-500">Email</th>
+                            <th className="px-3 py-1.5 text-right font-semibold text-zinc-500">Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                           {contacts.map((c, i) => (
-                            <tr key={c.email} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
-                              <td className="px-3 py-1 text-zinc-400">{i + 1}</td>
-                              <td className="px-3 py-1 font-medium text-zinc-800 dark:text-zinc-200">{c.name}</td>
-                              <td className="px-3 py-1 text-zinc-500 dark:text-zinc-400">{c.email}</td>
-                              <td className="px-3 py-1 text-right">
+                            <tr key={`${c.email}-${i}`} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                              <td className="px-3 py-1.5 text-zinc-400">{i + 1}</td>
+                              <td className="px-3 py-1.5 font-medium text-zinc-800 dark:text-zinc-200">{c.name}</td>
+                              <td className="px-3 py-1.5 text-zinc-500 dark:text-zinc-400">{c.email}</td>
+                              <td className="px-3 py-1.5 text-right">
                                 <button
                                   type="button"
                                   onClick={() => removeContact(c.email)}
                                   className="text-zinc-400 hover:text-red-500 transition cursor-pointer p-0.5"
                                   title="Remove contact"
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </td>
                             </tr>
@@ -922,7 +1227,15 @@ function NewEmailCampaignContent() {
                       </table>
                     </div>
                   ) : (
-                    <p className="text-xs text-zinc-400 italic">No recipients added yet. Upload a CSV or add contacts above.</p>
+                    <div className="p-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 text-center">
+                      <Users className="h-5 w-5 text-zinc-400 mx-auto mb-1 opacity-70" />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                        No recipients added yet.
+                      </p>
+                      <p className="text-[11px] text-zinc-400">
+                        Upload a CSV file or add email addresses above to build your campaign audience.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -932,7 +1245,7 @@ function NewEmailCampaignContent() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                      Sender & Mailbox Details
+                      Sender &amp; Mailbox Details
                     </span>
                     <button
                       type="button"
@@ -958,14 +1271,14 @@ function NewEmailCampaignContent() {
                         className="rounded-xl border border-zinc-200 bg-zinc-50/70 dark:bg-zinc-800 dark:border-zinc-700 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-indigo-500 cursor-pointer font-medium"
                       >
                         {verifiedSenders.length === 0 ? (
-                          <option value="">CallingGen Platform (noreply@callinggen.in)</option>
+                          <option value="">Default Verified Mailbox (noreply@genxreality.com)</option>
                         ) : (
                           verifiedSenders.map((s) => (
                             <option key={s.email} value={s.email}>
                               {s.is_smtp
                                 ? `⭐ ${s.email} (${(s.provider || "Connected Mailbox").toUpperCase()})`
                                 : s.is_default
-                                ? `CallingGen Platform (${s.email})`
+                                ? `Primary Sender (${s.email})`
                                 : `🌐 info@${s.domain} (Verified Domain)`}
                             </option>
                           ))
@@ -990,7 +1303,7 @@ function NewEmailCampaignContent() {
                         type="email"
                         value={replyTo}
                         onChange={(e) => setReplyTo(e.target.value)}
-                        placeholder="e.g. support@callinggen.in"
+                        placeholder="e.g. support@genxreality.com"
                         className="rounded-xl border border-zinc-200 bg-zinc-50/70 dark:bg-zinc-800 dark:border-zinc-700 px-3 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-indigo-500 font-medium"
                       />
                     </div>
@@ -1245,7 +1558,7 @@ function NewEmailCampaignContent() {
           ────────────────────────────────────────────────────────────────── */}
           <div className="lg:col-span-6 bg-white dark:bg-[#0E131F] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 p-3.5 shadow-sm space-y-3">
             
-            {/* Header */}
+            {/* Header with Popup / Fullscreen Trigger */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
@@ -1255,6 +1568,17 @@ function NewEmailCampaignContent() {
                   Email Content
                 </h3>
               </div>
+
+              {/* Popup Studio Button */}
+              <button
+                type="button"
+                onClick={() => setShowFullscreenStudio(true)}
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100/70 transition cursor-pointer"
+                title="Open Rich Editor in Fullscreen Modal Popup"
+              >
+                <Maximize2 className="h-3 w-3" />
+                <span>Popup Studio</span>
+              </button>
             </div>
 
             {/* Subject Input Row */}
@@ -1278,8 +1602,10 @@ function NewEmailCampaignContent() {
               />
             </div>
 
-            {/* Custom Toolbar / Quick Action Helpers */}
-            <div className="flex flex-wrap items-center justify-between gap-1.5 p-1 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80">
+            {/* DIRECT ACTION TOOLBAR: Upload Logo (Header) + Upload Image (Body) + Tokens + AI */}
+            <div className="flex flex-wrap items-center justify-between gap-1.5 p-1.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80">
+              
+              {/* Left group: Name token + Company token */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -1299,25 +1625,210 @@ function NewEmailCampaignContent() {
                 </button>
               </div>
 
-              <div className="flex items-center gap-1">
+              {/* Center/Right group: Upload Logo + Upload Image + Edit Social Links */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                
+                {/* 🖼️ Upload Logo (Direct Header Uploader) */}
                 <button
                   type="button"
-                  onClick={() => insertBlock("button")}
-                  className="flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition cursor-pointer"
+                  onClick={() => logoFileRef.current?.click()}
+                  className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100/80 transition cursor-pointer shadow-2xs"
+                  title="Upload top brand logo image (20KB - 100KB, PNG/JPG/SVG/WebP)"
                 >
-                  <Plus className="h-3 w-3" />
-                  <span>Add Block</span>
+                  <Palette className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>{branding.logoUrl ? "Change Top Logo" : "Upload Top Logo"}</span>
                 </button>
+
+                {/* 📷 Upload Body Image */}
                 <button
                   type="button"
-                  onClick={() => setShowAIModal(true)}
-                  className="flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition cursor-pointer"
+                  onClick={() => editorImageRef.current?.click()}
+                  className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition cursor-pointer shadow-2xs"
+                  title="Insert an image into email body (20KB - 100KB, PNG/JPG/WebP/GIF)"
                 >
-                  <Sparkles className="h-3 w-3 text-amber-400" />
-                  <span>AI</span>
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  <span>Upload Image</span>
+                </button>
+
+                {/* 🔗 Insert CTA Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowButtonModal(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition cursor-pointer shadow-2xs"
+                  title="Insert a customizable CTA button with link into email body"
+                >
+                  <MousePointerClick className="h-3.5 w-3.5 text-amber-600" />
+                  <span>+ Button</span>
+                </button>
+
+                {/* 🌐 Social Links Drawer Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowSocialDrawer(!showSocialDrawer)}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition cursor-pointer ${
+                    showSocialDrawer
+                      ? "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300"
+                      : "bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50"
+                  }`}
+                  title="Edit custom social links and footer brand"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-purple-600" />
+                  <span>Links &amp; Footer</span>
                 </button>
               </div>
             </div>
+
+            {/* Direct Logo Status Pill Bar (If logo is active, show quick remove/change) */}
+            {branding.logoUrl && (
+              <div className="flex items-center justify-between p-2 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/80 rounded-xl text-xs text-emerald-900 dark:text-emerald-200">
+                <div className="flex items-center gap-2 min-w-0">
+                  <img
+                    src={branding.logoUrl}
+                    alt="Active Logo"
+                    className="h-6 max-w-[80px] object-contain rounded bg-white p-0.5 border border-emerald-200"
+                  />
+                  <span className="font-semibold truncate">
+                    Top Logo Active on Email Header (Optimized)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => logoFileRef.current?.click()}
+                    className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+                  >
+                    Replace
+                  </button>
+                  <span className="text-emerald-300">&bull;</span>
+                  <button
+                    type="button"
+                    onClick={() => updateBranding({ logoUrl: "", headerType: "text" })}
+                    className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* INLINE DRAWER: Edit Social Links & Brand Footer (Direct in Editor) */}
+            {showSocialDrawer && (
+              <div className="p-3 bg-zinc-50 dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900 dark:text-white">
+                    <Share2 className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>Editable Social Profile Links &amp; Footer Brand</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSocialDrawer(false)}
+                    className="text-zinc-400 hover:text-zinc-600 text-xs font-bold cursor-pointer"
+                  >
+                    Done ✓
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                      Company Footer Name:
+                    </label>
+                    <input
+                      type="text"
+                      value={branding.companyFooter}
+                      onChange={(e) => updateBranding({ companyFooter: e.target.value })}
+                      placeholder="e.g. GenX Reality"
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                      Official Website URL:
+                    </label>
+                    <input
+                      type="url"
+                      value={branding.socialLinks.website || ""}
+                      onChange={(e) =>
+                        updateBranding({
+                          socialLinks: { ...branding.socialLinks, website: e.target.value },
+                        })
+                      }
+                      placeholder="https://yourcompany.com"
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                      LinkedIn URL:
+                    </label>
+                    <input
+                      type="url"
+                      value={branding.socialLinks.linkedin || ""}
+                      onChange={(e) =>
+                        updateBranding({
+                          socialLinks: { ...branding.socialLinks, linkedin: e.target.value },
+                        })
+                      }
+                      placeholder="https://linkedin.com/company/..."
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                      X / Twitter URL:
+                    </label>
+                    <input
+                      type="url"
+                      value={branding.socialLinks.twitter || ""}
+                      onChange={(e) =>
+                        updateBranding({
+                          socialLinks: { ...branding.socialLinks, twitter: e.target.value },
+                        })
+                      }
+                      placeholder="https://x.com/your_handle"
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                      Instagram URL:
+                    </label>
+                    <input
+                      type="url"
+                      value={branding.socialLinks.instagram || ""}
+                      onChange={(e) =>
+                        updateBranding({
+                          socialLinks: { ...branding.socialLinks, instagram: e.target.value },
+                        })
+                      }
+                      placeholder="https://instagram.com/..."
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                      YouTube URL:
+                    </label>
+                    <input
+                      type="url"
+                      value={branding.socialLinks.youtube || ""}
+                      onChange={(e) =>
+                        updateBranding({
+                          socialLinks: { ...branding.socialLinks, youtube: e.target.value },
+                        })
+                      }
+                      placeholder="https://youtube.com/@..."
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Rich Editor */}
             <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -1332,9 +1843,12 @@ function NewEmailCampaignContent() {
 
             {/* Bottom Block Insertion Tray */}
             <div className="bg-zinc-50/70 dark:bg-zinc-900/50 rounded-xl p-2.5 border border-zinc-200/70 dark:border-zinc-800 space-y-1.5">
-              <div className="text-[10.5px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                <Plus className="h-3 w-3" />
-                <span>Add Block</span>
+              <div className="flex items-center justify-between">
+                <div className="text-[10.5px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                  <Plus className="h-3 w-3" />
+                  <span>Add Pre-styled Blocks</span>
+                </div>
+                <span className="text-[10px] text-zinc-400">Click to append block</span>
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-7 gap-1">
@@ -1344,8 +1858,8 @@ function NewEmailCampaignContent() {
                   { id: "button", label: "Button", icon: MousePointerClick },
                   { id: "divider", label: "Divider", icon: Minus },
                   { id: "heading", label: "Heading", icon: Heading },
-                  { id: "social", label: "Social Links", icon: Share2 },
-                  { id: "signature", label: "Signature", icon: PenTool },
+                  { id: "social", label: "Social", icon: Share2 },
+                  { id: "signature", label: "Sign", icon: PenTool },
                 ].map((blk) => {
                   const Icon = blk.icon;
                   return (
@@ -1368,7 +1882,7 @@ function NewEmailCampaignContent() {
           </div>
 
           {/* ──────────────────────────────────────────────────────────────────
-              RIGHT PANE: LIVE PREVIEW CARD (Fit cleanly on screen)
+              RIGHT PANE: LIVE PREVIEW CARD
           ────────────────────────────────────────────────────────────────── */}
           <div className="lg:col-span-6 bg-white dark:bg-[#0E131F] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 p-3.5 shadow-sm space-y-2.5 sticky top-2">
             
@@ -1390,7 +1904,7 @@ function NewEmailCampaignContent() {
                   <button
                     type="button"
                     onClick={() => setPreviewViewport("desktop")}
-                    className={`p-1 rounded-md transition cursor-pointer ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
                       previewViewport === "desktop"
                         ? "bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-xs"
                         : "text-zinc-400 hover:text-zinc-600"
@@ -1398,11 +1912,12 @@ function NewEmailCampaignContent() {
                     title="Desktop Preview"
                   >
                     <Laptop className="h-3.5 w-3.5" />
+                    <span>Desktop</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPreviewViewport("mobile")}
-                    className={`p-1 rounded-md transition cursor-pointer ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
                       previewViewport === "mobile"
                         ? "bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-xs"
                         : "text-zinc-400 hover:text-zinc-600"
@@ -1410,35 +1925,70 @@ function NewEmailCampaignContent() {
                     title="Mobile Preview"
                   >
                     <Smartphone className="h-3.5 w-3.5" />
+                    <span>Mobile</span>
                   </button>
                 </div>
               </div>
 
-              {/* View in new tab */}
-              <button
-                type="button"
-                onClick={handleOpenInNewTab}
-                className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 transition cursor-pointer"
-              >
-                <span>View in new tab</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </button>
+              {/* View in new tab & quick brand settings */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => logoFileRef.current?.click()}
+                  className="text-[11px] font-semibold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  title="Upload / Change Logo"
+                >
+                  <Palette className="h-3 w-3" />
+                  <span>{branding.logoUrl ? "Change Logo" : "Set Logo"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenInNewTab}
+                  className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 transition cursor-pointer"
+                >
+                  <span>View in new tab</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              </div>
 
             </div>
 
-            {/* Rendered Preview Canvas Container (Auto-Fit & Responsive) */}
-            <div className={`mx-auto bg-zinc-100/70 dark:bg-zinc-950/70 p-2 rounded-xl flex justify-center transition-all ${
-              previewViewport === "mobile" ? "max-w-[370px]" : "w-full"
-            }`}>
-              <div className="w-full bg-white dark:bg-[#0A0D14] rounded-lg border border-zinc-200/80 dark:border-zinc-800 overflow-hidden shadow-sm">
-                <iframe
-                  srcDoc={formatEmailDocumentHtml(htmlBody, subject)}
-                  className="w-full border-0 bg-transparent block"
-                  style={{ minHeight: "420px", height: "480px" }}
-                  title="Email Studio Live Preview"
-                  sandbox="allow-same-origin allow-popups"
-                />
-              </div>
+            {/* Rendered Preview Canvas Container */}
+            <div className="mx-auto bg-zinc-100/80 dark:bg-zinc-950/80 p-3 rounded-2xl flex justify-center transition-all min-h-[460px] items-center">
+              
+              {previewViewport === "mobile" ? (
+                /* Smartphone Mockup Frame */
+                <div className="w-[375px] max-w-full bg-zinc-900 rounded-[38px] p-2.5 shadow-2xl border-4 border-zinc-700/80 relative">
+                  <div className="w-24 h-4 bg-zinc-800 rounded-full mx-auto mb-2 flex items-center justify-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-zinc-700" />
+                    <div className="w-10 h-1.5 rounded-full bg-zinc-700" />
+                  </div>
+                  
+                  <div className="w-full bg-white dark:bg-[#0A0D14] rounded-[28px] overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-inner">
+                    <iframe
+                      srcDoc={formatEmailDocumentHtml(htmlBody, subject, branding)}
+                      className="w-full border-0 bg-transparent block"
+                      style={{ height: "460px" }}
+                      title="Email Studio Mobile Live Preview"
+                      sandbox="allow-same-origin allow-popups"
+                    />
+                  </div>
+
+                  <div className="w-28 h-1 bg-zinc-600 rounded-full mx-auto mt-2" />
+                </div>
+              ) : (
+                /* Desktop Frame */
+                <div className="w-full bg-white dark:bg-[#0A0D14] rounded-xl border border-zinc-200/80 dark:border-zinc-800 overflow-hidden shadow-sm">
+                  <iframe
+                    srcDoc={formatEmailDocumentHtml(htmlBody, subject, branding)}
+                    className="w-full border-0 bg-transparent block"
+                    style={{ minHeight: "440px", height: "480px" }}
+                    title="Email Studio Live Preview"
+                    sandbox="allow-same-origin allow-popups"
+                  />
+                </div>
+              )}
+
             </div>
 
             {/* Preview Status Footer */}
@@ -1447,12 +1997,643 @@ function NewEmailCampaignContent() {
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Real-time Sync Active</span>
               </span>
-              <span>CallingGen Email Engine</span>
+              <span>{branding.companyFooter || "GenX Reality"} Email Engine</span>
             </div>
 
           </div>
 
         </div>
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            5. FULLSCREEN / POPUP MODAL STUDIO EDITOR
+        ══════════════════════════════════════════════════════════════════════ */}
+        {showFullscreenStudio && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#0E131F] w-full max-w-7xl h-[92vh] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col overflow-hidden">
+              
+              {/* Modal Top Bar */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/60">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+                    <Maximize2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-sm text-zinc-900 dark:text-white leading-tight">
+                      Fullscreen Email Studio
+                    </h2>
+                    <p className="text-[11px] text-zinc-500">
+                      Distraction-free editing with real-time responsive preview
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => logoFileRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                  >
+                    <Palette className="h-3.5 w-3.5" />
+                    <span>{branding.logoUrl ? "Change Logo" : "Upload Logo"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAIModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm hover:opacity-95 cursor-pointer"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                    <span>AI Assistant</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowFullscreenStudio(false)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer shadow-sm"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Done Editing</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2-Pane Editor Content */}
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+                
+                {/* Left: Full Editor */}
+                <div className="lg:col-span-6 p-4 overflow-y-auto space-y-3 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0E131F]">
+                  
+                  {/* Subject Input */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                      Email Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="e.g. Q3 Growth Announcement"
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Quick Action Helpers */}
+                  <div className="flex items-center justify-between p-1.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setSubject((p) => p + " {{name}} ")}
+                        className="px-2 py-1 text-[11px] font-mono rounded bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 cursor-pointer"
+                      >
+                        + {"{{name}}"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSubject((p) => p + " {{company}} ")}
+                        className="px-2 py-1 text-[11px] font-mono rounded bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 cursor-pointer"
+                      >
+                        + {"{{company}}"}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => logoFileRef.current?.click()}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                        title="Upload top brand logo image (20KB - 100KB)"
+                      >
+                        <Palette className="h-3.5 w-3.5" />
+                        <span>{branding.logoUrl ? "Change Logo" : "Upload Logo"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => editorImageRef.current?.click()}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 cursor-pointer"
+                        title="Insert body image (20KB - 100KB)"
+                      >
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        <span>Upload Image</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowButtonModal(true)}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 cursor-pointer"
+                        title="Insert customizable CTA button"
+                      >
+                        <MousePointerClick className="h-3.5 w-3.5" />
+                        <span>+ Button</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowSocialDrawer(!showSocialDrawer)}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 cursor-pointer"
+                        title="Edit custom social links and footer brand"
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                        <span>Links</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Logo Status Bar in Studio Modal */}
+                  {branding.logoUrl && (
+                    <div className="flex items-center justify-between p-2 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/80 rounded-xl text-xs text-emerald-900 dark:text-emerald-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <img
+                          src={branding.logoUrl}
+                          alt="Active Logo"
+                          className="h-6 max-w-[80px] object-contain rounded bg-white p-0.5 border border-emerald-200"
+                        />
+                        <span className="font-semibold truncate">
+                          Top Logo Active on Email Header (Optimized)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => logoFileRef.current?.click()}
+                          className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+                        >
+                          Replace
+                        </button>
+                        <span className="text-emerald-300">&bull;</span>
+                        <button
+                          type="button"
+                          onClick={() => updateBranding({ logoUrl: "", headerType: "text" })}
+                          className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Social Links Drawer in Studio Modal */}
+                  {showSocialDrawer && (
+                    <div className="p-3 bg-zinc-50 dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900 dark:text-white">
+                          <Share2 className="h-3.5 w-3.5 text-indigo-600" />
+                          <span>Editable Social Profile Links &amp; Footer Brand</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowSocialDrawer(false)}
+                          className="text-zinc-400 hover:text-zinc-600 text-xs font-bold cursor-pointer"
+                        >
+                          Done ✓
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="space-y-0.5">
+                          <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                            Company Footer Name:
+                          </label>
+                          <input
+                            type="text"
+                            value={branding.companyFooter}
+                            onChange={(e) => updateBranding({ companyFooter: e.target.value })}
+                            placeholder="e.g. GenX Reality"
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                          />
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                            Official Website URL:
+                          </label>
+                          <input
+                            type="url"
+                            value={branding.socialLinks.website || ""}
+                            onChange={(e) =>
+                              updateBranding({
+                                socialLinks: { ...branding.socialLinks, website: e.target.value },
+                              })
+                            }
+                            placeholder="https://yourcompany.com"
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                          />
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                            LinkedIn URL:
+                          </label>
+                          <input
+                            type="url"
+                            value={branding.socialLinks.linkedin || ""}
+                            onChange={(e) =>
+                              updateBranding({
+                                socialLinks: { ...branding.socialLinks, linkedin: e.target.value },
+                              })
+                            }
+                            placeholder="https://linkedin.com/company/..."
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                          />
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                            X / Twitter URL:
+                          </label>
+                          <input
+                            type="url"
+                            value={branding.socialLinks.twitter || ""}
+                            onChange={(e) =>
+                              updateBranding({
+                                socialLinks: { ...branding.socialLinks, twitter: e.target.value },
+                              })
+                            }
+                            placeholder="https://x.com/your_handle"
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                          />
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                            Instagram URL:
+                          </label>
+                          <input
+                            type="url"
+                            value={branding.socialLinks.instagram || ""}
+                            onChange={(e) =>
+                              updateBranding({
+                                socialLinks: { ...branding.socialLinks, instagram: e.target.value },
+                              })
+                            }
+                            placeholder="https://instagram.com/..."
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                          />
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="text-[10.5px] font-semibold text-zinc-600 dark:text-zinc-300">
+                            YouTube URL:
+                          </label>
+                          <input
+                            type="url"
+                            value={branding.socialLinks.youtube || ""}
+                            onChange={(e) =>
+                              updateBranding({
+                                socialLinks: { ...branding.socialLinks, youtube: e.target.value },
+                              })
+                            }
+                            placeholder="https://youtube.com/@..."
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ReactQuill Editor */}
+                  <div className="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 min-h-[340px]">
+                    <ReactQuill
+                      theme="snow"
+                      value={htmlBody}
+                      onChange={setHtmlBody}
+                      className="studio-editor bg-white dark:bg-[#0A0D14] text-zinc-900 dark:text-white min-h-[300px]"
+                      placeholder="Write your email body here..."
+                    />
+                  </div>
+
+                  {/* Block Tray */}
+                  <div className="grid grid-cols-7 gap-1 pt-1">
+                    {[
+                      { id: "text", label: "Text", icon: Type },
+                      { id: "image", label: "Image", icon: ImageIcon },
+                      { id: "button", label: "Button", icon: MousePointerClick },
+                      { id: "divider", label: "Divider", icon: Minus },
+                      { id: "heading", label: "Heading", icon: Heading },
+                      { id: "social", label: "Social", icon: Share2 },
+                      { id: "signature", label: "Sign", icon: PenTool },
+                    ].map((blk) => {
+                      const Icon = blk.icon;
+                      return (
+                        <button
+                          key={blk.id}
+                          type="button"
+                          onClick={() => insertBlock(blk.id)}
+                          className="flex flex-col items-center justify-center p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 hover:bg-indigo-50/50 transition cursor-pointer"
+                        >
+                          <Icon className="h-4 w-4 text-zinc-600 dark:text-zinc-300 mb-0.5" />
+                          <span className="text-[10px] font-medium text-zinc-700 dark:text-zinc-200">
+                            {blk.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Right: Live Synced Preview */}
+                <div className="lg:col-span-6 p-4 bg-zinc-50 dark:bg-[#0A0D14] overflow-y-auto flex flex-col items-center justify-start gap-3">
+                  
+                  {/* Viewport switch */}
+                  <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewViewport("desktop")}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                        previewViewport === "desktop"
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400"
+                      }`}
+                    >
+                      <Laptop className="h-3.5 w-3.5" />
+                      <span>Desktop View</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewViewport("mobile")}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                        previewViewport === "mobile"
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400"
+                      }`}
+                    >
+                      <Smartphone className="h-3.5 w-3.5" />
+                      <span>Mobile View</span>
+                    </button>
+                  </div>
+
+                  {/* Frame */}
+                  {previewViewport === "mobile" ? (
+                    <div className="w-[360px] bg-zinc-900 rounded-[36px] p-2.5 shadow-2xl border-4 border-zinc-700 relative">
+                      <div className="w-20 h-3.5 bg-zinc-800 rounded-full mx-auto mb-2" />
+                      <div className="w-full bg-white dark:bg-[#0A0D14] rounded-[24px] overflow-hidden">
+                        <iframe
+                          srcDoc={formatEmailDocumentHtml(htmlBody, subject, branding)}
+                          className="w-full border-0 bg-transparent block"
+                          style={{ height: "460px" }}
+                          title="Fullscreen Mobile Preview"
+                          sandbox="allow-same-origin allow-popups"
+                        />
+                      </div>
+                      <div className="w-24 h-1 bg-zinc-600 rounded-full mx-auto mt-2" />
+                    </div>
+                  ) : (
+                    <div className="w-full max-w-[620px] bg-white dark:bg-[#0A0D14] rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-lg">
+                      <iframe
+                        srcDoc={formatEmailDocumentHtml(htmlBody, subject, branding)}
+                        className="w-full border-0 bg-transparent block"
+                        style={{ height: "540px" }}
+                        title="Fullscreen Desktop Preview"
+                        sandbox="allow-same-origin allow-popups"
+                      />
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            6. MODAL: IMAGE INSERTER MODAL WITH 20KB - 100KB VALIDATION
+        ══════════════════════════════════════════════════════════════════════ */}
+        {showImageUploadModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-5 space-y-4">
+              
+              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-indigo-600" />
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-white">
+                    Insert Image into Email
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowImageUploadModal(false)}
+                  className="text-zinc-400 hover:text-zinc-600 p-1 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Image Preview & Optimization Status */}
+              {imageModalUrl && (
+                <div className="space-y-2">
+                  <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-2xl flex items-center justify-center max-h-48 overflow-hidden">
+                    <img
+                      src={imageModalUrl}
+                      alt={imageModalAlt || "Preview"}
+                      className="max-h-44 object-contain rounded-lg"
+                    />
+                  </div>
+                  {imageSizeStatus && (
+                    <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 text-center">
+                      {imageSizeStatus}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Image Alt Text & Link */}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                    Alt Text / Description
+                  </label>
+                  <input
+                    type="text"
+                    value={imageModalAlt}
+                    onChange={(e) => setImageModalAlt(e.target.value)}
+                    placeholder="e.g. Promotional Banner"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                    Click-Through Link URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={imageModalLink}
+                    onChange={(e) => setImageModalLink(e.target.value)}
+                    placeholder="e.g. https://yourcompany.com/special-offer"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  />
+                </div>
+
+                {/* Alignment & Width */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                      Alignment
+                    </label>
+                    <select
+                      value={imageModalAlign}
+                      onChange={(e) => setImageModalAlign(e.target.value as any)}
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    >
+                      <option value="center">Center</option>
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                      Image Size / Width
+                    </label>
+                    <select
+                      value={imageModalWidth}
+                      onChange={(e) => setImageModalWidth(e.target.value as any)}
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                    >
+                      <option value="100%">100% (Full Width)</option>
+                      <option value="75%">75% (Medium)</option>
+                      <option value="50%">50% (Compact)</option>
+                      <option value="300px">300px (Fixed)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowImageUploadModal(false)}
+                  className="px-3.5 py-1.5 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-600 dark:border-zinc-700 dark:text-zinc-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmInsertImage}
+                  className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer"
+                >
+                  Insert Image
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            7. MODAL: CTA BUTTON INSERTER WITH CUSTOM LINK & TEXT
+        ══════════════════════════════════════════════════════════════════════ */}
+        {showButtonModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-5 space-y-4">
+              
+              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <MousePointerClick className="h-5 w-5 text-indigo-600" />
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-white">
+                    Insert Action Button
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowButtonModal(false)}
+                  className="text-zinc-400 hover:text-zinc-600 p-1 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                    Button Label / Text
+                  </label>
+                  <input
+                    type="text"
+                    value={buttonModalText}
+                    onChange={(e) => setButtonModalText(e.target.value)}
+                    placeholder="e.g. Learn More & Get Started →"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                    Destination Link URL
+                  </label>
+                  <input
+                    type="url"
+                    value={buttonModalUrl}
+                    onChange={(e) => setButtonModalUrl(e.target.value)}
+                    placeholder="e.g. https://genxreality.com"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                    Button Theme Color
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { name: "Indigo", color: "#6366f1" },
+                      { name: "Emerald", color: "#10b981" },
+                      { name: "Blue", color: "#2563eb" },
+                      { name: "Dark", color: "#0f172a" },
+                      { name: "Rose", color: "#e11d48" },
+                    ].map((theme) => (
+                      <button
+                        key={theme.color}
+                        type="button"
+                        onClick={() => setButtonModalColor(theme.color)}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                          buttonModalColor === theme.color
+                            ? "ring-2 ring-indigo-500 border-transparent shadow-xs text-white"
+                            : "border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
+                        }`}
+                        style={{ backgroundColor: buttonModalColor === theme.color ? theme.color : undefined }}
+                      >
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: theme.color }}
+                        />
+                        <span>{theme.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Button Preview in Modal */}
+                <div className="p-3 bg-zinc-50 dark:bg-zinc-800/60 rounded-xl text-center border border-zinc-200/80 dark:border-zinc-700">
+                  <span className="text-[10px] text-zinc-400 block mb-1.5">Button Preview:</span>
+                  <span
+                    className="email-btn inline-block text-white text-xs font-semibold px-5 py-2 rounded-lg shadow-sm"
+                    style={{ backgroundColor: buttonModalColor }}
+                  >
+                    {buttonModalText || "Button Label"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowButtonModal(false)}
+                  className="px-3.5 py-1.5 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-600 dark:border-zinc-700 dark:text-zinc-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleInsertCustomButton}
+                  className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer"
+                >
+                  Insert Button
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* ── AI Assistant Interactive Modal (Full Assistant Mode) ── */}
         <AIAssistantModal
@@ -1478,5 +2659,5 @@ export default function NewEmailCampaignPage() {
   );
 }
 
-// ── Default HTML fallback template ──────────────────────────────────────────
-const DEFAULT_TEMPLATE = `<h2><strong>Special Announcement</strong></h2><p>Hi {{name}},</p><p>We are excited to share our latest updates and solutions with you from {{company}}.</p><p>Our team has been working hard to bring you innovative solutions that help your business grow faster and smarter. This quarter, we're introducing new features, better support, and exclusive offers designed just for you.</p><p style="text-align: center; margin: 16px 0;"><a href="https://callinggen.in" target="_blank" class="email-btn" style="background-color: #6366f1; color: #ffffff !important; padding: 10px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Learn More &amp; Get Started &rarr;</a></p><p>Best regards,<br><strong>The {{company}} Team</strong></p>`;
+// ── Default HTML fallback template ──
+const DEFAULT_TEMPLATE = `<h2><strong>Special Announcement</strong></h2><p>Hi {{name}},</p><p>We are excited to share our latest updates and solutions with you from {{company}}.</p><p>Our team has been working hard to bring you innovative solutions that help your business grow faster and smarter. This quarter, we're introducing new features, better support, and exclusive offers designed just for you.</p><p style="text-align: center; margin: 18px 0;"><a href="https://genxreality.com" target="_blank" class="email-btn" style="background-color: #6366f1; color: #ffffff !important; padding: 11px 26px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Learn More &amp; Get Started &rarr;</a></p><p>Best regards,<br><strong>The {{company}} Team</strong></p>`;
