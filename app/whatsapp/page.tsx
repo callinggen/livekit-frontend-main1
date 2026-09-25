@@ -213,13 +213,13 @@ export default function WhatsAppPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Check AI Webhook / Assistant Health Status
+  // Check AI Bot Status
   const checkAiStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/whatsapp/webhook`);
+      const res = await fetch(`${BASE_URL}/api/whatsapp/bot-status`);
       if (res.ok) {
         const data = await res.json();
-        setIsAiActive(data.status === "active");
+        setIsAiActive(data.is_active);
       } else {
         setIsAiActive(false);
       }
@@ -227,6 +227,23 @@ export default function WhatsAppPage() {
       setIsAiActive(false);
     }
   }, []);
+
+  const toggleAiStatus = async () => {
+    try {
+      const newStatus = !isAiActive;
+      const res = await fetch(`${BASE_URL}/api/whatsapp/bot-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: newStatus }),
+      });
+      if (res.ok) {
+        setIsAiActive(newStatus);
+        showToast(`Bot is now ${newStatus ? 'Active' : 'Offline'}`);
+      }
+    } catch {
+      showToast("Failed to toggle bot status", "error");
+    }
+  };
 
   // 1. Connection Status Checking
   const checkConnectionStatus = useCallback(async () => {
@@ -875,36 +892,41 @@ export default function WhatsAppPage() {
 
         <div className="flex items-center gap-3">
           {/* AI Assistant Status Badge */}
-          <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-              isAiActive && connectionState === "connected"
-                ? "bg-violet-50 text-violet-700 border-violet-200 shadow-xs dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800/50"
-                : isAiActive
-                ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800/50"
-                : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"
-            }`}
-            title={
-              isAiActive && connectionState === "connected"
-                ? "AI Assistant is active and listening for customer messages"
-                : isAiActive
-                ? "AI Assistant backend is ready (connect WhatsApp number to activate)"
-                : "AI Assistant webhook is currently offline"
-            }
-          >
-            <span className="relative flex h-2 w-2">
-              {isAiActive && connectionState === "connected" ? (
-                <>
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-600"></span>
-                </>
-              ) : (
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-400 dark:bg-zinc-500"></span>
-              )}
-            </span>
-            <Bot className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              AI: {isAiActive && connectionState === "connected" ? "Active" : isAiActive ? "Ready" : "Offline"}
-            </span>
+          <div className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-full px-3 py-1.5 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                {isAiActive && connectionState === "connected" ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-600"></span>
+                  </>
+                ) : (
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isAiActive ? 'bg-indigo-400' : 'bg-slate-400 dark:bg-zinc-500'}`}></span>
+                )}
+              </span>
+              <Bot className={`w-3.5 h-3.5 ${isAiActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+              <span className={`hidden sm:inline text-xs font-semibold ${isAiActive ? 'text-slate-700 dark:text-slate-200' : 'text-slate-500 dark:text-zinc-400'}`}>
+                Bot: {isAiActive && connectionState === "connected" ? "Active" : isAiActive ? "Ready" : "Offline"}
+              </span>
+            </div>
+            
+            <button
+              type="button"
+              onClick={toggleAiStatus}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isAiActive ? 'bg-violet-600' : 'bg-slate-300 dark:bg-zinc-600'
+              }`}
+              role="switch"
+              aria-checked={isAiActive}
+            >
+              <span className="sr-only">Toggle AI Bot</span>
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isAiActive ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
 
           {connectionState === "connected" && (
