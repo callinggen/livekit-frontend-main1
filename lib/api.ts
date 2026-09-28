@@ -372,7 +372,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       window.dispatchEvent(new Event("unauthorized-access"));
     }
     const text = await res.text();
-    throw new Error(`API ${init?.method ?? "GET"} ${path} → ${res.status}: ${text}`);
+    let detailMessage = text;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.detail) {
+        detailMessage = typeof parsed.detail === "string" ? parsed.detail : JSON.stringify(parsed.detail);
+      }
+    } catch {}
+
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("Retry-After");
+      throw new Error(detailMessage || `Rate limit exceeded. Please wait ${retryAfter || "a few"} seconds before retrying.`);
+    }
+
+    throw new Error(detailMessage || `API ${init?.method ?? "GET"} ${path} → ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
