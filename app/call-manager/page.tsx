@@ -10,7 +10,7 @@ import DashboardShell from "@/components/DashboardShell";
 import CampaignForm from "@/components/call-manager/CampaignForm";
 import ContactsTable from "@/components/call-manager/ContactsTable";
 import { CampaignFormData, Contact, UploadSourceType } from "@/components/call-manager/types";
-import { CheckCircle2, X, ArrowRight, Bot, Clock, Users, Sparkles, Layers, Zap, Phone, ShieldCheck, Paperclip, FileText, Image as ImageIcon, Rocket, AlertCircle, Calendar, Edit3, Loader2 } from "lucide-react";
+import { CheckCircle2, X, ArrowRight, Bot, Clock, Users, Sparkles, Layers, Zap, Phone, ShieldCheck, Paperclip, FileText, Image as ImageIcon, Rocket, AlertCircle, Calendar, Edit3, Loader2, Brain } from "lucide-react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
@@ -76,6 +76,8 @@ export default function CallManagerPage() {
         enabled: false,
         rules: [],
       },
+      attachKnowledgeBase: false,
+      selectedKnowledgeDocIds: [],
       saveToContactBook: false,
       contactBookTag: "",
       selectedContactBookTag: "all",
@@ -150,16 +152,8 @@ export default function CallManagerPage() {
         console.warn("Could not fetch agents:", err);
       }
     }
-    if (isLoggedIn) {
-      loadAgents();
-    }
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    if (!isLoggedIn) router.replace("/login");
-  }, [isLoggedIn, router]);
-
-  if (!isLoggedIn) return null;
+    loadAgents();
+  }, []);
 
   const handleChange = (updates: Partial<CampaignFormData>) => {
     setFormData((prev) => {
@@ -510,6 +504,7 @@ export default function CallManagerPage() {
         end_row: endRow,
         whatsapp_automation: formData.whatsappAutomation,
         email_automation: formData.emailAutomation,
+        knowledge_document_ids: formData.attachKnowledgeBase ? (formData.selectedKnowledgeDocIds || []) : undefined,
         save_to_contacts_book: formData.saveToContactBook,
         contact_book_tag: formData.contactBookTag,
         contacts: contactList,
@@ -705,6 +700,18 @@ export default function CallManagerPage() {
                     <span className="font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-zinc-400" />
                       {formData.scheduleDate} at {formData.scheduleTime} (IST)
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-zinc-500 dark:text-zinc-400 block text-[11px] font-medium">Knowledge Base (RAG)</span>
+                    <span className="font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                      <Brain className="w-3.5 h-3.5" />
+                      {formData.attachKnowledgeBase
+                        ? (formData.selectedKnowledgeDocIds && formData.selectedKnowledgeDocIds.length > 0
+                            ? `${formData.selectedKnowledgeDocIds.length} Materials Attached`
+                            : "All Materials Active")
+                        : "Disabled"}
                     </span>
                   </div>
                 </div>

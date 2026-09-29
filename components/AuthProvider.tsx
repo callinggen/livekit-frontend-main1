@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
+const API_BASE = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000");
 
 export interface UserData {
   id?: number;
@@ -99,9 +99,15 @@ export default function AuthProvider({
           setIsLoggedIn(true);
           sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
           localStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
-        } else {
+          if (updatedUser.token) {
+            sessionStorage.setItem("token", updatedUser.token);
+            localStorage.setItem("token", updatedUser.token);
+          }
+        } else if (res.status === 401 || res.status === 403) {
           sessionStorage.removeItem("callinggen-auth");
           localStorage.removeItem("callinggen-auth");
+          sessionStorage.removeItem("token");
+          localStorage.removeItem("token");
           setUser(null);
           setIsLoggedIn(false);
         }
@@ -118,6 +124,8 @@ export default function AuthProvider({
       if (stored && stored.token) {
         setUser(stored);
         setIsLoggedIn(true);
+        sessionStorage.setItem("token", stored.token);
+        localStorage.setItem("token", stored.token);
         await refreshUser();
       } else {
         setUser(null);
@@ -132,6 +140,8 @@ export default function AuthProvider({
     const handleUnauthorized = () => {
       sessionStorage.removeItem("callinggen-auth");
       localStorage.removeItem("callinggen-auth");
+      sessionStorage.removeItem("token");
+      localStorage.removeItem("token");
       setUser(null);
       setIsLoggedIn(false);
       router.push("/login");
@@ -179,12 +189,23 @@ export default function AuthProvider({
           setUser(userData);
           sessionStorage.setItem("callinggen-auth", JSON.stringify(userData));
           localStorage.setItem("callinggen-auth", JSON.stringify(userData));
+          if (data.access_token) {
+            sessionStorage.setItem("token", data.access_token);
+            localStorage.setItem("token", data.access_token);
+          }
           setIsLoggedIn(true);
           
           return { success: true, isFirstLogin: data.is_first_login, isAdmin: data.is_admin };
         } else {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || "Invalid credentials");
+          let errorMsg = "Invalid credentials";
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.detail || errorData.message || errorMsg;
+          } catch {
+            const text = await response.text();
+            errorMsg = text || `Server error (${response.status})`;
+          }
+          throw new Error(errorMsg);
         }
       } catch (error: any) {
         throw error;
@@ -196,6 +217,8 @@ export default function AuthProvider({
   const logout = useCallback(() => {
     sessionStorage.removeItem("callinggen-auth");
     localStorage.removeItem("callinggen-auth");
+    sessionStorage.removeItem("token");
+    localStorage.removeItem("token");
     setUser(null);
     setIsLoggedIn(false);
     if (typeof window !== "undefined") {
@@ -211,6 +234,8 @@ export default function AuthProvider({
       if (!isFirstLogin) {
         sessionStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
         localStorage.setItem("callinggen-auth", JSON.stringify(updatedUser));
+        sessionStorage.setItem("token", newToken);
+        localStorage.setItem("token", newToken);
       }
       
       return updatedUser;

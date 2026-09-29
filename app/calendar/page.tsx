@@ -150,8 +150,6 @@ export default function CalendarPage() {
       });
   }, [isLoggedIn]);
 
-  if (!isLoggedIn) return null;
-
   /* ── Calendar grid helpers ── */
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();

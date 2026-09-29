@@ -90,6 +90,9 @@ interface ConversationItem {
   is_client?: boolean;
   is_genx?: boolean;
   is_archived?: boolean;
+  summary?: string;
+  lead_score?: number | string;
+  notes?: string;
 }
 
 function formatBytes(bytes?: number | string): string {
@@ -834,8 +837,6 @@ export default function WhatsAppPage() {
     }
     return true;
   });
-
-  if (!isLoggedIn) return null;
 
   return (
     <DashboardShell title="WhatsApp">

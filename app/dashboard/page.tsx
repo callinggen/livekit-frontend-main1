@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 import DashboardShell from "@/components/DashboardShell";
 import { ActivityTimeline } from "@/components/shared/dashboard/ActivityTimeline";
 import { QuickActionCard } from "@/components/shared/dashboard/QuickActionCard";
 import { StatCard } from "@/components/shared/dashboard/StatCard";
+import TopUpModal from "@/components/billing/TopUpModal";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -20,14 +22,21 @@ import {
   Bot,
   TrendingUp,
   Activity,
+  Zap,
+  MessageSquare,
+  Mail,
+  ArrowRight,
+  Wallet,
 } from "lucide-react";
 
 export default function Dashboard() {
   const router = useRouter();
   const { isLoggedIn, user } = useAuth();
-  const { credits } = useCredits();
+  const { credits, refreshCredits } = useCredits();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [calls, setCalls] = useState<any[]>([]);
+  const [usageSummary, setUsageSummary] = useState<any | null>(null);
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,25 +45,46 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    Promise.all([api.getCampaigns(), api.getCalls()])
-      .then(([cData, callData]) => {
-        setCampaigns(cData);
-        setCalls(callData);
+    const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+    const headers = { Authorization: `Bearer ${token}` };
+
+    Promise.all([
+      api.getCampaigns(),
+      api.getCalls(),
+      fetch("/api/billing/usage-summary", { headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+    ])
+      .then(([cData, callData, uData]) => {
+        setCampaigns(cData || []);
+        setCalls(callData || []);
+        if (uData) setUsageSummary(uData);
       })
       .catch((err) => console.warn("Failed to load dashboard data:", err))
       .finally(() => setLoading(false));
   }, [isLoggedIn]);
 
-  if (!isLoggedIn) return null;
-
-  const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const currentDate = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   const totalCampaigns = campaigns.length;
   const totalCalls = campaigns.reduce((acc, c) => acc + c.totalCalls, 0);
   const completedCalls = campaigns.reduce((acc, c) => acc + c.completedCalls, 0);
-  const interestedLeads = calls.filter(c => ["HOT", "WARM", "COLD"].includes((c.category || "").toUpperCase())).length;
+  const interestedLeads = calls.filter((c) =>
+    ["HOT", "WARM", "COLD"].includes((c.category || "").toUpperCase())
+  ).length;
   const callbacks = campaigns.reduce((acc, c) => acc + (c.callbacks || 0), 0);
-  const activeAgents = Array.from(new Set(campaigns.filter(c => (c.status || "").toLowerCase() === "running").map(c => c.agent))).filter(Boolean).length;
+  const activeAgents = Array.from(
+    new Set(
+      campaigns
+        .filter((c) => (c.status || "").toLowerCase() === "running")
+        .map((c) => c.agent)
+    )
+  ).filter(Boolean).length;
   const successRate = totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0;
 
   const stats = [
@@ -100,8 +130,8 @@ export default function Dashboard() {
     },
     {
       icon: Coins,
-      value: credits !== null ? String(credits) : "5000",
-      label: "Credits",
+      value: credits !== null ? String(Number(credits).toLocaleString("en-IN", { maximumFractionDigits: 1 })) : "0",
+      label: "Universal Credits",
       accentClassName: "bg-cyan-100/50 dark:bg-cyan-900/10",
       iconBackgroundClassName: "bg-cyan-100",
       iconColorClassName: "text-cyan-600 dark:text-cyan-400",
@@ -124,7 +154,7 @@ export default function Dashboard() {
     },
   ];
 
-  const activityItems = calls.slice(0, 4).map(c => {
+  const activityItems = calls.slice(0, 4).map((c) => {
     const isCompleted = c.status.toLowerCase() === "completed";
     const title = isCompleted ? "Call Completed" : "Call Attempt Failed";
     const description = isCompleted
@@ -185,20 +215,110 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">Welcome back, {user?.name || "Admin"} 👋</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+              Welcome back, {user?.name || "Admin"} 👋
+            </h1>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Here is what's happening with your campaigns today.
+              Here is what's happening with your multi-channel operations today.
             </p>
             <p className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">{currentDate}</p>
           </div>
-          <button 
-            onClick={() => router.push("/call-manager")}
-            className="flex w-max items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-500 hover:shadow-lg dark:bg-indigo-600 dark:hover:bg-indigo-500"
-          >
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsTopUpOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition shadow-sm cursor-pointer"
+            >
+              <Zap className="h-3.5 w-3.5 fill-current" />
+              <span>Top Up Credits</span>
+            </button>
+            <button
+              onClick={() => router.push("/call-manager")}
+              className="flex w-max items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-500 hover:shadow-lg cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              New Campaign
+            </button>
+          </div>
+        </div>
 
-            <Plus className="h-4 w-4" />
-            New Campaign
-          </button>
+        {/* ── Section: Clean Universal Credits & Usage Summary Widget ── */}
+        <div className="rounded-2xl p-5 sm:p-6 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-800 shadow-sm transition hover:shadow-md">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            
+            {/* Balance & Rates */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                  <Wallet className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Universal Wallet</span>
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+                  Active
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-3xl sm:text-4xl font-extrabold tracking-tight font-mono text-zinc-900 dark:text-white">
+                  {credits !== null ? Number(credits).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
+                </span>
+                <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Available Credits</span>
+              </div>
+              
+              {/* Clean Usage Rates Pill */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                <span className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 rounded-md font-medium text-zinc-700 dark:text-zinc-300">
+                  <PhoneCall className="w-3 h-3 text-violet-500" /> AI Calling: 15 cr / min
+                </span>
+                <span className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 rounded-md font-medium text-zinc-700 dark:text-zinc-300">
+                  <MessageSquare className="w-3 h-3 text-emerald-500" /> WhatsApp: 0.1 cr / msg
+                </span>
+                <span className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 rounded-md font-medium text-zinc-700 dark:text-zinc-300">
+                  <Mail className="w-3 h-3 text-sky-500" /> Email: 0.2 cr / email
+                </span>
+              </div>
+            </div>
+
+            {/* Usage Summary Breakdown Cards */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+              <div className="flex-1 sm:flex-initial p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 text-center min-w-[100px]">
+                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">AI Calls</div>
+                <div className="text-sm font-extrabold text-zinc-900 dark:text-white font-mono mt-0.5">
+                  {usageSummary?.usage?.calling?.duration_minutes ?? 0}m
+                </div>
+                <div className="text-[10px] text-violet-600 dark:text-violet-400 font-semibold mt-0.5">
+                  {usageSummary?.usage?.calling?.credits_consumed ?? 0} cr
+                </div>
+              </div>
+
+              <div className="flex-1 sm:flex-initial p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 text-center min-w-[100px]">
+                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">WhatsApp</div>
+                <div className="text-sm font-extrabold text-zinc-900 dark:text-white font-mono mt-0.5">
+                  {usageSummary?.usage?.whatsapp?.messages_sent ?? 0}
+                </div>
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                  {usageSummary?.usage?.whatsapp?.credits_consumed ?? 0} cr
+                </div>
+              </div>
+
+              <div className="flex-1 sm:flex-initial p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 text-center min-w-[100px]">
+                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Emails</div>
+                <div className="text-sm font-extrabold text-zinc-900 dark:text-white font-mono mt-0.5">
+                  {usageSummary?.usage?.email?.emails_sent ?? 0}
+                </div>
+                <div className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">
+                  {usageSummary?.usage?.email?.credits_consumed ?? 0} cr
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="mt-4 pt-3.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs">
+            <span className="text-zinc-500 dark:text-zinc-400">Single universal balance for all channels.</span>
+            <Link href="/billing" className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold flex items-center gap-1">
+              <span>View Full Ledger</span> <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
         {/* Metrics Grid */}
@@ -247,6 +367,14 @@ export default function Dashboard() {
           
         </div>
       </div>
+
+      <TopUpModal
+        isOpen={isTopUpOpen}
+        onClose={() => setIsTopUpOpen(false)}
+        onSuccess={() => {
+          refreshCredits();
+        }}
+      />
     </DashboardShell>
   );
 }

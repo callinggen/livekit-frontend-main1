@@ -159,8 +159,6 @@ export default function ProfilePage() {
     setTimeout(() => setCopiedScript(false), 2000);
   };
 
-  if (!isLoggedIn) return null;
-
   // Dynamic values
   const companyName = profileData?.company_name || user?.company_name || "N/A";
   const industry = profileData?.industry || user?.industry || "N/A";

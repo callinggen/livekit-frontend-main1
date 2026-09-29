@@ -51,8 +51,6 @@ export default function PaymentHistoryPage() {
     }
   };
 
-  if (!isLoggedIn) return null;
-
   // Filtered payments
   const filteredPayments = payments.filter((p) => {
     const matchesStatus = statusFilter === "all" || p.status.toLowerCase() === statusFilter;

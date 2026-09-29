@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock, Globe, Phone, Users, ListFilter, SlidersHorizontal } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock, Globe, Phone, Users, ListFilter, SlidersHorizontal, Brain, FileText, HelpCircle, Layers, X, Check, Search, Sparkles, BookOpen, RefreshCw, Database } from "lucide-react";
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
 import WhatsAppAutomationConfigSection from "./WhatsAppAutomationConfigSection";
 import EmailAutomationConfigSection from "./EmailAutomationConfigSection";
 import { CampaignFormData, UploadSourceType } from "./types";
-import { api, UserPhoneNumber } from "@/lib/api";
+import { api, UserPhoneNumber, KnowledgeDocument } from "@/lib/api";
 
 
 // BUG-028: Parse a time string like "09:00" or "09:00 AM" into parts
@@ -81,6 +81,42 @@ export default function CampaignForm({
 }: CampaignFormProps) {
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
   const [userNumbers, setUserNumbers] = useState<UserPhoneNumber[]>([]);
+
+  // Knowledge Base State
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>([]);
+  const [loadingKnowledge, setLoadingKnowledge] = useState(false);
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
+  const [knowledgeSearchQuery, setKnowledgeSearchQuery] = useState("");
+
+  useEffect(() => {
+    async function loadKnowledgeDocs() {
+      try {
+        setLoadingKnowledge(true);
+        const data = await api.getKnowledgeDocuments({ page: 1, page_size: 100 });
+        const items = Array.isArray(data) ? data : ((data as any)?.items || []);
+        setKnowledgeDocs(items);
+      } catch (err) {
+        console.warn("Failed to load knowledge documents for campaign:", err);
+      } finally {
+        setLoadingKnowledge(false);
+      }
+    }
+    loadKnowledgeDocs();
+  }, []);
+
+  const selectedDocs = useMemo(() => {
+    const ids = formData.selectedKnowledgeDocIds || [];
+    return knowledgeDocs.filter((d: KnowledgeDocument) => ids.includes(d.id));
+  }, [knowledgeDocs, formData.selectedKnowledgeDocIds]);
+
+  const filteredKnowledgeDocs = useMemo(() => {
+    if (!knowledgeSearchQuery.trim()) return knowledgeDocs;
+    const q = knowledgeSearchQuery.toLowerCase();
+    return knowledgeDocs.filter((d: KnowledgeDocument) =>
+      d.title.toLowerCase().includes(q) ||
+      (d.source_type && d.source_type.toLowerCase().includes(q))
+    );
+  }, [knowledgeDocs, knowledgeSearchQuery]);
 
   useEffect(() => {
     async function loadPhoneNumbers() {
@@ -454,6 +490,263 @@ export default function CampaignForm({
               error={errors.script}
               disabled={disabled}
             />
+
+            {/* Knowledge Base / Business Materials Section */}
+            <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-4.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-300">
+                    <Brain className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                      Attach Knowledge Base / Business Materials
+                    </label>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Enable AI Voice Agent to retrieve verified documents, pricing sheets, services, and FAQs during calls.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Toggle Switch */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData.attachKnowledgeBase}
+                  disabled={disabled}
+                  onClick={() => {
+                    const nextState = !formData.attachKnowledgeBase;
+                    onChange({
+                      attachKnowledgeBase: nextState,
+                      selectedKnowledgeDocIds: nextState ? (formData.selectedKnowledgeDocIds || []) : [],
+                    });
+                    if (nextState && (!formData.selectedKnowledgeDocIds || formData.selectedKnowledgeDocIds.length === 0)) {
+                      setShowKnowledgeModal(true);
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    formData.attachKnowledgeBase ? 'bg-violet-600' : 'bg-zinc-200 dark:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      formData.attachKnowledgeBase ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {formData.attachKnowledgeBase && (
+                <div className="space-y-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      {selectedDocs.length === 0
+                        ? "All Knowledge Base Materials Active (Default)"
+                        : `${selectedDocs.length} Material${selectedDocs.length === 1 ? "" : "s"} Selected for this Campaign`}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setShowKnowledgeModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/60 hover:bg-violet-100 dark:hover:bg-violet-900/60 border border-violet-200 dark:border-violet-900 transition"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      {selectedDocs.length === 0 ? "Select Specific Materials" : "Edit Selection"}
+                    </button>
+                  </div>
+
+                  {/* Selected Knowledge Chips */}
+                  {selectedDocs.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {selectedDocs.map((doc: KnowledgeDocument) => (
+                        <span
+                          key={doc.id}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-medium border border-zinc-200 dark:border-zinc-700 shadow-2xs"
+                        >
+                          {doc.source_type === "pdf" || doc.source_type === "docx" ? (
+                            <FileText className="w-3.5 h-3.5 text-blue-500" />
+                          ) : doc.source_type === "sheet" || doc.source_type === "csv" ? (
+                            <FileSpreadsheet className="w-3.5 h-3.5 text-green-500" />
+                          ) : doc.source_type === "url" ? (
+                            <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                          ) : doc.source_type === "faq" ? (
+                            <HelpCircle className="w-3.5 h-3.5 text-amber-500" />
+                          ) : (
+                            <BookOpen className="w-3.5 h-3.5 text-violet-500" />
+                          )}
+                          <span className="truncate max-w-xs">{doc.title}</span>
+                          {!disabled && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newIds = (formData.selectedKnowledgeDocIds || []).filter(id => id !== doc.id);
+                                onChange({ selectedKnowledgeDocIds: newIds });
+                              }}
+                              className="text-zinc-400 hover:text-rose-500 transition ml-0.5"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Knowledge Selection Popup Modal */}
+            {showKnowledgeModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+                <div className="relative w-full max-w-xl bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden max-h-[85vh] flex flex-col">
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-300">
+                        <Brain className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+                          Select Knowledge Base Materials
+                        </h3>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          Choose which company knowledge files or sheets the voice agent should use.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowKnowledgeModal(false)}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Search & Bulk Select Actions */}
+                  <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-3 shrink-0 bg-zinc-50/50 dark:bg-zinc-800/30">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                      <input
+                        type="text"
+                        value={knowledgeSearchQuery}
+                        onChange={(e) => setKnowledgeSearchQuery(e.target.value)}
+                        placeholder="Search materials..."
+                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allIds = knowledgeDocs.map((d: KnowledgeDocument) => d.id);
+                          onChange({ selectedKnowledgeDocIds: allIds });
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/60 hover:bg-violet-100 border border-violet-200 dark:border-violet-900 transition"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange({ selectedKnowledgeDocIds: [] });
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Knowledge Items List */}
+                  <div className="p-4 overflow-y-auto space-y-2 flex-1">
+                    {loadingKnowledge ? (
+                      <div className="py-12 text-center text-zinc-400 text-xs">
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-violet-500" />
+                        Loading knowledge base...
+                      </div>
+                    ) : knowledgeDocs.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-400 text-xs">
+                        <Database className="w-8 h-8 mx-auto mb-2 text-zinc-300 dark:text-zinc-700" />
+                        <p className="font-semibold text-zinc-700 dark:text-zinc-300">No knowledge materials uploaded yet</p>
+                        <p className="text-[11px] text-zinc-400 mt-1">
+                          You can upload files, Google Sheets, URLs, or FAQs on the Knowledge Base page.
+                        </p>
+                      </div>
+                    ) : (
+                      filteredKnowledgeDocs.map((doc: KnowledgeDocument) => {
+                        const isChecked = (formData.selectedKnowledgeDocIds || []).includes(doc.id);
+                        return (
+                          <div
+                            key={doc.id}
+                            onClick={() => {
+                              const current = formData.selectedKnowledgeDocIds || [];
+                              const next = isChecked
+                                ? current.filter(id => id !== doc.id)
+                                : [...current, doc.id];
+                              onChange({ selectedKnowledgeDocIds: next });
+                            }}
+                            className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                              isChecked
+                                ? "bg-violet-50/60 dark:bg-violet-950/30 border-violet-300 dark:border-violet-800"
+                                : "bg-white dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`flex h-4.5 w-4.5 items-center justify-center rounded-md border transition-colors ${
+                                  isChecked
+                                    ? "bg-violet-600 border-violet-600 text-white"
+                                    : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900"
+                                }`}
+                              >
+                                {isChecked && <Check className="w-3 h-3" />}
+                              </div>
+                              <div>
+                                <div className="font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                                  {doc.title}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-0.5">
+                                  <span className="uppercase font-semibold text-violet-600 dark:text-violet-400">
+                                    {doc.source_type}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{doc.chunk_count} Chunks</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isChecked
+                                  ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+                                  : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                              }`}
+                            >
+                              {isChecked ? "Selected ✓" : "Optional"}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-50/50 dark:bg-zinc-800/30">
+                    <span className="text-xs font-medium text-zinc-500">
+                      {(formData.selectedKnowledgeDocIds || []).length} of {knowledgeDocs.length} materials selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowKnowledgeModal(false)}
+                      className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-sm transition"
+                    >
+                      Save Selection
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           {/* WhatsApp Automation Section (Post-call automated follow-ups) */}
           <WhatsAppAutomationConfigSection

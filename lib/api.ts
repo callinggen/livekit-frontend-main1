@@ -3,7 +3,7 @@
  * Base URL comes from NEXT_PUBLIC_API_URL (.env.local).
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://localhost:8000");
+const BASE = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000");
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -26,6 +26,7 @@ export interface CampaignCreatePayload {
   end_row?: number;
   whatsapp_automation?: any;
   email_automation?: any;
+  knowledge_document_ids?: number[];
   save_to_contacts_book?: boolean;
   contact_book_tag?: string;
   contacts: ApiContact[];
@@ -87,6 +88,8 @@ export interface CampaignRow {
 export interface CampaignDetail extends CampaignRow {
   upload_source?: string;
   sheet_name?: string;
+  knowledge_document_ids?: number[];
+  knowledge_documents?: KnowledgeDocument[];
   schedule_date?: string;
   schedule_time?: string;
   scheduled_at?: string | null;
@@ -334,7 +337,7 @@ export interface EmailCampaignDetail extends EmailCampaignRow {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  // Read the auth token from session storage on every request
+  // Read the auth token from session or local storage on every request
   let token: string | null = null;
   if (typeof window !== "undefined") {
     try {
@@ -344,10 +347,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         token = parsed.token ?? null;
       }
     } catch {}
+    if (!token) {
+      token = localStorage.getItem("token") || sessionStorage.getItem("token") || localStorage.getItem("access_token") || null;
+    }
   }
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...(init?.headers as Record<string, string> ?? {}),
   };
   if (token) {
@@ -367,7 +373,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
-      window.dispatchEvent(new Event("unauthorized-access"));
+      // Only dispatch global unauthorized-access if the primary identity /auth/me check fails
+      if (path.includes("/api/auth/me")) {
+        window.dispatchEvent(new Event("unauthorized-access"));
+      }
     }
     const text = await res.text();
     throw new Error(`API ${init?.method ?? "GET"} ${path} → ${res.status}: ${text}`);
@@ -801,6 +810,92 @@ export const api = {
         body: JSON.stringify({ google_sheet_url: googleSheetUrl }),
       }
     ),
+
+  // ── Knowledge Base API ─────────────────────────────────────────────────────
+
+  /** Get high-level summary statistics of the user's Knowledge Base. */
+  getKnowledgeStats: () =>
+    request<KnowledgeStats>("/api/knowledge/stats"),
+
+  /** Get paginated list of uploaded documents and sources. */
+  getKnowledgeDocuments: async (params?: {
+    source_type?: string;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<KnowledgeDocument[]> => {
+    const q = new URLSearchParams();
+    if (params?.source_type && params.source_type !== "all") q.append("source_type", params.source_type);
+    if (params?.search) {
+      q.append("q", params.search);
+      q.append("search", params.search);
+    }
+    if (params?.page) q.append("page", String(params.page));
+    if (params?.page_size) q.append("page_size", String(params.page_size));
+    const qs = q.toString();
+    const res = await request<any>(`/api/knowledge/documents${qs ? `?${qs}` : ""}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.items)) return res.items;
+    return [];
+  },
+
+  /** Ingest plain text knowledge (policies, services, company overview). */
+  ingestKnowledgeText: (payload: { title: string; content: string; source_type?: string }) =>
+    request<KnowledgeDocument>("/api/knowledge/ingest/text", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Ingest website page or documentation link. */
+  ingestKnowledgeUrl: (payload: { url: string; title?: string }) =>
+    request<KnowledgeDocument>("/api/knowledge/ingest/url", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Ingest Google Sheet spreadsheet with auto-sync capability. */
+  ingestKnowledgeGoogleSheet: (payload: { sheet_url: string; title?: string }) =>
+    request<KnowledgeDocument>("/api/knowledge/ingest/google-sheet", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Ingest FAQ question-answer pair. */
+  ingestKnowledgeFaq: (payload: { question: string; answer: string; category?: string }) =>
+    request<KnowledgeDocument>("/api/knowledge/ingest/faq", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Upload and parse a file (PDF, DOCX, CSV, TXT, or Image/Poster). */
+  ingestKnowledgeFile: (formData: FormData) =>
+    request<KnowledgeDocument>("/api/knowledge/ingest/file", {
+      method: "POST",
+      body: formData,
+    }),
+
+  /** Re-sync a Google Sheet or URL document to pull latest changes. */
+  syncKnowledgeDocument: (docId: number) =>
+    request<KnowledgeDocument>(`/api/knowledge/documents/${docId}/sync`, {
+      method: "POST",
+    }),
+
+  /** Delete a knowledge document and its indexed vector chunks. */
+  deleteKnowledgeDocument: (docId: number) =>
+    request<{ success: boolean; message: string }>(`/api/knowledge/documents/${docId}`, {
+      method: "DELETE",
+    }),
+
+  /** Get single knowledge document with extracted text and chunks for preview. */
+  getKnowledgeDocument: (docId: number) =>
+    request<KnowledgeDocumentDetail>(`/api/knowledge/documents/${docId}`),
+
+  /** Test / Query the Knowledge Base using hybrid semantic & keyword search. */
+  searchKnowledge: (payload: { query: string; top_k?: number; threshold?: number }) =>
+    request<KnowledgeSearchResponse>("/api/knowledge/search", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // ── Contact Book Interfaces ──────────────────────────────────────────────────
@@ -849,6 +944,66 @@ export interface SavedContactListResponse {
   page: number;
   page_size: number;
   total_pages: number;
+}
+
+// ── Knowledge Base Interfaces ────────────────────────────────────────────────
+
+export interface KnowledgeDocument {
+  id: number;
+  user_id: number;
+  title: string;
+  source_type: "pdf" | "docx" | "csv" | "sheet" | "url" | "faq" | "raw" | "image" | "file" | string;
+  source_url?: string | null;
+  status: "ready" | "syncing" | "error" | string;
+  chunk_count: number;
+  error_message?: string | null;
+  meta_info?: Record<string, any> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface KnowledgeChunkItem {
+  id: number;
+  chunk_index: number;
+  content: string;
+  word_count: number;
+}
+
+export interface KnowledgeDocumentDetail extends KnowledgeDocument {
+  extracted_text?: string | null;
+  chunks: KnowledgeChunkItem[];
+}
+
+export interface KnowledgeDocumentListResponse {
+  items: KnowledgeDocument[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface KnowledgeStats {
+  total_documents: number;
+  total_chunks: number;
+  source_breakdown: Record<string, number>;
+  last_synced_at?: string | null;
+}
+
+export interface KnowledgeSearchResultItem {
+  chunk_id: number;
+  document_id: number;
+  title: string;
+  source_type: string;
+  source_url?: string | null;
+  content: string;
+  score: number;
+  meta: Record<string, any>;
+}
+
+export interface KnowledgeSearchResponse {
+  query: string;
+  total_matches: number;
+  results: KnowledgeSearchResultItem[];
 }
 
 

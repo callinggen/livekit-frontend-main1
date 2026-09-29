@@ -25,6 +25,7 @@ import {
   Settings,
   MessageSquare,
   BookUser,
+  Brain,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -32,17 +33,18 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { useCredits } from "@/components/CreditsContext";
 
-// Notice: "Buy Credits" has been removed from the sidebar navigation items as requested
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Calendar", icon: CalendarDays, href: "/calendar" },
   { label: "Call Manager", icon: PhoneCall, href: "/call-manager" },
   { label: "Contact Book", icon: BookUser, href: "/contacts" },
+  { label: "Knowledge Base", icon: Brain, href: "/knowledge-base" },
   { label: "Call Logs", icon: ClipboardList, href: "/call-logs" },
   { label: "Campaign", icon: Megaphone, href: "/campaign" },
   { label: "Email Marketing", icon: Mail, href: "/email-campaign" },
   { label: "WhatsApp", icon: MessageSquare, href: "/whatsapp" },
   { label: "Report", icon: FileText, href: "/report" },
+  { label: "Billing & Credits", icon: CreditCard, href: "/billing" },
 ];
 
 export default function DashboardShell({

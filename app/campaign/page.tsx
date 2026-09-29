@@ -85,8 +85,6 @@ export default function CampaignsPage() {
     return () => clearInterval(interval);
   }, [isLoggedIn]);
 
-  if (!isLoggedIn) return null;
-
   const columns: Column<Campaign>[] = [
     { key: "name", label: "Campaign Name", sortable: true, render: (c) => <span className="font-semibold text-zinc-900 dark:text-white">{c.name}</span> },
     { key: "date", label: "Date", sortable: true, render: (c) => <span>{formatDateTime(c.date)}</span> },
