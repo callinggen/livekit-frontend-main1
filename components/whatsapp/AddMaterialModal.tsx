@@ -46,7 +46,20 @@ export default function AddMaterialModal({
   editingMaterial = null,
 }: AddMaterialModalProps) {
   const { user } = useAuth();
-  const token = user?.token || (typeof window !== "undefined" ? localStorage.getItem("token") || "" : "");
+  const getAuthToken = (): string => {
+    if (user?.token) return user.token;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.token) return parsed.token;
+        }
+      } catch {}
+      return localStorage.getItem("token") || "";
+    }
+    return "";
+  };
 
   const [modalType, setModalType] = useState<"text" | "image" | "document">(
     editingMaterial ? editingMaterial.type : initialType
@@ -135,7 +148,13 @@ export default function AddMaterialModal({
 
     try {
       setIsSubmitting(true);
-      const authToken = `Bearer ${token || localStorage.getItem("token") || ""}`;
+      const rawToken = getAuthToken();
+      if (!rawToken) {
+        setErrorMsg("Your session appears to have expired. Please log in again.");
+        setIsSubmitting(false);
+        return;
+      }
+      const authToken = rawToken.startsWith("Bearer ") ? rawToken : `Bearer ${rawToken}`;
 
       if (modalType === "text") {
         if (editingMaterial) {
@@ -151,7 +170,17 @@ export default function AddMaterialModal({
               tags: formTags.trim() || undefined,
             }),
           });
-          if (!res.ok) throw new Error(await res.text());
+          if (!res.ok) {
+            let errorDetail = "Failed to update material";
+            try {
+              const errData = await res.json();
+              errorDetail = errData.detail || errData.message || errorDetail;
+            } catch {
+              const text = await res.text().catch(() => "");
+              if (text) errorDetail = text.slice(0, 150);
+            }
+            throw new Error(errorDetail);
+          }
           const data = await res.json();
           onSuccess(data);
         } else {
@@ -168,7 +197,17 @@ export default function AddMaterialModal({
               save_to_base: saveToBase,
             }),
           });
-          if (!res.ok) throw new Error(await res.text());
+          if (!res.ok) {
+            let errorDetail = "Failed to create material";
+            try {
+              const errData = await res.json();
+              errorDetail = errData.detail || errData.message || errorDetail;
+            } catch {
+              const text = await res.text().catch(() => "");
+              if (text) errorDetail = text.slice(0, 150);
+            }
+            throw new Error(errorDetail);
+          }
           const data = await res.json();
           onSuccess(data?.material || data);
         }
@@ -194,8 +233,21 @@ export default function AddMaterialModal({
         });
 
         if (!res.ok) {
-          const errData = await res.json().catch(() => ({ detail: "Upload failed" }));
-          throw new Error(errData.detail || "Failed to upload file");
+          let errorDetail = "Failed to upload file";
+          try {
+            const errData = await res.json();
+            errorDetail = errData.detail || errData.message || errorDetail;
+          } catch {
+            if (res.status === 413) {
+              errorDetail = "File size exceeds the server upload limit.";
+            } else if (res.status === 401) {
+              errorDetail = "Session expired or invalid credentials. Please log in again.";
+            } else {
+              const text = await res.text().catch(() => "");
+              if (text) errorDetail = text.slice(0, 150);
+            }
+          }
+          throw new Error(errorDetail);
         }
 
         const data = await res.json();

@@ -68,7 +68,20 @@ function formatLocalTime(isoString?: string | null, fallback?: string): string {
 
 export default function MaterialBasePage() {
   const { isLoggedIn, user } = useAuth();
-  const token = user?.token || (typeof window !== "undefined" ? localStorage.getItem("token") || "" : "");
+  const getAuthToken = (): string => {
+    if (user?.token) return user.token;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("callinggen-auth") || localStorage.getItem("callinggen-auth");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.token) return parsed.token;
+        }
+      } catch {}
+      return localStorage.getItem("token") || "";
+    }
+    return "";
+  };
   const { credits } = useCredits();
   const router = useRouter();
 
@@ -106,9 +119,11 @@ export default function MaterialBasePage() {
   const fetchMaterials = async () => {
     try {
       setLoading(true);
+      const rawToken = getAuthToken();
+      const authHeader = rawToken ? (rawToken.startsWith("Bearer ") ? rawToken : `Bearer ${rawToken}`) : "";
       const res = await fetch(`${BASE_URL}/api/whatsapp/materials`, {
         headers: {
-          Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
+          Authorization: authHeader,
         },
       });
       if (res.ok) {
@@ -125,7 +140,7 @@ export default function MaterialBasePage() {
 
   useEffect(() => {
     fetchMaterials();
-  }, [token]);
+  }, [user]);
 
   // Format bytes
   const formatFileSize = (bytes?: number) => {
@@ -211,7 +226,8 @@ export default function MaterialBasePage() {
 
     try {
       setIsSubmitting(true);
-      const authToken = token || localStorage.getItem("token") || "";
+      const rawToken = getAuthToken();
+      const authToken = rawToken ? (rawToken.startsWith("Bearer ") ? rawToken : `Bearer ${rawToken}`) : "";
 
       if (editingMaterial) {
         // Update existing text material
@@ -306,11 +322,12 @@ export default function MaterialBasePage() {
   // Handle Delete
   const handleDelete = async (id: number) => {
     try {
-      const authToken = token || localStorage.getItem("token") || "";
+      const rawToken = getAuthToken();
+      const authToken = rawToken ? (rawToken.startsWith("Bearer ") ? rawToken : `Bearer ${rawToken}`) : "";
       const res = await fetch(`${BASE_URL}/api/whatsapp/materials/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          Authorization: authToken,
         },
       });
       if (res.ok) {
