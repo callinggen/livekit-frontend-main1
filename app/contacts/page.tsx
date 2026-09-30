@@ -119,11 +119,21 @@ export default function ContactsBookPage() {
   const [listContacts, setListContacts] = useState<SavedContactItem[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contactSearchQuery, setContactSearchQuery] = useState("");
+  const [debouncedContactSearch, setDebouncedContactSearch] = useState("");
   const [contactPage, setContactPage] = useState(1);
   const [contactPageSize, setContactPageSize] = useState(25);
   const [totalContactCount, setTotalContactCount] = useState(0);
   const [totalContactPages, setTotalContactPages] = useState(1);
   const [selectedContactIds, setSelectedContactIds] = useState<number[]>([]);
+
+  // Debounce contact search and reset page to 1
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedContactSearch(contactSearchQuery);
+      setContactPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [contactSearchQuery]);
 
   // ── Toast Notification State ──
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -196,12 +206,16 @@ export default function ContactsBookPage() {
   // ─────────────────────────────────────────────────────────────────────────────
   // Load Contacts for Active List (Drill-Down)
   // ─────────────────────────────────────────────────────────────────────────────
-  const loadActiveListContacts = async (tag: string, pageNum: number = 1) => {
+  const loadActiveListContacts = async (
+    tag: string,
+    pageNum: number = 1,
+    query: string = debouncedContactSearch
+  ) => {
     try {
       setLoadingContacts(true);
       const res = await api.getSavedContacts({
         tag: tag,
-        q: contactSearchQuery,
+        q: query,
         page: pageNum,
         page_size: contactPageSize,
       });
@@ -219,9 +233,9 @@ export default function ContactsBookPage() {
 
   useEffect(() => {
     if (activeListTag) {
-      loadActiveListContacts(activeListTag, contactPage);
+      loadActiveListContacts(activeListTag, contactPage, debouncedContactSearch);
     }
-  }, [activeListTag, contactPage, contactSearchQuery]);
+  }, [activeListTag, contactPage, debouncedContactSearch]);
 
   // Active list summary object
   const activeListSummary = useMemo(() => {
@@ -486,16 +500,18 @@ export default function ContactsBookPage() {
       return;
     }
 
-    if (wizardParsedRows.length === 0) {
-      showToast("No contacts to save. Please upload or enter contacts.", "error");
+    const validRows = wizardParsedRows.filter((r) => r.isValidPhone && !r.isDuplicate);
+    if (validRows.length === 0) {
+      showToast("No valid contacts to save. Please ensure phone numbers are valid and not duplicates.", "error");
+      setIsSavingList(false);
       return;
     }
 
     setIsSavingList(true);
     try {
-      const payloadContacts = wizardParsedRows.map((r) => ({
+      const payloadContacts = validRows.map((r) => ({
         name: r.name,
-        phone: r.phone || r.rawPhone,
+        phone: r.phone,
         email: r.email || undefined,
         tag: finalListName,
         source:
@@ -1784,7 +1800,7 @@ export default function ContactsBookPage() {
             <div className="flex items-center justify-between border-t border-zinc-100 pt-4 dark:border-zinc-800">
               <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 {wizardParsedRows.length > 0
-                  ? `Ready to save ${wizardStats.total} contacts into "${
+                  ? `Ready to save ${wizardStats.validPhones} valid contacts into "${
                       wizardListName || wizardFileName || "New List"
                     }"`
                   : "Please import contacts to verify."}
@@ -1801,7 +1817,7 @@ export default function ContactsBookPage() {
                 <button
                   type="button"
                   onClick={handleSaveVerifiedList}
-                  disabled={wizardParsedRows.length === 0 || isSavingList}
+                  disabled={wizardStats.validPhones === 0 || isSavingList}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2 text-xs font-bold text-white hover:bg-violet-700 shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
                   {isSavingList ? (

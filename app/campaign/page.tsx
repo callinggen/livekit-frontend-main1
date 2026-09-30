@@ -73,16 +73,22 @@ export default function CampaignsPage() {
   }, [isLoggedIn, router]);
 
   const loadCampaigns = () => {
-    Promise.all([
+    Promise.allSettled([
       api.getCampaigns("normal"),
       api.getCampaigns("pending")
     ])
-    .then(([normalData, pendingData]) => {
-      setCampaigns(normalData ? (normalData as Campaign[]) : []);
-      setPendingCampaigns(pendingData ? (pendingData as Campaign[]) : []);
-    })
-    .catch(err => {
-      console.warn("Failed to load campaigns:", err);
+    .then(([normalResult, pendingResult]) => {
+      if (normalResult.status === "fulfilled") {
+        setCampaigns(normalResult.value ? (normalResult.value as Campaign[]) : []);
+      } else {
+        console.warn("Failed to load normal campaigns:", normalResult.reason);
+      }
+
+      if (pendingResult.status === "fulfilled") {
+        setPendingCampaigns(pendingResult.value ? (pendingResult.value as Campaign[]) : []);
+      } else {
+        console.warn("Failed to load pending campaigns:", pendingResult.reason);
+      }
     })
     .finally(() => setLoading(false));
   };

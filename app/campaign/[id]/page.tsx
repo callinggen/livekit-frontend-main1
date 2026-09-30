@@ -184,18 +184,25 @@ export default function CampaignDetailPage() {
     if (!confirm("Are you sure you want to pause this campaign? Any ongoing calls will be immediately disconnected.")) {
       return;
     }
+    setActionLoading(true);
     try {
-      setActionLoading(true);
       await api.pauseCampaign(campaign.id);
       setCampaign(prev => prev ? { ...prev, status: "Paused" } : null);
+    } catch (err: any) {
+      alert(err.message || "Failed to pause campaign");
+      setActionLoading(false);
+      return;
+    }
+
+    try {
       const [data, callsData] = await Promise.all([
         api.getCampaign(Number(id)),
         api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
       ]);
-      setCampaign(data);
-      setCalls(callsData || []);
-    } catch (err: any) {
-      alert(err.message || "Failed to pause campaign");
+      if (data) setCampaign(data);
+      if (callsData) setCalls(callsData);
+    } catch (refreshErr) {
+      console.warn("Post-action refresh failed (will auto-refresh on next poll):", refreshErr);
     } finally {
       setActionLoading(false);
     }
@@ -203,18 +210,25 @@ export default function CampaignDetailPage() {
 
   const handleResume = async () => {
     if (!campaign) return;
+    setActionLoading(true);
     try {
-      setActionLoading(true);
       await api.resumeCampaign(campaign.id);
       setCampaign(prev => prev ? { ...prev, status: "Running" } : null);
+    } catch (err: any) {
+      alert(err.message || "Failed to resume campaign");
+      setActionLoading(false);
+      return;
+    }
+
+    try {
       const [data, callsData] = await Promise.all([
         api.getCampaign(Number(id)),
         api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
       ]);
-      setCampaign(data);
-      setCalls(callsData || []);
-    } catch (err: any) {
-      alert(err.message || "Failed to resume campaign");
+      if (data) setCampaign(data);
+      if (callsData) setCalls(callsData);
+    } catch (refreshErr) {
+      console.warn("Post-action refresh failed (will auto-refresh on next poll):", refreshErr);
     } finally {
       setActionLoading(false);
     }
@@ -225,18 +239,25 @@ export default function CampaignDetailPage() {
     if (!confirm("Are you sure you want to STOP this campaign entirely? All ongoing calls will be terminated, and all remaining pending calls will be cancelled.")) {
       return;
     }
+    setActionLoading(true);
     try {
-      setActionLoading(true);
       await api.stopCampaign(campaign.id);
       setCampaign(prev => prev ? { ...prev, status: "Stopped" } : null);
+    } catch (err: any) {
+      alert(err.message || "Failed to stop campaign");
+      setActionLoading(false);
+      return;
+    }
+
+    try {
       const [data, callsData] = await Promise.all([
         api.getCampaign(Number(id)),
         api.getCalls({ campaign_id: Number(id), page_size: 500 }).then(r => r.calls).catch(() => [])
       ]);
-      setCampaign(data);
-      setCalls(callsData || []);
-    } catch (err: any) {
-      alert(err.message || "Failed to stop campaign");
+      if (data) setCampaign(data);
+      if (callsData) setCalls(callsData);
+    } catch (refreshErr) {
+      console.warn("Post-action refresh failed (will auto-refresh on next poll):", refreshErr);
     } finally {
       setActionLoading(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import DOMPurify from "dompurify";
 import dynamic from "next/dynamic";
 import "react-quill-new/dist/quill.snow.css";
 
@@ -69,6 +70,7 @@ export interface EmailAutomationRule {
 export interface EmailAutomationConfig {
   enabled: boolean;
   rules: EmailAutomationRule[];
+  branding?: EmailBrandingOptions;
 }
 
 export interface EmailTemplate {
@@ -440,9 +442,24 @@ function getAuthToken(): string | null {
   return localStorage.getItem("token") || null;
 }
 
+function sanitizeEmailHtml(html: string): string {
+  if (!html) return "";
+  if (typeof window !== "undefined") {
+    return DOMPurify.sanitize(html, {
+      ADD_TAGS: ["style"],
+      ADD_ATTR: ["target", "style"],
+    });
+  }
+  return html;
+}
+
 function makeDefaultRule(): EmailAutomationRule {
+  const id =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `erule_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   return {
-    id: `erule_${Date.now()}`,
+    id,
     call_type_filters: [],
     ai_class_filters: [],
     response_filters: [],
@@ -499,21 +516,44 @@ export default function EmailAutomationConfigSection({
   const [showConnectWarningModal, setShowConnectWarningModal] = useState(false);
 
   // Branding state per rule or global
-  const [branding, setBranding] = useState<EmailBrandingOptions>({
-    headerType: "logo",
-    logoUrl: "",
-    headerTitle: "GenX Reality",
-    headerSubtitle: "AI Voice & Automation Platform",
-    headerAlign: "center",
-    socialLinks: {
-      website: "https://genxreality.in",
-      linkedin: "",
-      twitter: "",
-      instagram: "",
-    },
-    showSocial: true,
-    companyFooter: "GenX Reality",
-  });
+  const defaultBranding: EmailBrandingOptions = useMemo(
+    () => ({
+      headerType: "logo",
+      logoUrl: "",
+      headerTitle: "GenX Reality",
+      headerSubtitle: "AI Voice & Automation Platform",
+      headerAlign: "center",
+      socialLinks: {
+        website: "https://genxreality.in",
+        linkedin: "",
+        twitter: "",
+        instagram: "",
+      },
+      showSocial: true,
+      companyFooter: "GenX Reality",
+    }),
+    []
+  );
+
+  const [branding, setBranding] = useState<EmailBrandingOptions>(
+    value.branding || defaultBranding
+  );
+
+  useEffect(() => {
+    if (value.branding) {
+      setBranding(value.branding);
+    }
+  }, [value.branding]);
+
+  const updateBranding = (
+    updater: (prev: EmailBrandingOptions) => EmailBrandingOptions
+  ) => {
+    setBranding((prev) => {
+      const next = updater(prev);
+      onChange({ enabled: isEnabled, rules: value.rules || [], branding: next });
+      return next;
+    });
+  };
   const [showSocialDrawer, setShowSocialDrawer] = useState(false);
 
   // CTA Button Modal state
@@ -584,13 +624,13 @@ export default function EmailAutomationConfigSection({
     if (nextEnabled && nextRules.length === 0) {
       nextRules = [makeDefaultRule()];
     }
-    onChange({ enabled: nextEnabled, rules: nextRules });
+    onChange({ enabled: nextEnabled, rules: nextRules, branding });
   };
 
   const handleAddRule = () => {
     const newRule = makeDefaultRule();
     const nextRules = [...(value.rules || []), newRule];
-    onChange({ enabled: true, rules: nextRules });
+    onChange({ enabled: true, rules: nextRules, branding });
   };
 
   const handleUpdateRule = (
@@ -599,12 +639,12 @@ export default function EmailAutomationConfigSection({
   ) => {
     const nextRules = [...(value.rules || [])];
     nextRules[index] = { ...nextRules[index], ...updates };
-    onChange({ enabled: isEnabled, rules: nextRules });
+    onChange({ enabled: isEnabled, rules: nextRules, branding });
   };
 
   const handleDeleteRule = (index: number) => {
     const nextRules = (value.rules || []).filter((_, i) => i !== index);
-    onChange({ enabled: isEnabled, rules: nextRules });
+    onChange({ enabled: isEnabled, rules: nextRules, branding });
   };
 
   const getTemplateById = (id: string) =>
@@ -625,7 +665,7 @@ export default function EmailAutomationConfigSection({
     const file = e.target.files?.[0];
     if (!file) return;
     const { dataUrl } = await compressImageToSizeRange(file, 20, 100);
-    setBranding((prev) => ({
+    updateBranding((prev) => ({
       ...prev,
       logoUrl: dataUrl,
       headerType: "logo",
@@ -1167,7 +1207,7 @@ export default function EmailAutomationConfigSection({
                         <span className="text-emerald-300">&bull;</span>
                         <button
                           type="button"
-                          onClick={() => setBranding((p) => ({ ...p, logoUrl: "", headerType: "text" }))}
+                          onClick={() => updateBranding((p) => ({ ...p, logoUrl: "", headerType: "text" }))}
                           className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
                         >
                           Remove
@@ -1211,7 +1251,7 @@ export default function EmailAutomationConfigSection({
                                 <button
                                   key={al.id}
                                   type="button"
-                                  onClick={() => setBranding((p) => ({ ...p, headerAlign: al.id as any }))}
+                                  onClick={() => updateBranding((p) => ({ ...p, headerAlign: al.id as any }))}
                                   className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-[11px] font-semibold transition cursor-pointer ${
                                     active
                                       ? "bg-white dark:bg-zinc-800 text-blue-600 shadow-xs"
@@ -1233,7 +1273,7 @@ export default function EmailAutomationConfigSection({
                           <input
                             type="text"
                             value={branding.headerTitle}
-                            onChange={(e) => setBranding((p) => ({ ...p, headerTitle: e.target.value }))}
+                            onChange={(e) => updateBranding((p) => ({ ...p, headerTitle: e.target.value }))}
                             placeholder="e.g. GenX Reality"
                             className="w-full rounded-lg border border-zinc-200 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-900 outline-none dark:border-zinc-600 dark:text-white"
                           />
@@ -1246,7 +1286,7 @@ export default function EmailAutomationConfigSection({
                           <input
                             type="text"
                             value={branding.headerSubtitle}
-                            onChange={(e) => setBranding((p) => ({ ...p, headerSubtitle: e.target.value }))}
+                            onChange={(e) => updateBranding((p) => ({ ...p, headerSubtitle: e.target.value }))}
                             placeholder="e.g. AI Voice & Automation"
                             className="w-full rounded-lg border border-zinc-200 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-900 outline-none dark:border-zinc-600 dark:text-white"
                           />
@@ -1262,7 +1302,7 @@ export default function EmailAutomationConfigSection({
                           <input
                             type="text"
                             value={branding.companyFooter}
-                            onChange={(e) => setBranding((p) => ({ ...p, companyFooter: e.target.value }))}
+                            onChange={(e) => updateBranding((p) => ({ ...p, companyFooter: e.target.value }))}
                             placeholder="e.g. GenX Reality"
                             className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                           />
@@ -1275,7 +1315,7 @@ export default function EmailAutomationConfigSection({
                             type="url"
                             value={branding.socialLinks.website || ""}
                             onChange={(e) =>
-                              setBranding((p) => ({
+                              updateBranding((p) => ({
                                 ...p,
                                 socialLinks: { ...p.socialLinks, website: e.target.value },
                               }))
@@ -1468,13 +1508,13 @@ export default function EmailAutomationConfigSection({
                 <div
                   className="bg-white rounded-xl shadow-md overflow-hidden"
                   dangerouslySetInnerHTML={{
-                    __html: formatEmailDocumentHtml(
-                      value.rules[previewModalRuleIdx]?.custom_body ||
-                        templates.find(
-                          (t) => t.id === value.rules[previewModalRuleIdx]?.template_id
-                        )?.body ||
-                        "",
-                      branding
+                    __html: sanitizeEmailHtml(
+                      formatEmailDocumentHtml(
+                        previewModalRuleIdx !== null && value.rules[previewModalRuleIdx]
+                          ? resolvedBody(value.rules[previewModalRuleIdx])
+                          : "",
+                        branding
+                      )
                     ),
                   }}
                 />
@@ -1550,8 +1590,13 @@ export default function EmailAutomationConfigSection({
                 <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
                   <ReactQuill
                     theme="snow"
-                    value={value.rules[fullscreenRuleIdx]?.custom_body || ""}
+                    value={
+                      fullscreenRuleIdx !== null && value.rules[fullscreenRuleIdx]
+                        ? resolvedBody(value.rules[fullscreenRuleIdx])
+                        : ""
+                    }
                     onChange={(content) =>
+                      fullscreenRuleIdx !== null &&
                       handleUpdateRule(fullscreenRuleIdx, { custom_body: content })
                     }
                     className="studio-editor bg-white dark:bg-[#0A0D14] text-zinc-900 dark:text-white min-h-[360px]"
@@ -1568,9 +1613,13 @@ export default function EmailAutomationConfigSection({
                 <div
                   className="bg-white rounded-xl shadow-sm overflow-hidden"
                   dangerouslySetInnerHTML={{
-                    __html: formatEmailDocumentHtml(
-                      value.rules[fullscreenRuleIdx]?.custom_body || "",
-                      branding
+                    __html: sanitizeEmailHtml(
+                      formatEmailDocumentHtml(
+                        fullscreenRuleIdx !== null && value.rules[fullscreenRuleIdx]
+                          ? resolvedBody(value.rules[fullscreenRuleIdx])
+                          : "",
+                        branding
+                      )
                     ),
                   }}
                 />

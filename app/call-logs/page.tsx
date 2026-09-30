@@ -52,6 +52,7 @@ export default function CallLogsPage() {
 
   // Debounce search
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchSeqRef = useRef(0);
   const handleSearchChange = (val: string) => {
     setSearchInput(val);
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -62,6 +63,7 @@ export default function CallLogsPage() {
   };
 
   const fetchCalls = useCallback(async (currentPage: number, currentSearch: string, currentStatus: string, currentDirection: string) => {
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     try {
       const params: any = { page: currentPage, page_size: PAGE_SIZE };
@@ -70,6 +72,7 @@ export default function CallLogsPage() {
       if (currentDirection !== "All") params.direction = currentDirection;
 
       const res = await api.getCalls(params);
+      if (seq !== fetchSeqRef.current) return;
       const mapped = res.calls.map((r: any, i: number) => ({
         id: r.id ? Number(r.id) : i,
         name: r.name || r.customer_name || "Unknown",
@@ -94,12 +97,15 @@ export default function CallLogsPage() {
       setData(mapped);
       setTotal(res.total);
     } catch (err) {
+      if (seq !== fetchSeqRef.current) return;
       console.error("Failed to load calls:", err);
       setData([]);
       setTotal(0);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
@@ -108,8 +114,9 @@ export default function CallLogsPage() {
       router.replace("/login");
       return;
     }
+    setSelectedRows([]);
     fetchCalls(page, search, filterStatus, filterDirection);
-  }, [isLoggedIn, router, page, search, filterStatus, filterDirection, fetchCalls]);
+  }, [isLoggedIn, router, page, search, filterStatus, filterDirection, filterCategory, filterResponse, filterAgent, fetchCalls]);
 
   if (!isLoggedIn) return null;
 
@@ -205,7 +212,11 @@ export default function CallLogsPage() {
     ];
     const escapeCSV = (val: any) => {
       if (val === null || val === undefined) return '""';
-      const str = String(val).replace(/"/g, '""');
+      let str = String(val);
+      if (/^[=+\-@\t\r]/.test(str)) {
+        str = "'" + str;
+      }
+      str = str.replace(/"/g, '""');
       return `"${str}"`;
     };
 

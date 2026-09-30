@@ -57,9 +57,29 @@ export interface EmailAutomationRule {
   enabled: boolean;
 }
 
+export interface EmailBrandingOptions {
+  headerType: "logo" | "text" | "none";
+  logoUrl: string;
+  headerTitle: string;
+  headerSubtitle: string;
+  headerAlign?: "left" | "center" | "right";
+  socialLinks: {
+    linkedin?: string;
+    twitter?: string;
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+    website?: string;
+    whatsapp?: string;
+  };
+  showSocial: boolean;
+  companyFooter: string;
+}
+
 export interface EmailAutomationConfig {
   enabled: boolean;
   rules: EmailAutomationRule[];
+  branding?: EmailBrandingOptions;
 }
 
 export interface CampaignFormData {

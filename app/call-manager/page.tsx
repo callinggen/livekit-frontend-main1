@@ -94,7 +94,49 @@ export default function CallManagerPage() {
   const [showPreLaunchModal, setShowPreLaunchModal] = useState(false);
   const [showExhaustedModal, setShowExhaustedModal] = useState(false);
 
-  // Preload contacts from Contact Book if user navigated with selected contacts
+  const handleLoadFromContactBook = useCallback(async (tag?: string) => {
+    try {
+      const saved = await api.getAllSavedContacts(tag === "all" ? undefined : tag);
+      if (!saved || saved.length === 0) {
+        alert(tag && tag !== "all" ? `No contacts found under tag "${tag}".` : "Your Contact Book is currently empty.");
+        return;
+      }
+      const mapped: Contact[] = saved.map((item, idx) => ({
+        id: item.id || Date.now() + idx,
+        name: item.name || "Unknown",
+        phone: item.phone,
+        status: "pending",
+        response: "—",
+        metadata_fields: {
+          ...(item.metadata_fields
+            ? Object.fromEntries(Object.entries(item.metadata_fields).map(([k, v]) => [k, String(v)]))
+            : {}),
+          ...(item.email ? { email: item.email } : {}),
+        },
+      }));
+
+      setContacts(mapped);
+      setFileUploaded(true);
+      setFileName(tag && tag !== "all" ? `Contact Book (${tag})` : "Contact Book (All Contacts)");
+      setFileSize(`${mapped.length} contacts`);
+      setFormData((prev) => ({
+        ...prev,
+        uploadSource: "contacts_book",
+        selectedContactBookTag: tag || "all",
+        startRow: 1,
+        endRow: mapped.length,
+      }));
+      setErrors((prev) => {
+        const e = { ...prev };
+        delete e.upload;
+        return e;
+      });
+    } catch (err: any) {
+      alert("Failed to load contacts from Contact Book: " + (err?.message || err));
+    }
+  }, []);
+
+  // Preload contacts from Contact Book if user navigated with selected contacts or query params
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem("call_manager_preloaded_contacts");
@@ -120,12 +162,25 @@ export default function CallManagerPage() {
             endRow: mapped.length,
           }));
           sessionStorage.removeItem("call_manager_preloaded_contacts");
+          return;
         }
+      }
+
+      const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const source = searchParams?.get("source");
+      const tagFromUrl = searchParams?.get("tag");
+      const tagFromStorage = sessionStorage.getItem("callinggen_load_contact_tag");
+      const tag = tagFromUrl || tagFromStorage;
+
+      if (source === "contacts_book" || tag) {
+        const targetTag = tag || "all";
+        handleLoadFromContactBook(targetTag);
+        sessionStorage.removeItem("callinggen_load_contact_tag");
       }
     } catch (e) {
       console.warn("Could not load preloaded contacts:", e);
     }
-  }, []);
+  }, [handleLoadFromContactBook]);
 
   // Agent State
   const [fetchedAgents, setFetchedAgents] = useState<{ id: number; name: string; language: string; voice: string; script: string }[]>([]);
@@ -270,45 +325,7 @@ export default function CallManagerPage() {
     });
   };
 
-  const handleLoadFromContactBook = async (tag?: string) => {
-    try {
-      const saved = await api.getAllSavedContacts(tag === "all" ? undefined : tag);
-      if (!saved || saved.length === 0) {
-        alert(tag && tag !== "all" ? `No contacts found under tag "${tag}".` : "Your Contact Book is currently empty.");
-        return;
-      }
-      const mapped: Contact[] = saved.map((item, idx) => ({
-        id: item.id || Date.now() + idx,
-        name: item.name || "Unknown",
-        phone: item.phone,
-        status: "pending",
-        response: "—",
-        metadata_fields: {
-          ...(item.metadata_fields
-            ? Object.fromEntries(Object.entries(item.metadata_fields).map(([k, v]) => [k, String(v)]))
-            : {}),
-          ...(item.email ? { email: item.email } : {}),
-        },
-      }));
 
-      setContacts(mapped);
-      setFileUploaded(true);
-      setFileName(tag && tag !== "all" ? `Contact Book (${tag})` : "Contact Book (All Contacts)");
-      setFileSize(`${mapped.length} contacts`);
-      setFormData((prev) => ({
-        ...prev,
-        startRow: 1,
-        endRow: mapped.length,
-      }));
-      setErrors((prev) => {
-        const e = { ...prev };
-        delete e.upload;
-        return e;
-      });
-    } catch (err: any) {
-      alert("Failed to load contacts from Contact Book: " + (err?.message || err));
-    }
-  };
 
   const handleFileUpload = async (file: File) => {
     try {
