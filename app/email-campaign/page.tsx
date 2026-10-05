@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Info,
+  Radio,
 } from "lucide-react";
 import {
   api,
@@ -534,18 +535,24 @@ export default function EmailCampaignPage() {
             {/* Stats cards */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
               {[
-                { label: "Total Campaigns", value: totalCampaigns, icon: Mail, color: "violet" },
-                { label: "Running", value: runningCampaigns, icon: Loader2, color: "blue" },
-                { label: "Completed", value: completedCampaigns, icon: CheckCircle2, color: "emerald" },
-                { label: "Drafts", value: draftCampaigns, icon: Clock, color: "amber" },
-                { label: "Emails Delivered", value: totalEmailsSent, icon: Send, color: "indigo" },
-              ].map(({ label, value, icon: Icon, color }) => (
+                { label: "Total Campaigns", value: totalCampaigns, icon: Mail, color: "violet", spin: false },
+                {
+                  label: "Running",
+                  value: runningCampaigns,
+                  icon: runningCampaigns > 0 ? Loader2 : Radio,
+                  color: "blue",
+                  spin: runningCampaigns > 0,
+                },
+                { label: "Completed", value: completedCampaigns, icon: CheckCircle2, color: "emerald", spin: false },
+                { label: "Drafts", value: draftCampaigns, icon: Clock, color: "amber", spin: false },
+                { label: "Emails Delivered", value: totalEmailsSent, icon: Send, color: "indigo", spin: false },
+              ].map(({ label, value, icon: Icon, color, spin }) => (
                 <div
                   key={label}
                   className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-[#0B0F19]"
                 >
                   <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-${color}-100 text-${color}-600 dark:bg-${color}-900/30 dark:text-${color}-400`}>
-                    <Icon className="h-5 w-5" />
+                    <Icon className={`h-5 w-5 ${spin ? "animate-spin" : ""}`} />
                   </div>
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
                   <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mt-0.5">{value}</h3>
