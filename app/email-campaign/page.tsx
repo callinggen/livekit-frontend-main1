@@ -403,8 +403,6 @@ export default function EmailCampaignPage() {
     }
   };
 
-  if (!isLoggedIn) return null;
-
   // Filter templates
   const filteredTemplates = templates.filter((t) => {
     const matchesCat =

@@ -115,8 +115,6 @@ export default function ReportPage() {
     }
   }, [isLoggedIn, router]);
 
-  if (!isLoggedIn) return null;
-
   // Preset date helpers
   const applyPreset = (type: "today" | "yesterday" | "last7" | "last30") => {
     const today = new Date();

@@ -99,6 +99,8 @@ export interface CampaignFormData {
   endRow?: number;
   whatsappAutomation?: WhatsAppAutomationConfig;
   emailAutomation?: EmailAutomationConfig;
+  attachKnowledgeBase?: boolean;
+  selectedKnowledgeDocIds?: number[];
   saveToContactBook?: boolean;
   contactBookTag?: string;
   selectedContactBookTag?: string;

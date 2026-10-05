@@ -10,9 +10,10 @@ import {
   ArrowLeft, Calendar, User, FileText, CheckCircle2,
   XCircle, HelpCircle, PhoneCall, Zap, Award, MessageSquare, Send,
   Clock, Database, PlayCircle, X, Phone,
-  Pause, Play, Square, Loader2
+  Pause, Play, Square, Loader2,
+  Brain, Globe, FileSpreadsheet, Layers, Eye, BookOpen, ExternalLink, Sparkles
 } from "lucide-react";
-import { api, CampaignDetail } from "@/lib/api";
+import { api, CampaignDetail, KnowledgeDocumentDetail } from "@/lib/api";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
@@ -263,6 +264,21 @@ export default function CampaignDetailPage() {
     }
   };
 
+  const [previewKnowledgeDoc, setPreviewKnowledgeDoc] = useState<KnowledgeDocumentDetail | null>(null);
+  const [loadingKnowledgePreview, setLoadingKnowledgePreview] = useState<boolean>(false);
+
+  const handleOpenKnowledgeDocPreview = async (docId: number) => {
+    setLoadingKnowledgePreview(true);
+    try {
+      const detail = await api.getKnowledgeDocument(docId);
+      setPreviewKnowledgeDoc(detail);
+    } catch (err) {
+      console.error("Failed to load knowledge document preview:", err);
+    } finally {
+      setLoadingKnowledgePreview(false);
+    }
+  };
+
   // Enrich contacts with datetime and credits from matched call records
   const enrichedContacts = useMemo(() => {
     if (!campaign || !campaign.contacts) return [];
@@ -323,8 +339,6 @@ export default function CampaignDetailPage() {
       clearInterval(interval);
     };
   }, [isLoggedIn, id]);
-
-  if (!isLoggedIn) return null;
 
   if (loading) {
     return (
@@ -652,6 +666,105 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
+        {/* Attached Knowledge Base & Business Materials */}
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19] shrink-0 transition hover:shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+                <Brain className="h-4 w-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  Attached Knowledge Base & Materials
+                  {campaign.knowledge_documents && campaign.knowledge_documents.length > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 lowercase">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      {campaign.knowledge_documents.length} source{campaign.knowledge_documents.length > 1 ? "s" : ""} connected
+                    </span>
+                  )}
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Business documentation and verified facts retrieved by the Voice AI Agent during calls for this campaign.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {campaign.knowledge_documents && campaign.knowledge_documents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {campaign.knowledge_documents.map((doc: any) => {
+                const getDocIcon = (srcType: string) => {
+                  switch ((srcType || "").toLowerCase()) {
+                    case "pdf": return <FileText className="w-4 h-4 text-red-500" />;
+                    case "docx":
+                    case "doc": return <FileText className="w-4 h-4 text-blue-500" />;
+                    case "sheet":
+                    case "csv": return <FileSpreadsheet className="w-4 h-4 text-emerald-500" />;
+                    case "url": return <Globe className="w-4 h-4 text-indigo-500" />;
+                    case "faq": return <MessageSquare className="w-4 h-4 text-amber-500" />;
+                    default: return <BookOpen className="w-4 h-4 text-violet-500" />;
+                  }
+                };
+
+                return (
+                  <div
+                    key={doc.id}
+                    className="flex flex-col justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 p-3.5 transition hover:border-violet-300 dark:hover:border-violet-700/50 hover:bg-white dark:hover:bg-zinc-900/60"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                        {getDocIcon(doc.source_type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate" title={doc.title}>
+                          {doc.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <span className="uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[9px] text-zinc-600 dark:text-zinc-300">
+                            {doc.source_type}
+                          </span>
+                          <span>•</span>
+                          <span>{doc.total_chunks || doc.chunk_count || 1} chunks</span>
+                          {doc.total_words ? (
+                            <>
+                              <span>•</span>
+                              <span>{doc.total_words} words</span>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-400 truncate max-w-[150px]">
+                        {doc.source_url || doc.file_name || "Direct Content"}
+                      </span>
+                      <button
+                        onClick={() => handleOpenKnowledgeDocPreview(doc.id)}
+                        disabled={loadingKnowledgePreview}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Preview Content
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/20 p-5 text-center">
+              <BookOpen className="w-6 h-6 text-zinc-300 dark:text-zinc-600 mx-auto mb-1.5" />
+              <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                No specific external knowledge base attached.
+              </p>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                The agent conducts live calls purely based on the Agent Script instructions configured in Call Manager.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Live Journey Panel (Only for Running campaigns) */}
         {campaign.status.toLowerCase() === "running" && (
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:bg-gradient-to-r dark:from-[#09090b] dark:to-[#130f1c] dark:border-zinc-800/60 shrink-0">
@@ -935,6 +1048,91 @@ export default function CampaignDetailPage() {
                   </div>
 
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Knowledge Document Text & Chunks Preview Modal */}
+        {previewKnowledgeDoc && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setPreviewKnowledgeDoc(null)} />
+            <div className="relative bg-white dark:bg-[#0B0F19] w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col animate-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="bg-white dark:bg-[#0B0F19] z-10 border-b border-zinc-200 dark:border-zinc-800 p-5 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400 border border-violet-200 dark:border-violet-800/50 shrink-0 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white truncate">
+                      {previewKnowledgeDoc.title}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className="uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[9px]">
+                        {previewKnowledgeDoc.source_type}
+                      </span>
+                      <span>•</span>
+                      <span>{previewKnowledgeDoc.chunk_count || previewKnowledgeDoc.chunks?.length || 0} Chunks</span>
+                      {previewKnowledgeDoc.source_url && (
+                        <>
+                          <span>•</span>
+                          <a
+                            href={previewKnowledgeDoc.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1 truncate max-w-[200px]"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            {previewKnowledgeDoc.source_url}
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPreviewKnowledgeDoc(null)}
+                  className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-zinc-500 dark:text-zinc-400"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto space-y-6 bg-zinc-50/30 dark:bg-zinc-950/10">
+                <div>
+                  <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-violet-600" />
+                    Extracted Text Content
+                  </h4>
+                  <div className="bg-white dark:bg-[#0B0F19] border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200 max-h-[300px] overflow-y-auto whitespace-pre-wrap font-sans select-text">
+                    {previewKnowledgeDoc.extracted_text || "No raw text available."}
+                  </div>
+                </div>
+
+                {previewKnowledgeDoc.chunks && previewKnowledgeDoc.chunks.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-violet-600" />
+                      Indexed RAG Semantic Chunks ({previewKnowledgeDoc.chunks.length})
+                    </h4>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                      {previewKnowledgeDoc.chunks.map((chunk: any, idx: number) => (
+                        <div
+                          key={chunk.id || idx}
+                          className="bg-white dark:bg-[#0B0F19] border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-xs text-zinc-700 dark:text-zinc-300 shadow-sm"
+                        >
+                          <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                            <span>Chunk #{chunk.chunk_index + 1}</span>
+                            <span>{chunk.word_count} words</span>
+                          </div>
+                          <p className="leading-relaxed whitespace-pre-wrap">{chunk.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -158,8 +158,6 @@ export default function EmailCampaignDetailPage() {
     }
   };
 
-  if (!isLoggedIn) return null;
-
   if (loading) {
     return (
       <DashboardShell title="Email Campaign">

@@ -99,7 +99,6 @@ export default function CampaignsPage() {
     const interval = setInterval(loadCampaigns, 10000);
     return () => clearInterval(interval);
   }, [isLoggedIn]);
-
   const handleLaunchPending = async (campaignId: string) => {
     try {
       setLaunchingId(campaignId);

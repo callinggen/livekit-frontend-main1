@@ -90,6 +90,9 @@ interface ConversationItem {
   is_client?: boolean;
   is_genx?: boolean;
   is_archived?: boolean;
+  summary?: string;
+  lead_score?: number | string;
+  notes?: string;
 }
 
 function formatBytes(bytes?: number | string): string {
@@ -196,6 +199,12 @@ export default function WhatsAppPage() {
   const [isMetaAiLoading, setIsMetaAiLoading] = useState(false);
   const [isRefreshingChats, setIsRefreshingChats] = useState(false);
 
+  // Automation toggles & Summary Modal
+  const [autoSummary, setAutoSummary] = useState(true);
+  const [autoCalendar, setAutoCalendar] = useState(true);
+  const [isAiActive, setIsAiActive] = useState<boolean>(true);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -207,8 +216,41 @@ export default function WhatsAppPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Check AI Bot Status
+  const checkAiStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/whatsapp/bot-status`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsAiActive(data.is_active);
+      } else {
+        setIsAiActive(false);
+      }
+    } catch {
+      setIsAiActive(false);
+    }
+  }, []);
+
+  const toggleAiStatus = async () => {
+    try {
+      const newStatus = !isAiActive;
+      const res = await fetch(`${BASE_URL}/api/whatsapp/bot-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: newStatus }),
+      });
+      if (res.ok) {
+        setIsAiActive(newStatus);
+        showToast(`Bot is now ${newStatus ? 'Active' : 'Offline'}`);
+      }
+    } catch {
+      showToast("Failed to toggle bot status", "error");
+    }
+  };
+
   // 1. Connection Status Checking
   const checkConnectionStatus = useCallback(async () => {
+    checkAiStatus();
     try {
       const res = await fetch(`${BASE_URL}/api/whatsapp/status?instance_name=${instanceName}`);
       if (!res.ok) return;
@@ -796,8 +838,6 @@ export default function WhatsAppPage() {
     return true;
   });
 
-  if (!isLoggedIn) return null;
-
   return (
     <DashboardShell title="WhatsApp">
       {/* Toast Alert */}
@@ -851,21 +891,61 @@ export default function WhatsAppPage() {
           </Link>
         </div>
 
-        {connectionState === "connected" && (
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800">
-              <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse"></span>
-              Connected: {connectedPhone || "Active"}
-            </span>
+        <div className="flex items-center gap-3">
+          {/* AI Assistant Status Badge */}
+          <div className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-full px-3 py-1.5 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                {isAiActive && connectionState === "connected" ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-600"></span>
+                  </>
+                ) : (
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isAiActive ? 'bg-indigo-400' : 'bg-slate-400 dark:bg-zinc-500'}`}></span>
+                )}
+              </span>
+              <Bot className={`w-3.5 h-3.5 ${isAiActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+              <span className={`hidden sm:inline text-xs font-semibold ${isAiActive ? 'text-slate-700 dark:text-slate-200' : 'text-slate-500 dark:text-zinc-400'}`}>
+                Bot: {isAiActive && connectionState === "connected" ? "Active" : isAiActive ? "Ready" : "Offline"}
+              </span>
+            </div>
+            
             <button
-              onClick={() => setShowLogoutConfirmModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-100 transition cursor-pointer"
+              type="button"
+              onClick={toggleAiStatus}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isAiActive ? 'bg-violet-600' : 'bg-slate-300 dark:bg-zinc-600'
+              }`}
+              role="switch"
+              aria-checked={isAiActive}
             >
-              <LogOut className="w-3.5 h-3.5" />
-              Disconnect
+              <span className="sr-only">Toggle AI Bot</span>
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isAiActive ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
             </button>
           </div>
-        )}
+
+          {connectionState === "connected" && (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800">
+                <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse"></span>
+                Connected: {connectedPhone || "Active"}
+              </span>
+              <button
+                onClick={() => setShowLogoutConfirmModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-100 transition cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Disconnect
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════════
@@ -1450,6 +1530,20 @@ export default function WhatsAppPage() {
                   </div>
 
                   <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                    {connectionState === "connected" && isAiActive && (
+                      <span className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50 mr-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        AI Auto-Reply Active
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => setShowSummaryModal(true)}
+                      className="px-3 py-1.5 mr-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#4F46E5] dark:text-indigo-400" />
+                      Call Summary
+                    </button>
                     <button
                       onClick={() => router.push("/whatsapp/materials")}
                       className="p-2 hover:bg-zinc-200/80 dark:hover:bg-zinc-700 rounded-full transition cursor-pointer"
@@ -1986,6 +2080,57 @@ export default function WhatsAppPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── CALL SUMMARY MODAL (NEW AI FEATURE) ── */}
+      {showSummaryModal && activeChat && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#111B21] w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                Call Summary • {activeChat.name}
+              </h3>
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+                <p className="font-bold text-[10px] uppercase text-slate-400 mb-1">AI Overview</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200">{activeChat.summary || "No summary available for this chat yet."}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xs">
+                  <p className="text-[9px] uppercase font-bold text-slate-400">Category</p>
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{activeChat.category || "N/A"}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xs">
+                  <p className="text-[9px] uppercase font-bold text-slate-400">Lead Score</p>
+                  <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{activeChat.lead_score || "N/A"}{activeChat.lead_score ? " / 100" : ""}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-xs">
+                  <p className="text-[9px] uppercase font-bold text-slate-400">Outcome</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">{activeChat.notes || "None"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-md cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
