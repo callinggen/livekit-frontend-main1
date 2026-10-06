@@ -62,6 +62,12 @@ interface TransactionItem {
   created_at: string;
 }
 
+/** Backend timestamps are UTC; treat strings without a timezone designator as UTC. */
+function parseUtcDate(value: string): Date {
+  const hasTz = /([zZ]|[+-]\d{2}:?\d{2})$/.test(value);
+  return new Date(hasTz ? value : `${value}Z`);
+}
+
 export default function BillingPage() {
   const { user } = useAuth();
   const { refreshCredits } = useCredits();
@@ -449,7 +455,7 @@ export default function BillingPage() {
                       filteredDeductions.map((tx) => (
                         <tr key={tx.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                           <td className="py-3 px-4 text-[11px] whitespace-nowrap text-zinc-500">
-                            {tx.created_at ? new Date(tx.created_at).toLocaleString("en-IN", {
+                            {tx.created_at ? parseUtcDate(tx.created_at).toLocaleString("en-IN", {
                               day: "2-digit",
                               month: "short",
                               year: "numeric",
@@ -553,7 +559,7 @@ export default function BillingPage() {
                         return (
                           <tr key={tx.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                             <td className="py-3 px-4 text-[11px] whitespace-nowrap text-zinc-500">
-                              {tx.created_at ? new Date(tx.created_at).toLocaleString("en-IN", {
+                              {tx.created_at ? parseUtcDate(tx.created_at).toLocaleString("en-IN", {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
