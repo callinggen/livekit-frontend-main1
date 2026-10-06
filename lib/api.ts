@@ -199,6 +199,27 @@ export interface EmailTemplateCreatePayload {
   preview_text?: string;
 }
 
+export interface EmailAIGeneratePayload {
+  prompt: string;
+  tone?: string;
+  category?: string;
+  action?: string;
+  current_subject?: string;
+  current_heading?: string;
+  current_body?: string;
+  current_cta_text?: string;
+  current_cta_link?: string;
+}
+
+export interface EmailAIGenerateResult {
+  subject: string;
+  heading: string;
+  body: string;
+  cta_text?: string;
+  cta_link?: string;
+  tone?: string;
+}
+
 export interface DnsRecordItem {
   record: string;
   type: string;
