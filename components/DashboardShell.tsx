@@ -329,7 +329,12 @@ export default function DashboardShell({
                   ? "text-red-600 dark:text-red-400"
                   : "text-zinc-700 dark:text-zinc-300"
                   }`}>
-                  {credits}
+                  {typeof credits === "number"
+                    ? credits.toLocaleString("en-IN", {
+                        minimumFractionDigits: credits % 1 === 0 ? 0 : 2,
+                        maximumFractionDigits: 2,
+                      })
+                    : credits}
                 </span>
               </div>
             )}
